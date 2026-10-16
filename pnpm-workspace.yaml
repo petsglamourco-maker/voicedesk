@@ -7,3 +7,6 @@ allowBuilds:
   esbuild: true
   # Optional native accelerator (bullmq -> msgpackr); prebuilt binaries are used, no build needed.
   msgpackr-extract: false
+  # Ship prebuilt platform binaries; install scripts are only source-build fallbacks.
+  "@parcel/watcher": false
+  "@swc/core": false

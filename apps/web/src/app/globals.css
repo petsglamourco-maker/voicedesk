@@ -1,0 +1,42 @@
+@import "tailwindcss";
+@source "../../../../packages/ui/src";
+
+/* Design tokens. Colours meet WCAG 2.2 AA contrast for text on their backgrounds. */
+@theme {
+  --color-background: #f7f7f8;
+  --color-surface: #ffffff;
+  --color-foreground: #17171c;
+  --color-muted: #f0f0f3;
+  --color-muted-foreground: #55555f;
+  --color-border: #dcdce2;
+  --color-primary: #3b3fd8;
+  --color-primary-foreground: #ffffff;
+  --color-ring: #3b3fd8;
+  --color-danger: #b42318;
+  --color-success: #067647;
+  --font-sans:
+    ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", "Noto Sans SC",
+    sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #111114;
+    --color-surface: #1a1a1f;
+    --color-foreground: #ededf0;
+    --color-muted: #24242b;
+    --color-muted-foreground: #a8a8b3;
+    --color-border: #33333c;
+    --color-primary: #8b8ef5;
+    --color-primary-foreground: #111114;
+    --color-ring: #8b8ef5;
+    --color-danger: #f97066;
+    --color-success: #47cd89;
+  }
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}

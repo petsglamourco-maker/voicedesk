@@ -1,0 +1,62 @@
+"use client";
+
+import { Alert, Button, Input, Label } from "@voicedesk/ui";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState, type FormEvent } from "react";
+import { authClient } from "@/lib/auth-client";
+import { formString } from "@/lib/form";
+
+export function SignInForm({ redirectTo }: { redirectTo: string }) {
+  const t = useTranslations("auth");
+  const common = useTranslations("common");
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setPending(true);
+    setError(null);
+    const { data, error } = await authClient.signIn.email({
+      email: formString(form, "email"),
+      password: formString(form, "password"),
+    });
+    setPending(false);
+    if (error) {
+      setError(
+        error.status === 403 ? t("emailNotVerified") : (error.message ?? common("errorGeneric")),
+      );
+      return;
+    }
+    // When 2FA is on, the client plugin redirects to /two-factor instead.
+    if (data && !("twoFactorRedirect" in data && data.twoFactorRedirect)) {
+      router.push(redirectTo);
+      router.refresh();
+    }
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-4" noValidate={false}>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      <div>
+        <Label htmlFor="email">{t("email")}</Label>
+        <Input id="email" name="email" type="email" autoComplete="email" required />
+      </div>
+      <div>
+        <Label htmlFor="password">{t("password")}</Label>
+        <Input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          required
+        />
+      </div>
+      <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? common("working") : t("signIn")}
+      </Button>
+    </form>
+  );
+}

@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
@@ -16,6 +17,7 @@ const env = z
     SMTP_PASSWORD: z.string().optional(),
     EMAIL_FROM: z.string().min(3),
     LOG_LEVEL: z.string().default("info"),
+    WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4100),
   })
   .parse(process.env);
 
@@ -44,9 +46,21 @@ for (const worker of workers) {
     ),
   );
 }
-log.info({ queues: workers.map((w) => w.name) }, "workers started");
+
+// Liveness endpoint for process supervisors and the e2e test harness.
+const health = createServer((_req, res) => {
+  const ok = workers.every((w) => w.isRunning()) && connection.status === "ready";
+  res.writeHead(ok ? 200 : 503, { "content-type": "application/json" });
+  res.end(JSON.stringify({ status: ok ? "ok" : "degraded" }));
+});
+health.listen(env.WORKER_HEALTH_PORT, "127.0.0.1");
+log.info(
+  { queues: workers.map((w) => w.name), healthPort: env.WORKER_HEALTH_PORT },
+  "workers started",
+);
 
 const shutdown = async () => {
+  health.close();
   await Promise.all(workers.map((w) => w.close()));
   connection.disconnect();
   process.exit(0);

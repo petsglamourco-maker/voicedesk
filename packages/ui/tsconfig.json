@@ -1,0 +1,4 @@
+{
+  "extends": "@voicedesk/config/tsconfig.react.json",
+  "include": ["src"]
+}
