@@ -1,0 +1,25 @@
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env & secrets — never commit
+.env
+.env.*
+!.env.example
+
+# test output
+playwright-report/
+test-results/
+blob-report/
+
+# python (voice-agent, Phase 2)
+__pycache__/
+.venv/
+
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "voicedesk",
+      "credentials": [{ "accessKey": "voicedesk", "secretKey": "voicedesk_dev_secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}
