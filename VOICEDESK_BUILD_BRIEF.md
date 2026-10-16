@@ -8,6 +8,7 @@
 ## 0. Your role and how to work
 
 You are a **principal engineer and solutions architect** with deep experience in:
+
 - real-time conversational voice AI (telephony, SIP, WebRTC, STT/TTS, barge-in, latency tuning)
 - multi-tenant SaaS (isolation, RBAC, billing, white-labelling)
 - messaging channels (WhatsApp Business Platform, SMS, email, web chat)
@@ -15,6 +16,7 @@ You are a **principal engineer and solutions architect** with deep experience in
 - UK GDPR, EU GDPR, PECR, Ofcom rules, EU AI Act transparency duties, US TCPA/FCC rules, and call-recording consent law
 
 **Working rules:**
+
 1. **Plan before coding.** For each phase, enter plan mode, write a short plan, and wait for my approval before writing large amounts of code.
 2. **Create and maintain `CLAUDE.md`** in the repo root: architecture summary, commands, conventions, env vars, decisions made. Update it at the end of every phase.
 3. **Create `docs/ADR/`** (Architecture Decision Records) — one short file per significant decision (provider choice, DB choice, etc.).
@@ -40,6 +42,7 @@ A multi-tenant platform where I (the platform owner) onboard many client busines
 - **Summaries, CRM, feedback/CSAT, analytics** and full **compliance tooling**.
 
 Three user levels:
+
 - **Platform Owner (super-admin)** — me. Manages all tenants, billing, providers, global settings.
 - **Business Admin / Staff** — each client company. Configures their agent, sees calls, contacts, bookings, reports.
 - **Human VA** — agents who work across one or more assigned businesses through the VA console.
@@ -50,30 +53,31 @@ Three user levels:
 
 Propose alternatives in an ADR if you have strong reasons, but default to:
 
-| Layer | Default choice | Notes |
-|---|---|---|
-| Language | TypeScript everywhere (Python allowed for the voice worker if the chosen voice framework is better in Python) | strict mode |
-| Monorepo | pnpm + Turborepo | `apps/` and `packages/` |
-| Web app (dashboards) | Next.js (App Router) + Tailwind + shadcn/ui | can deploy to Vercel |
-| API | Node (NestJS or Fastify) | REST + webhooks; OpenAPI spec generated |
-| Real-time voice worker | **LiveKit Agents** (open-source) with **Twilio** SIP trunking / Elastic SIP | long-running service — NOT on Vercel; use Fly.io, Railway or AWS ECS in London region |
-| Telephony & SMS | Twilio (numbers in many countries, Voice, SMS, Voice SDK for browser softphone) | adapter so Vonage/Telnyx can be added |
-| Speech-to-text | Deepgram (streaming, multilingual, language detection) | adapter |
-| Text-to-speech | ElevenLabs or Cartesia (low-latency, expressive, multilingual voices) | adapter |
-| LLM | Anthropic Claude via API — a fast model (e.g. `claude-haiku-5-5`) for live turns, a stronger model (e.g. `claude-sonnet-5-5`) for summaries, ingestion, complaint classification and VA tasks | verify current model strings in Anthropic docs |
-| Database | PostgreSQL (Supabase or Neon, EU/UK region) + **pgvector** for embeddings | Row-Level Security for tenant isolation |
-| Cache / queues | Redis + BullMQ | jobs: ingestion, summaries, emails, SMS, follow-ups, feedback |
-| Object storage | S3-compatible (AWS S3 eu-west-2 London, or Cloudflare R2 with EU jurisdiction) | encrypted; recordings, transcripts, uploads |
-| WhatsApp | Meta WhatsApp Business Platform (Cloud API) directly, or via Twilio WhatsApp | template messages + 24h service window logic |
-| Email | Postmark or Resend | transactional; per-tenant sender domains (SPF/DKIM/DMARC) |
-| Auth | Clerk or Auth.js with organisations, MFA, SSO-ready | RBAC |
-| Calendar | Google Calendar + Microsoft 365 (Outlook) OAuth; also native internal calendar | two-way sync |
-| Payments | Stripe (subscriptions + usage-based metering: minutes, messages) | |
-| Observability | OpenTelemetry, Sentry, structured logs (PII-redacted), Grafana/Prometheus or a hosted equivalent | per-call latency traces |
-| Infra as code | Terraform or Pulumi | |
-| Data residency | Default **UK (London)**; architecture must support per-tenant region (UK, EU, US) later | |
+| Layer                  | Default choice                                                                                                                                                                                | Notes                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Language               | TypeScript everywhere (Python allowed for the voice worker if the chosen voice framework is better in Python)                                                                                 | strict mode                                                                           |
+| Monorepo               | pnpm + Turborepo                                                                                                                                                                              | `apps/` and `packages/`                                                               |
+| Web app (dashboards)   | Next.js (App Router) + Tailwind + shadcn/ui                                                                                                                                                   | can deploy to Vercel                                                                  |
+| API                    | Node (NestJS or Fastify)                                                                                                                                                                      | REST + webhooks; OpenAPI spec generated                                               |
+| Real-time voice worker | **LiveKit Agents** (open-source) with **Twilio** SIP trunking / Elastic SIP                                                                                                                   | long-running service — NOT on Vercel; use Fly.io, Railway or AWS ECS in London region |
+| Telephony & SMS        | Twilio (numbers in many countries, Voice, SMS, Voice SDK for browser softphone)                                                                                                               | adapter so Vonage/Telnyx can be added                                                 |
+| Speech-to-text         | Deepgram (streaming, multilingual, language detection)                                                                                                                                        | adapter                                                                               |
+| Text-to-speech         | ElevenLabs or Cartesia (low-latency, expressive, multilingual voices)                                                                                                                         | adapter                                                                               |
+| LLM                    | Anthropic Claude via API — a fast model (e.g. `claude-haiku-5-5`) for live turns, a stronger model (e.g. `claude-sonnet-5-5`) for summaries, ingestion, complaint classification and VA tasks | verify current model strings in Anthropic docs                                        |
+| Database               | PostgreSQL (Supabase or Neon, EU/UK region) + **pgvector** for embeddings                                                                                                                     | Row-Level Security for tenant isolation                                               |
+| Cache / queues         | Redis + BullMQ                                                                                                                                                                                | jobs: ingestion, summaries, emails, SMS, follow-ups, feedback                         |
+| Object storage         | S3-compatible (AWS S3 eu-west-2 London, or Cloudflare R2 with EU jurisdiction)                                                                                                                | encrypted; recordings, transcripts, uploads                                           |
+| WhatsApp               | Meta WhatsApp Business Platform (Cloud API) directly, or via Twilio WhatsApp                                                                                                                  | template messages + 24h service window logic                                          |
+| Email                  | Postmark or Resend                                                                                                                                                                            | transactional; per-tenant sender domains (SPF/DKIM/DMARC)                             |
+| Auth                   | Clerk or Auth.js with organisations, MFA, SSO-ready                                                                                                                                           | RBAC                                                                                  |
+| Calendar               | Google Calendar + Microsoft 365 (Outlook) OAuth; also native internal calendar                                                                                                                | two-way sync                                                                          |
+| Payments               | Stripe (subscriptions + usage-based metering: minutes, messages)                                                                                                                              |                                                                                       |
+| Observability          | OpenTelemetry, Sentry, structured logs (PII-redacted), Grafana/Prometheus or a hosted equivalent                                                                                              | per-call latency traces                                                               |
+| Infra as code          | Terraform or Pulumi                                                                                                                                                                           |                                                                                       |
+| Data residency         | Default **UK (London)**; architecture must support per-tenant region (UK, EU, US) later                                                                                                       |                                                                                       |
 
 Suggested repo layout:
+
 ```
 apps/
   web/            # Next.js: owner, business and VA dashboards + public widget host
@@ -96,12 +100,14 @@ docs/ADR/
 ## 3. Core modules and requirements
 
 ### 3.1 Multi-tenancy & onboarding
+
 - Tenant = business. Strict isolation (RLS + tenant_id on every row + scoped storage prefixes + per-tenant vector namespaces). Write tests proving one tenant can never read another's data.
 - Onboarding wizard: business name, country, timezone, languages, opening hours, services, staff, escalation contacts, emergency transfer number(s), brand tone, website URL, document uploads, choose persona(s), buy/port/forward a number.
 - Number provisioning: search & buy a local number in the business's country/city via the telephony adapter, or support call-forwarding from their existing number. Handle regulatory bundles (some countries require address/identity proof before a local number is issued — model this as a pending state with document upload).
 - White-label option: custom logo, colours, sender domain, widget styling.
 
 ### 3.2 Knowledge ingestion ("learn the business")
+
 - Sources: website crawl (respect robots.txt, sitemap support, page limit, recrawl schedule), PDF, DOCX, TXT, CSV, pasted FAQ, manual Q&A pairs.
 - Pipeline: extract → clean → chunk → embed → store in pgvector with source metadata.
 - Auto-generate a **Business Profile** (services, prices if published, hours, location, policies, FAQs) for the admin to review/edit — admin-approved facts take priority over raw retrieval.
@@ -111,6 +117,7 @@ docs/ADR/
 ### 3.3 AI voice agent (inbound & outbound)
 
 **Naturalness & quality targets:**
+
 - Voice-to-voice response latency: target **< 800 ms** median, < 1.2 s p95. Instrument and display this per call.
 - Streaming everything (STT partials → LLM streaming → TTS streaming).
 - **Barge-in / interruption handling:** caller can interrupt; agent stops speaking immediately and listens.
@@ -120,38 +127,44 @@ docs/ADR/
 - Filler phrases while a tool runs ("Let me just check that for you…") so there's never dead air.
 
 **Personas (minimum 4, configurable per business):**
-| Persona | Gender | Default style |
-|---|---|---|
-| Amelia | Female | Warm, calm, reassuring (default UK English) |
-| James | Male | Friendly, efficient, professional |
-| Sofia | Female | Bright, upbeat, great for bookings & sales |
-| Daniel | Male | Composed, empathetic, ideal for complaints |
-Each persona = name, voice ID per language, speaking rate, tone guidelines, greeting templates. Businesses can rename personas and preview voices in the dashboard.
+
+| Persona                                                                                                                                                             | Gender | Default style                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------- |
+| Amelia                                                                                                                                                              | Female | Warm, calm, reassuring (default UK English) |
+| James                                                                                                                                                               | Male   | Friendly, efficient, professional           |
+| Sofia                                                                                                                                                               | Female | Bright, upbeat, great for bookings & sales  |
+| Daniel                                                                                                                                                              | Male   | Composed, empathetic, ideal for complaints  |
+| Each persona = name, voice ID per language, speaking rate, tone guidelines, greeting templates. Businesses can rename personas and preview voices in the dashboard. |
 
 **Languages:** English, Spanish, Mandarin Chinese, French, Arabic, German.
+
 - Detect caller language from the first utterance and switch automatically; also switch mid-call if the caller switches or asks.
 - Keep the same persona identity across languages (same name, matched voice).
 - Summaries for the business are always produced in the business's admin language, with original-language transcript kept.
 - Right-to-left support for Arabic in all UI and transcripts.
 
 **AI transparency (mandatory, non-negotiable):**
-- The voice must sound natural and human-like, **but the agent must never claim to be human**. At the start of each call it gives a brief, natural disclosure, e.g. *"Hi, you're through to Bright Dental, I'm Amelia, the practice's virtual assistant — how can I help today?"*
+
+- The voice must sound natural and human-like, **but the agent must never claim to be human**. At the start of each call it gives a brief, natural disclosure, e.g. _"Hi, you're through to Bright Dental, I'm Amelia, the practice's virtual assistant — how can I help today?"_
 - If asked "Am I talking to a real person / a robot?", it answers honestly and offers transfer to a human if available.
 - Outbound calls must also disclose AI identity and the business it's calling for, early in the call.
 - Rationale: EU AI Act transparency obligations, US FCC position that AI-generated voices fall under TCPA rules, various state laws, and basic consumer trust. Make the exact disclosure wording configurable per jurisdiction, but disclosure itself cannot be switched off.
 
 **Recording & consent:**
+
 - Configurable call recording per tenant; when on, play/say a recording notice. Support jurisdictions requiring all-party consent (some US states, etc.) — model this in a per-country compliance config.
 - Option for transcript-only (no audio retained).
 
 ### 3.4 Conversation flows (implement as explicit state machines in `agent-brain`, with the LLM handling language and the state machine guaranteeing required steps)
 
 **Universal opening**
+
 1. Greeting with business name, persona name, AI disclosure.
 2. "How can I help you today?"
 3. Classify intent: enquiry | complaint | booking/rescheduling/cancellation | message for staff | sales lead | emergency | other.
 
 **Complaint flow (must be systematic, polite, empathetic)**
+
 1. Acknowledge and empathise genuinely and briefly (no over-apologising, no admitting legal liability).
 2. Capture: caller name → what the issue is → when it started / was first noticed → how long it's been ongoing → impact/severity → anything already tried → relevant reference (order/account/booking number) → preferred outcome.
 3. Where the knowledge base allows, explain possible solutions or next steps clearly.
@@ -172,6 +185,7 @@ Check real availability via calendar integration (business hours, staff, service
 Take a structured message (who, number, reason, urgency, best time) → deliver instantly to the right staff member via email/SMS/WhatsApp/dashboard.
 
 **Emergency / human transfer (per-tenant toggle)**
+
 - Triggers: caller explicitly asks for a human, emergency keywords, very negative sentiment, repeated failure to understand, VIP contact.
 - Warm transfer: agent tells the caller it's connecting them, briefs the human (whisper summary or on-screen summary) before bridging.
 - Fallback chain: Human VA console → business staff numbers (in order) → voicemail with urgent alert.
@@ -181,7 +195,9 @@ Take a structured message (who, number, reason, urgency, best time) → deliver 
 Callback after complaint, appointment confirmation, missed-call follow-up, feedback calls, lead follow-up. Respect calling hours (local time), do-not-call lists, TPS/CTPS screening in the UK for marketing calls, and consent records. Voicemail detection → leave a short compliant message or hang up per config.
 
 ### 3.5 Post-conversation automation (every channel)
+
 After every call/chat/form:
+
 - Generate a structured **summary** (intent, outcome, key details, action items, sentiment, language, duration, ticket/booking refs).
 - Email summary to the business admin (and/or assigned staff); optional SMS/WhatsApp digest.
 - Optional confirmation to the caller/customer (email/SMS/WhatsApp) with reference number — only where they consented.
@@ -190,6 +206,7 @@ After every call/chat/form:
 - Trigger feedback request (see 3.9).
 
 ### 3.6 Messaging channels
+
 - **WhatsApp:** Meta WhatsApp Business Platform. Generate "Chat on WhatsApp" links/QR codes per business. Handle the 24-hour customer service window, approved template messages for business-initiated messages, opt-in tracking, media (images, voice notes → transcribe), and human takeover from the dashboard. **The bot must be scoped to each business's customer service / bookings / enquiries.** Check Meta's current WhatsApp Business policy on AI chatbots before building — general-purpose AI assistant use is restricted; business-specific support use is the permitted pattern.
 - **Website chat widget:** one-line embed script, themable, multilingual, works on mobile, offline/after-hours mode, handoff to human, file upload, GDPR notice + link to the business's privacy policy.
 - **Website forms:** (a) embeddable form builder, and (b) webhook/endpoint + small JS snippet to capture existing site forms (contact, quote, booking forms). The AI triages each submission, replies instantly by email/SMS/WhatsApp where consented, creates contact + ticket/lead, and can schedule a callback.
@@ -198,6 +215,7 @@ After every call/chat/form:
 - **Unified inbox** in the dashboard across all channels, with AI-suggested replies for human staff.
 
 ### 3.7 Contacts / mini-CRM
+
 - CSV upload (name, phone, email, company, tags, notes, custom fields) with column mapping, E.164 phone normalisation, duplicate detection/merge, and a lawful-basis/consent field.
 - Caller recognition: when a known number calls, the agent greets them by name (configurable) and has their history.
 - Auto-create contacts from calls, chats, forms; timeline of every interaction.
@@ -205,6 +223,7 @@ After every call/chat/form:
 - Marketing use only where consent exists; consent records are auditable.
 
 ### 3.8 Human VA console
+
 - Browser softphone (Twilio Voice JS SDK / WebRTC): make and receive calls **presenting the business's local number** as caller ID from anywhere in the world. Only allow numbers the platform owns or has verified for that tenant (no caller-ID spoofing).
 - VA can be assigned to multiple businesses; on incoming call the screen shows which business, the script/greeting to use, business profile, caller's contact history, and the AI's live transcript/summary if it was transferred.
 - Presence (available/busy/away), queues, ring groups, routing rules (AI first then human, human first then AI overflow, time-based).
@@ -213,6 +232,7 @@ After every call/chat/form:
 - Note in docs: some countries regulate call routing/termination via internet calling; model per-country telephony restrictions in config.
 
 ### 3.9 Feedback & customer satisfaction
+
 - Post-interaction CSAT (1–5) and NPS (0–10) via SMS, email, WhatsApp, or short automated feedback call; free-text comment.
 - Configurable delay and frequency caps (don't over-survey the same contact).
 - Negative feedback auto-creates a priority ticket and alerts the admin.
@@ -220,12 +240,15 @@ After every call/chat/form:
 - Dashboards: CSAT/NPS trends, by persona, by channel, by language, by VA.
 
 ### 3.10 AI Virtual Assistant (back-office tasks)
+
 A task-capable assistant for business admins (chat in dashboard, and optionally via WhatsApp/email to the business owner):
+
 - Manage calendar, send emails/SMS on their behalf (with approval mode), draft replies, chase follow-ups, create reminders, summarise the day ("Daily brief": calls, bookings, complaints, tasks).
 - Tool-based architecture (function calling) with an **approval gate** for any outward-facing or irreversible action, configurable per tenant.
 - Full audit log of every action the AI takes.
 
 ### 3.11 Dashboards
+
 - **Platform Owner:** tenants, usage (minutes, messages, tokens), costs vs revenue per tenant, provider health, global settings, impersonate-with-audit.
 - **Business:** live calls, call log with recordings/transcripts/summaries, inbox, tickets, bookings, contacts, knowledge base editor, personas & voice preview, routing & hours, integrations, feedback analytics, compliance settings, billing.
 - **VA:** softphone, queue, assigned businesses, tasks.
@@ -236,6 +259,7 @@ A task-capable assistant for business admins (chat in dashboard, and optionally 
 ## 4. Compliance & security (design in from day one)
 
 **UK GDPR / Data Protection Act 2018 / EU GDPR**
+
 - Platform acts as **processor** for each business (controller); provide a Data Processing Agreement template and sub-processor list.
 - Data map and a DPIA template (voice AI + recordings + profiling is likely to need one).
 - Lawful basis and consent capture per contact, per purpose (service vs marketing).
@@ -248,12 +272,14 @@ A task-capable assistant for business admins (chat in dashboard, and optionally 
 - Data residency per tenant (UK default).
 
 **Marketing & calling rules**
+
 - PECR: consent for marketing SMS/email; soft opt-in rules; TPS/CTPS screening for UK marketing calls; Ofcom persistent-misuse guidance; caller ID must be valid and returnable.
 - US (if used there): TCPA, FCC rules on AI voices, state recording-consent laws, calling-hour limits.
 - EU AI Act transparency: always disclose AI interaction (see 3.3).
 - Per-country compliance config file (`packages/compliance/countries/*.ts`) driving recording notices, consent, calling hours, disclosure wording, number regulations. Start with UK, then Ireland, EU (France, Germany, Spain), US, UAE, China/Hong Kong considerations.
 
 **Security**
+
 - Encryption in transit (TLS 1.2+) and at rest; per-tenant encryption keys for recordings (envelope encryption).
 - RBAC + MFA; SSO-ready; least privilege.
 - Webhook signature verification (Twilio, Meta, Stripe, etc.).
@@ -265,6 +291,7 @@ A task-capable assistant for business admins (chat in dashboard, and optionally 
 ---
 
 ## 5. Non-functional requirements
+
 - Availability target 99.9% for call answering; graceful degradation (if LLM fails → fallback model → fallback to simple message-taking → voicemail; never drop the call silently).
 - Horizontal scaling of voice workers; concurrency limits per tenant.
 - Cost tracking per call/message (telephony, STT, TTS, LLM tokens) stored for margin reporting.
@@ -278,15 +305,15 @@ A task-capable assistant for business admins (chat in dashboard, and optionally 
 
 **Phase 0 — Foundations**
 Monorepo, CI (lint/typecheck/test), DB schema v1 with RLS, auth + organisations + RBAC, `CLAUDE.md`, ADRs, `.env.example`, adapter interfaces, Docker Compose for local dev.
-*Done when:* I can sign up, create a business, invite staff, and tenant isolation tests pass.
+_Done when:_ I can sign up, create a business, invite staff, and tenant isolation tests pass.
 
 **Phase 1 — Knowledge & text agent**
 Website crawler, file uploads, ingestion pipeline, business profile generator/editor, agent-brain with personas and conversation state machines, text-based test console, simulated-call test harness.
-*Done when:* I can add a real website, review the generated profile, and chat with the agent through complaint, enquiry, booking and message flows in all 6 languages.
+_Done when:_ I can add a real website, review the generated profile, and chat with the agent through complaint, enquiry, booking and message flows in all 6 languages.
 
 **Phase 2 — Voice MVP (inbound)**
 Number purchase/forwarding, LiveKit + Twilio SIP, streaming STT/LLM/TTS, barge-in, 4 personas with voice preview, AI disclosure, recording notice, call log with transcripts, post-call summary email.
-*Done when:* I call a UK number, have a natural conversation, interrupt the agent, switch language mid-call, and receive a summary email within 60 s. Latency dashboard shows median < 800 ms.
+_Done when:_ I call a UK number, have a natural conversation, interrupt the agent, switch language mid-call, and receive a summary email within 60 s. Latency dashboard shows median < 800 ms.
 
 **Phase 3 — Secretary features**
 Google/Outlook calendar booking, reminders, message-taking, contacts + CSV import + caller recognition, tickets, emergency/warm transfer, SMS confirmations.
@@ -306,6 +333,7 @@ DSAR/erasure tooling, retention jobs, DPA/sub-processor docs, per-country config
 ---
 
 ## 7. Agent prompt engineering standards (for `packages/agent-brain`)
+
 - Separate: system persona prompt, business profile context, retrieved knowledge, conversation state, tool definitions.
 - Voice-specific style rules: 1–2 short sentences per turn, ask one question at a time, no lists or markdown, no emojis, spell out numbers naturally, confirm critical details by reading back.
 - Empathy rules: acknowledge feelings briefly and sincerely, stay calm with angry callers, never argue, never blame the customer or the business, never promise refunds/compensation unless the business policy allows it.
@@ -315,6 +343,7 @@ DSAR/erasure tooling, retention jobs, DPA/sub-processor docs, per-country config
 ---
 
 ## 8. Start now
+
 1. Read this brief fully.
 2. Ask me up to 10 clarifying questions that would materially change the architecture (e.g. which providers I already have accounts with, budget, first target countries, hosting preference).
 3. Then produce the Phase 0 plan in plan mode and wait for my approval.
