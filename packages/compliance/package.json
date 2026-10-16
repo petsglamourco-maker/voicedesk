@@ -1,0 +1,20 @@
+{
+  "name": "@voicedesk/compliance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./logger": "./src/logger.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "pino": "10.4.0"
+  },
+  "devDependencies": {
+    "@voicedesk/config": "workspace:*"
+  }
+}

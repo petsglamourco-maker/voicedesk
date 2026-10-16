@@ -85,4 +85,4 @@ export function createAuth(deps: AuthDeps) {
 
 export type Auth = ReturnType<typeof createAuth>;
 export type AuthSession = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
-export { ac, roles, BUSINESS_ROLES, type BusinessRole } from "./roles";
+export { ac, roles } from "./roles";
