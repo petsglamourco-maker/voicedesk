@@ -1,0 +1,19 @@
+{
+  "name": "@voicedesk/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./roles": "./src/roles.ts"
+  },
+  "scripts": {
+    "generate-schema": "pnpm dlx auth@1.7.10 generate --config src/cli-config.ts --output ../db/src/schema/auth.ts -y",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@voicedesk/config": "workspace:*",
+    "@voicedesk/db": "workspace:*",
+    "better-auth": "1.7.10"
+  }
+}

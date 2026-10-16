@@ -3,12 +3,12 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "files": [
-    "tsconfig.base.json",
-    "tsconfig.react.json"
-  ],
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
-    "./tsconfig.react.json": "./tsconfig.react.json"
+    "./tsconfig.react.json": "./tsconfig.react.json",
+    "./load-env": "./src/load-env.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
   }
 }
