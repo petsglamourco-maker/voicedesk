@@ -5,3 +5,5 @@ packages:
 # Only these dependencies may run install scripts.
 allowBuilds:
   esbuild: true
+  # Optional native accelerator (bullmq -> msgpackr); prebuilt binaries are used, no build needed.
+  msgpackr-extract: false

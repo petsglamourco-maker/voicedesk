@@ -8,4 +8,5 @@ export const auth = createAuth({
   secret: "schema-generation-only-secret-not-used-at-runtime",
   trustedOrigins: [],
   sendEmail: () => Promise.resolve(),
+  audit: () => Promise.resolve(),
 });

@@ -1,0 +1,19 @@
+{
+  "name": "@voicedesk/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "bullmq": "6.3.15",
+    "ioredis": "6.0.0"
+  },
+  "devDependencies": {
+    "@voicedesk/config": "workspace:*"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "@voicedesk/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/main.ts",
+    "start": "tsx src/main.ts",
+    "seed": "tsx src/seed.ts",
+    "openapi": "tsx src/openapi.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "11.2.1",
+    "@fastify/swagger": "9.9.2",
+    "@fastify/swagger-ui": "6.1.2",
+    "@voicedesk/auth": "workspace:*",
+    "@voicedesk/compliance": "workspace:*",
+    "@voicedesk/config": "workspace:*",
+    "@voicedesk/core": "workspace:*",
+    "@voicedesk/db": "workspace:*",
+    "@voicedesk/jobs": "workspace:*",
+    "better-auth": "1.7.10",
+    "drizzle-orm": "0.45.4",
+    "fastify": "5.12.7",
+    "fastify-type-provider-zod": "7.0.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}

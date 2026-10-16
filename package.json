@@ -19,7 +19,7 @@
     "infra:down": "docker compose down",
     "db:generate": "pnpm --filter @voicedesk/db generate",
     "db:migrate": "pnpm --filter @voicedesk/db migrate",
-    "db:seed": "pnpm --filter @voicedesk/db seed",
+    "db:seed": "pnpm --filter @voicedesk/api seed",
     "test:e2e": "pnpm --filter @voicedesk/web test:e2e"
   },
   "devDependencies": {
