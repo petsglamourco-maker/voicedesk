@@ -20,7 +20,8 @@
     "db:generate": "pnpm --filter @voicedesk/db generate",
     "db:migrate": "pnpm --filter @voicedesk/db migrate",
     "db:seed": "pnpm --filter @voicedesk/api seed",
-    "test:e2e": "pnpm --filter @voicedesk/web test:e2e"
+    "test:e2e": "pnpm --filter @voicedesk/web test:e2e",
+    "eval": "pnpm --filter @voicedesk/agent-brain eval"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

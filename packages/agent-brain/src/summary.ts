@@ -121,10 +121,7 @@ export async function summarizeConversation(
   }
 
   await withTenant(deps.db, tenantId, (tx) =>
-    tx
-      .update(conversations)
-      .set({ summary: summary })
-      .where(eq(conversations.id, conversationId)),
+    tx.update(conversations).set({ summary: summary }).where(eq(conversations.id, conversationId)),
   );
   return summary;
 }

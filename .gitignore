@@ -26,3 +26,6 @@ Thumbs.db
 
 # downloaded ML models
 .cache/
+
+# eval reports (contain transcripts)
+packages/agent-brain/evals/results/
