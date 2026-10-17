@@ -329,24 +329,90 @@ async function bookingLanguage(
   return toLang(conv?.language, "en");
 }
 
-const ALERT: Record<Lang, { ticket: string; message: string; callback: string; open: string }> = {
-  en: { ticket: "Urgent issue", message: "Urgent message", callback: "Call back", open: "Open" },
+const ALERT: Record<
+  Lang,
+  {
+    ticket: string;
+    message: string;
+    callback: string;
+    open: string;
+    transfer: string;
+    withheld: string;
+  }
+> = {
+  en: {
+    ticket: "Urgent issue",
+    message: "Urgent message",
+    callback: "Call back",
+    open: "Open",
+    transfer: "Putting a caller through to you now",
+    withheld: "number withheld",
+  },
   es: {
     ticket: "Incidencia urgente",
     message: "Mensaje urgente",
     callback: "Devolver llamada",
     open: "Ver",
+    transfer: "Le paso una llamada ahora",
+    withheld: "número oculto",
   },
-  fr: { ticket: "Problème urgent", message: "Message urgent", callback: "Rappeler", open: "Voir" },
+  fr: {
+    ticket: "Problème urgent",
+    message: "Message urgent",
+    callback: "Rappeler",
+    open: "Voir",
+    transfer: "Je vous transfère un appel",
+    withheld: "numéro masqué",
+  },
   de: {
     ticket: "Dringendes Anliegen",
     message: "Dringende Nachricht",
     callback: "Rückruf",
     open: "Öffnen",
+    transfer: "Ich stelle Ihnen jetzt einen Anruf durch",
+    withheld: "Nummer unterdrückt",
   },
-  zh: { ticket: "紧急问题", message: "紧急留言", callback: "回电", open: "查看" },
-  ar: { ticket: "مشكلة عاجلة", message: "رسالة عاجلة", callback: "معاودة الاتصال", open: "فتح" },
+  zh: {
+    ticket: "紧急问题",
+    message: "紧急留言",
+    callback: "回电",
+    open: "查看",
+    transfer: "正在为您转接一通来电",
+    withheld: "隐藏号码",
+  },
+  ar: {
+    ticket: "مشكلة عاجلة",
+    message: "رسالة عاجلة",
+    callback: "معاودة الاتصال",
+    open: "فتح",
+    transfer: "أحوّل إليك مكالمة الآن",
+    withheld: "رقم محجوب",
+  },
 };
+
+/** Heads-up text to the person a call is being transferred to: who and why. */
+export async function planTransferContext(
+  db: Database,
+  job: { tenantId: string; conversationId: string; to: string; reason: string },
+): Promise<NotificationPlan> {
+  const business = await loadBusiness(db, job.tenantId);
+  const l = ALERT[business.adminLanguage];
+  const [conv] = await withTenant(db, job.tenantId, (tx) =>
+    tx.select().from(conversations).where(eq(conversations.id, job.conversationId)),
+  );
+  const caller =
+    (conv?.state as { callerPhone?: string | null } | undefined)?.callerPhone ?? l.withheld;
+  return {
+    messages: [
+      {
+        channel: "sms",
+        to: job.to,
+        text: `${business.name}: ${l.transfer}. ${caller}. ${job.reason}`.slice(0, 300),
+        kind: "transfer.context",
+      },
+    ],
+  };
+}
 
 /**
  * Immediate alert to the business's owners and admins (email) and optional on-call mobile

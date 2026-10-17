@@ -73,6 +73,8 @@ Browser voice runs through [LiveKit Cloud](https://cloud.livekit.io) (free tier)
 
 A business can keep its existing number by forwarding calls to the VoiceDesk number. The Calls page shows the UK forwarding codes.
 
+**Putting callers through to a person:** in Twilio, open the trunk's **General** settings and enable **Call Transfer (SIP REFER)**, allowing transfers to the PSTN. Then set a transfer number under **Assistant → Putting callers through**. Twilio bills the transferred leg per minute.
+
 ## Checks
 
 ```bash

@@ -66,7 +66,10 @@ export interface AgentServices {
   createBooking(input: BookingInput): Promise<Created>;
   takeMessage(input: MessageInput): Promise<Created>;
   /** Records a request for a person; `available` says whether live transfer is possible. */
-  requestHuman(reason: string): Promise<Created & { available: boolean }>;
+  requestHuman(
+    reason: string,
+    options?: { urgent?: boolean },
+  ): Promise<Created & { available: boolean; transferTo?: string }>;
   /** Registers a new customer (lead / sign-up) taken by the assistant. */
   registerCustomer(input: SignupInput): Promise<Created>;
   /** Logs a question the assistant couldn't answer, so the business can fill the gap. */
@@ -181,9 +184,16 @@ export class InMemoryAgentServices implements AgentServices {
     return Promise.resolve();
   }
 
-  requestHuman(reason: string): Promise<Created & { available: boolean }> {
+  /** Set by tests to simulate a phone call where a transfer is possible. */
+  transferTo: string | null = null;
+
+  requestHuman(reason: string): Promise<Created & { available: boolean; transferTo?: string }> {
     const created = this.next("human");
     this.humanRequests.push({ reason, ...created });
-    return Promise.resolve({ ...created, available: false });
+    return Promise.resolve(
+      this.transferTo
+        ? { ...created, available: true, transferTo: this.transferTo }
+        : { ...created, available: false },
+    );
   }
 }

@@ -116,6 +116,8 @@ export interface ConversationState {
   emergencyShown: boolean;
   /** The agent closed the conversation (end_conversation); phone calls hang up. */
   endRequested?: boolean;
+  /** Phone calls: put the caller through to this number once the current reply is spoken. */
+  transfer?: { to: string };
 }
 
 export function initialState(language: Lang, callerPhone: string | null = null): ConversationState {

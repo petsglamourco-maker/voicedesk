@@ -113,6 +113,13 @@
       "when": 1792275118135,
       "tag": "0015_notification_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792275799152,
+      "tag": "0016_transfer_settings",
+      "breakpoints": true
     }
   ]
 }

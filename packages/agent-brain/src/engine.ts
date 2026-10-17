@@ -169,6 +169,9 @@ export async function runTurn(
 ): Promise<TurnResult> {
   const started = Date.now();
   const state = structuredClone(previous);
+  // Per-turn instructions to the channel (hang up, transfer): never carried into a new turn.
+  delete state.transfer;
+  delete state.endRequested;
   const events: TurnEvent[] = [];
   const usage: LlmUsage[] = [];
   state.turns++;

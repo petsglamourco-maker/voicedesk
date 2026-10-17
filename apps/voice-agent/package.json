@@ -22,7 +22,8 @@
     "@voicedesk/core": "workspace:*",
     "@voicedesk/db": "workspace:*",
     "@voicedesk/jobs": "workspace:*",
-    "drizzle-orm": "0.45.4"
+    "drizzle-orm": "0.45.4",
+    "livekit-server-sdk": "2.19.1"
   },
   "devDependencies": {
     "tsx": "4.23.15"

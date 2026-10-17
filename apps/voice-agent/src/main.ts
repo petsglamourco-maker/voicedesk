@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { SipClient } from "livekit-server-sdk";
 import {
   cli,
   defineAgent,
@@ -28,6 +29,7 @@ import {
   silentGoodbyePhrase,
   stillTherePhrase,
   sttLanguageFor,
+  transferFailedPhrase,
   voiceFor,
   type ConversationState,
 } from "@voicedesk/agent-brain";
@@ -141,6 +143,8 @@ export default defineAgent({
     let ids: JobIds;
     let state: ConversationState;
     let opening: string | null;
+    /** Phone calls: the caller's SIP participant (transfers act on it). */
+    let callerIdentity: string | null = null;
     if (job.kind === "browser") {
       ids = { tenantId: job.tenantId, conversationId: job.conversationId };
       const stored = await loadConversationState(db, ids.tenantId, ids.conversationId);
@@ -158,6 +162,7 @@ export default defineAgent({
         return;
       }
       const participant = await ctx.waitForParticipant();
+      callerIdentity = participant.identity;
       const caller = callerFromSip(participant.attributes);
       const created = await createConversation(db, agentCtx, {
         tenantId: job.tenantId,
@@ -200,6 +205,8 @@ export default defineAgent({
 
     // Set when the agent closes the conversation; the call ends once the goodbye is heard.
     let hangUpAfterSpeech = false;
+    // Set when the caller is being put through to a person; done once the sentence is heard.
+    let transferAfterSpeech: string | null = null;
     const bridge = new EngineBridge(
       {
         db,
@@ -207,6 +214,7 @@ export default defineAgent({
         embeddings: await embeddings,
         calendars: { ...calendars, log: (msg, data) => log.warn(data, msg) },
         notify: (event) => notify({ ...event, tenantId: ids.tenantId }),
+        canTransfer: job.kind === "phone",
       },
       agentCtx,
       ids,
@@ -219,6 +227,8 @@ export default defineAgent({
         },
         onTurn: (result) => {
           if (result.state.endRequested) hangUpAfterSpeech = true;
+          if (result.state.transfer && callerIdentity)
+            transferAfterSpeech = result.state.transfer.to;
           publish({ type: "turn", flow: result.state.flow, records: result.state.records });
         },
         onError: (error) => jobLog.error({ err: error }, "voice turn failed"),
@@ -280,9 +290,37 @@ export default defineAgent({
       await ctx.deleteRoom().catch(() => undefined);
       ctx.shutdown(reason);
     };
-    // Hang up once the closing goodbye has finished playing.
+    // Put the caller through (SIP REFER) once "I'll put you through" has been spoken.
+    const transfer = async (to: string) => {
+      jobLog.info("transferring call");
+      try {
+        const { LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET } = process.env;
+        const sip = new SipClient(
+          LIVEKIT_URL!.replace(/^ws/, "http"),
+          LIVEKIT_API_KEY,
+          LIVEKIT_API_SECRET,
+        );
+        await sip.transferSipParticipant(ctx.room.name!, callerIdentity!, `tel:${to}`, {
+          playDialtone: true,
+          ringingTimeout: 30,
+        });
+        // The caller has left the room; the shutdown callback saves and summarises the call.
+      } catch (err) {
+        jobLog.warn({ err }, "transfer failed; offering a message instead");
+        bridge.note(
+          "The transfer to a person failed. You told the caller and offered to take a message; continue from there.",
+        );
+        session.say(transferFailedPhrase(bridge.language));
+      }
+    };
+    // Hang up or transfer once the closing sentence has finished playing.
     session.on(voice.AgentSessionEventTypes.AgentStateChanged, (e) => {
-      if (hangUpAfterSpeech && e.oldState === "speaking" && e.newState !== "speaking") {
+      if (e.oldState !== "speaking" || e.newState === "speaking") return;
+      if (transferAfterSpeech) {
+        const to = transferAfterSpeech;
+        transferAfterSpeech = null;
+        void transfer(to);
+      } else if (hangUpAfterSpeech) {
         hangUpAfterSpeech = false;
         void hangUp("conversation closed");
       }

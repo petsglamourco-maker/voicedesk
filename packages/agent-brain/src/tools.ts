@@ -754,20 +754,31 @@ export const TOOLS = {
   request_human: define({
     description:
       "Only when the caller explicitly asks to speak to a person now. Never when they are just saying goodbye or thanks. Not for callback requests: those go on the complaint (wantsCallback) or a message.",
-    input: z.object({ reason: z.string() }),
-    run: async (env, { reason }) => {
-      const created = await env.services.requestHuman(reason);
+    input: z.object({
+      reason: z.string(),
+      urgent: z
+        .boolean()
+        .optional()
+        .describe("true when the caller describes one of the business's urgent situations"),
+    }),
+    run: async (env, { reason, urgent }) => {
+      const created = await env.services.requestHuman(reason, { urgent });
       const record: CreatedRecord = {
         type: "human_request",
         id: created.id,
         reference: created.reference,
       };
       env.state.records.push(record);
-      if (created.available)
+      if (created.available) {
+        if (created.transferTo) env.state.transfer = { to: created.transferTo };
         return {
-          result: { available: true, next: "Tell the caller you're connecting them now." },
+          result: {
+            available: true,
+            next: "In one short sentence, tell the caller you're putting them through now. Say nothing after that.",
+          },
           record,
         };
+      }
       env.state.flow = "message";
       return {
         result: {

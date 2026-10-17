@@ -16,6 +16,8 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
     - Manage bookings by phone or chat (find / cancel / reschedule with identity checks).
     - Contacts: caller recognition, CSV import, Contacts pages.
     - Confirmations, reminders and staff alerts (ADR 0015): `notifications` queue; SMS shows in Mailpit until Twilio is approved. Records actions.
+    - Phone transfers (ADR 0015): `request_human` on phone calls → `transferTarget` (hours, on-call number for urgent situations) → SIP REFER after the sentence is spoken, with a context text to the person answering. Falls back to a message if the transfer fails.
+  - **Next in Phase 3:** Outlook calendar (Microsoft Graph). Live tests need Google OAuth credentials and, for transfers, the Twilio number.
 
 ## Layout
 
@@ -130,6 +132,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Phone routing:** one LiveKit inbound trunk and dispatch rule per number. The dispatch metadata `{ tenantId, phoneNumberId }` tells the worker which business a call is for. Reassigning or disabling a number rebuilds the route. `phone_numbers` is platform-write-only (RLS).
 - **Recordings never leave our infrastructure:** `session.start({ record: false })` (otherwise LiveKit Cloud would receive session reports), and the in-process `CallRecorder` + `TeeAudioOutput` write `tenants/<id>/recordings/<conversationId>.wav`. Only when `agent_settings.record_calls` is on, which also adds the spoken notice.
 - **Notifications:** agent services take an optional `notify` hook and only report events. All "who gets what" logic lives in `agent-brain/src/notifications.ts` planners; `apps/workers` just sends. Never log message text or phone numbers.
+- **Per-turn channel instructions** (`state.transfer`, `state.endRequested`) are cleared at the start of every `runTurn`. Never persist them across turns, or a later turn repeats the transfer or hang-up.
 - **Booking changes** are gated by turn order in `tools.ts`: cancel needs a later turn than `find_booking`; reschedule needs a later turn than `check_availability`. Don't replace this with a "call twice" confirmation, which made models ask twice or claim success after a refusal (evals 2026-10-18).
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).

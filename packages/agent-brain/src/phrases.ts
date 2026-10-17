@@ -77,6 +77,20 @@ const SILENT_GOODBYE: Record<Lang, string> = {
   ar: "لا أستطيع سماعك، لذا سأنهي المكالمة الآن. يمكنك الاتصال بنا في أي وقت. مع السلامة.",
 };
 
+/** Spoken when a phone transfer fails; the assistant then offers to take a message. */
+const TRANSFER_FAILED: Record<Lang, string> = {
+  en: "Sorry, I couldn't put you through just now. I can take a message so they call you back. Would that help?",
+  es: "Lo siento, no he podido pasarle la llamada ahora mismo. Puedo tomar un mensaje para que le devuelvan la llamada. ¿Le parece bien?",
+  fr: "Désolée, je n'ai pas pu vous transférer pour le moment. Je peux prendre un message pour qu'on vous rappelle. Cela vous convient ?",
+  de: "Entschuldigung, ich konnte Sie gerade nicht verbinden. Ich kann eine Nachricht für einen Rückruf aufnehmen. Wäre das in Ordnung?",
+  zh: "抱歉，暂时无法为您转接。我可以帮您留言，请他们给您回电。可以吗？",
+  ar: "عذراً، لم أتمكن من تحويلك الآن. يمكنني أخذ رسالة ليعاودوا الاتصال بك. هل يناسبك ذلك؟",
+};
+
+export function transferFailedPhrase(lang: Lang): string {
+  return TRANSFER_FAILED[lang];
+}
+
 export function stillTherePhrase(lang: Lang): string {
   return STILL_THERE[lang];
 }

@@ -8,7 +8,7 @@ import { formatProfileForPrompt } from "./profile";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-18.3";
+export const PROMPT_VERSION = "2026-10-18.4";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -72,10 +72,13 @@ function profileSegment(ctx: AgentContext): string {
   if (!ctx.profile) {
     return `Business profile: not approved yet, so you only know the business name (${ctx.businessName}). Use search_knowledge for every question about the business. If it finds nothing, say you don't have that detail, call note_unanswered_question, and keep helping where you can.`;
   }
+  const urgent = ctx.urgentSituations?.trim()
+    ? `\n\nUrgent situations for this business: ${ctx.urgentSituations.trim()}. If the caller describes one of these, give any immediate safety advice from the profile, then call request_human with urgent true.`
+    : "";
   return `Business profile (approved by the business; with tool results, your only source of business facts):
 ${formatProfileForPrompt(ctx.profile)}
 
-Business time zone: ${ctx.timezone}.`;
+Business time zone: ${ctx.timezone}.${urgent}`;
 }
 
 export function buildSystemPrompt(ctx: AgentContext): string[] {

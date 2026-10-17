@@ -3,6 +3,7 @@ import {
   planBookingNotification,
   planBookingReminder,
   planStaffAlert,
+  planTransferContext,
   type NotificationPlan,
 } from "@voicedesk/agent-brain";
 import type { Logger } from "@voicedesk/compliance/logger";
@@ -79,6 +80,8 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
         return execute(job, data.tenantId, await planBookingReminder(deps.db, data));
       case "staff.alert":
         return execute(job, data.tenantId, await planStaffAlert(deps.db, data, deps.webOrigin));
+      case "transfer.context":
+        return execute(job, data.tenantId, await planTransferContext(deps.db, data));
     }
   };
 }

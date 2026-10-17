@@ -27,6 +27,7 @@ import type { AgentContext } from "./context";
 import { toLang } from "./languages";
 import { upsertContactByPhone } from "./contacts";
 import { getPersona } from "./personas";
+import { isOpenNow, transferTarget } from "./transfer";
 import { getApprovedProfile } from "./profile-store";
 import type { BusyRange } from "./availability";
 import type { AgentServices, Created } from "./services";
@@ -51,7 +52,8 @@ export interface DbServiceDeps {
 /** What the agent did that someone should hear about (see NotificationJob in @voicedesk/jobs). */
 export type AgentNotification =
   | { kind: "booking.changed"; bookingId: string; change: "created" | "moved" | "cancelled" }
-  | { kind: "staff.alert"; record: "ticket" | "message"; id: string };
+  | { kind: "staff.alert"; record: "ticket" | "message"; id: string }
+  | { kind: "transfer.context"; conversationId: string; to: string; reason: string };
 
 const BUSY_CACHE_MS = 60_000;
 const busyCache = new Map<string, { at: number; ranges: BusyRange[] }>();
@@ -84,7 +86,14 @@ async function withReference<T>(
 /** Agent side effects backed by the tenant's database (RLS-scoped). */
 export function createDbAgentServices(
   deps: DbServiceDeps,
-  scope: { tenantId: string; conversationId: string; businessName: string; timezone?: string },
+  scope: {
+    tenantId: string;
+    conversationId: string;
+    businessName: string;
+    timezone?: string;
+    /** Phone calls only: the caller can be put through to a person (SIP transfer). */
+    canTransfer?: boolean;
+  },
 ): AgentServices {
   const { db } = deps;
   const { tenantId, conversationId, businessName } = scope;
@@ -396,9 +405,25 @@ export function createDbAgentServices(
       );
     },
 
-    async requestHuman(reason) {
-      // Live transfer arrives with the VA console (Phase 5); for now record the request.
+    async requestHuman(reason, options = {}) {
       const reference = makeReference(businessName);
+      let transferTo: string | undefined;
+      if (scope.canTransfer) {
+        const [settings] = await tx((t) =>
+          t.select().from(agentSettings).where(eq(agentSettings.tenantId, tenantId)),
+        );
+        const profile = await getApprovedProfile(db, tenantId);
+        transferTo =
+          transferTarget(
+            {
+              transferPhone: settings?.transferPhone ?? null,
+              transferHours: settings?.transferHours === "always" ? "always" : "open",
+              onCallPhone: settings?.onCallPhone ?? null,
+            },
+            isOpenNow(profile, scope.timezone ?? "Europe/London", new Date()),
+            options.urgent === true,
+          ) ?? undefined;
+      }
       await tx((t) =>
         t.insert(auditLog).values({
           tenantId,
@@ -406,9 +431,24 @@ export function createDbAgentServices(
           action: "conversation.human_requested",
           targetType: "conversation",
           targetId: conversationId,
-          metadata: { reason: reason.slice(0, 200), reference },
+          metadata: {
+            reason: reason.slice(0, 200),
+            reference,
+            urgent: options.urgent === true,
+            transfer: transferTo !== undefined,
+          },
         }),
       );
+      if (transferTo) {
+        // Context for the person about to answer: who's calling and why.
+        await notify({
+          kind: "transfer.context",
+          conversationId,
+          to: transferTo,
+          reason: reason.slice(0, 200),
+        });
+        return { id: conversationId, reference, available: true, transferTo };
+      }
       return { id: conversationId, reference, available: false };
     },
   };
@@ -446,6 +486,7 @@ export async function loadAgentContext(
     emergencyNumber,
     recordCalls: settings?.recordCalls ?? false,
     voiceIds: settings?.voiceIds ?? {},
+    urgentSituations: settings?.urgentSituations ?? null,
     now,
   };
 }

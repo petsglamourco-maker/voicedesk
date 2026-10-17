@@ -47,7 +47,15 @@ export type NotificationJob =
       startsAt: string;
       language?: string;
     }
-  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message"; id: string };
+  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message"; id: string }
+  | {
+      kind: "transfer.context";
+      tenantId: string;
+      conversationId: string;
+      /** The number the call is being transferred to (gets a heads-up text). */
+      to: string;
+      reason: string;
+    };
 
 /** BullMQ job id for a booking's reminder (so it can be moved or removed). */
 export const reminderJobId = (bookingId: string) => `reminder-${bookingId}`;

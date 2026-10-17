@@ -19,6 +19,8 @@ export interface BridgeDeps {
   calendars?: DbServiceDeps["calendars"];
   /** Confirmations, reminders and staff alerts; see DbServiceDeps. */
   notify?: DbServiceDeps["notify"];
+  /** Phone calls: callers can be put through to a person (SIP transfer). */
+  canTransfer?: boolean;
 }
 
 export interface TurnTimings {
@@ -85,7 +87,12 @@ export class EngineBridge {
           calendars: this.deps.calendars,
           notify: this.deps.notify,
         },
-        { ...this.ids, businessName: this.ctx.businessName, timezone: this.ctx.timezone },
+        {
+          ...this.ids,
+          businessName: this.ctx.businessName,
+          timezone: this.ctx.timezone,
+          canTransfer: this.deps.canTransfer,
+        },
       );
       try {
         const result = await runTurn(
@@ -117,6 +124,18 @@ export class EngineBridge {
     const next = this.queue.then(run, run);
     this.queue = next;
     return next;
+  }
+
+  /**
+   * Adds an engine note to the conversation history (e.g. "the transfer failed"), so the next
+   * turn knows. Saved with that turn.
+   */
+  note(text: string): void {
+    this.state = {
+      ...this.state,
+      transfer: undefined,
+      history: [...this.state.history, { role: "system", content: `[Engine note] ${text}` }],
+    };
   }
 
   /** Waits for any turn still in progress (call before ending the conversation). */

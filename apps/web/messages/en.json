@@ -561,5 +561,17 @@
     "hoursBefore": "{hours} hours before",
     "alertPhone": "Mobile for urgent alerts (optional)",
     "alertPhoneHint": "Urgent problems, callback requests and urgent messages are emailed to owners and admins straight away. Add a mobile to get a text too."
+  },
+  "transfers": {
+    "title": "Putting callers through (phone calls)",
+    "hint": "When a caller asks to speak to someone, the assistant can put them through to you instead of taking a message. The person answering gets a text saying who's calling and why.",
+    "transferPhone": "Number to put callers through to",
+    "when": "When",
+    "whenOpen": "During opening hours",
+    "whenAlways": "Any time",
+    "urgent": "Urgent situations (optional)",
+    "urgentPlaceholder": "e.g. burst pipe, no heating, gas smell",
+    "onCall": "Out-of-hours number for urgent situations",
+    "note": "Leave the number empty to always take a message instead. Life-threatening emergencies are always told to call 999. Transferred calls are charged by your phone provider."
   }
 }

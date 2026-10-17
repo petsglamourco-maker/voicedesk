@@ -26,6 +26,10 @@ interface Settings {
   customerConfirmations: boolean;
   alertPhone: string | null;
   voiceIds: Record<string, string>;
+  transferPhone: string | null;
+  transferHours: string;
+  onCallPhone: string | null;
+  urgentSituations: string | null;
 }
 
 export interface AgentResponse {
@@ -47,6 +51,7 @@ export function AgentSettingsForm(props: {
   const t = useTranslations("agent");
   const tv = useTranslations("voice");
   const tn = useTranslations("notifications");
+  const tt = useTranslations("transfers");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -291,6 +296,55 @@ export function AgentSettingsForm(props: {
               <p className="mt-1 text-xs text-muted-foreground">{tn("alertPhoneHint")}</p>
             </div>
           </div>
+        </Card>
+
+        <Card>
+          <CardTitle>{tt("title")}</CardTitle>
+          <CardDescription>{tt("hint")}</CardDescription>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="transferPhone">{tt("transferPhone")}</Label>
+              <Input
+                id="transferPhone"
+                inputMode="tel"
+                placeholder="07700 900123"
+                value={settings.transferPhone ?? ""}
+                onChange={(e) => update({ transferPhone: e.target.value || null })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="transferHours">{tt("when")}</Label>
+              <Select
+                id="transferHours"
+                value={settings.transferHours}
+                onChange={(e) => update({ transferHours: e.target.value })}
+              >
+                <option value="open">{tt("whenOpen")}</option>
+                <option value="always">{tt("whenAlways")}</option>
+              </Select>
+            </div>
+            <div className="sm:col-span-2">
+              <Label htmlFor="urgentSituations">{tt("urgent")}</Label>
+              <Input
+                id="urgentSituations"
+                placeholder={tt("urgentPlaceholder")}
+                maxLength={500}
+                value={settings.urgentSituations ?? ""}
+                onChange={(e) => update({ urgentSituations: e.target.value || null })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="onCallPhone">{tt("onCall")}</Label>
+              <Input
+                id="onCallPhone"
+                inputMode="tel"
+                placeholder="07700 900456"
+                value={settings.onCallPhone ?? ""}
+                onChange={(e) => update({ onCallPhone: e.target.value || null })}
+              />
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">{tt("note")}</p>
         </Card>
 
         {props.canEdit ? (

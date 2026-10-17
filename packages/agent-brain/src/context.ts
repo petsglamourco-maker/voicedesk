@@ -21,5 +21,7 @@ export interface AgentContext {
   recordCalls?: boolean;
   /** Per-persona TTS voice overrides (see voices.ts for the defaults). */
   voiceIds?: Record<string, string>;
+  /** What counts as urgent for this business (phone transfers to the on-call number). */
+  urgentSituations?: string | null;
   now: () => Date;
 }

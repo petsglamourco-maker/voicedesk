@@ -48,6 +48,12 @@ const settingsSchema = z.object({
   customerConfirmations: z.boolean().default(true),
   /** Mobile for urgent alerts by SMS (any format; stored as E.164). */
   alertPhone: z.string().trim().max(40).nullable().default(null),
+  /** Phone calls: put callers through to this number when they ask for a person. */
+  transferPhone: z.string().trim().max(40).nullable().default(null),
+  transferHours: z.enum(["open", "always"]).default("open"),
+  /** Urgent situations only, outside the transfer hours. */
+  onCallPhone: z.string().trim().max(40).nullable().default(null),
+  urgentSituations: z.string().trim().max(500).nullable().default(null),
 });
 
 const settingsResponse = z.object({
@@ -60,6 +66,10 @@ const settingsResponse = z.object({
   reminderHours: z.number(),
   customerConfirmations: z.boolean(),
   alertPhone: z.string().nullable(),
+  transferPhone: z.string().nullable(),
+  transferHours: z.string(),
+  onCallPhone: z.string().nullable(),
+  urgentSituations: z.string().nullable(),
 });
 
 const DEFAULTS = {
@@ -72,6 +82,10 @@ const DEFAULTS = {
   reminderHours: 24,
   customerConfirmations: true,
   alertPhone: null as string | null,
+  transferPhone: null as string | null,
+  transferHours: "open",
+  onCallPhone: null as string | null,
+  urgentSituations: null as string | null,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -122,6 +136,10 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               reminderHours: row.reminderHours,
               customerConfirmations: row.customerConfirmations,
               alertPhone: row.alertPhone,
+              transferPhone: row.transferPhone,
+              transferHours: row.transferHours,
+              onCallPhone: row.onCallPhone,
+              urgentSituations: row.urgentSituations,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),
@@ -139,20 +157,22 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "agent:configure",
       );
-      let alertPhone: string | null = null;
-      if (request.body.alertPhone) {
-        const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
-          tx
-            .select({ c: tenants.countryCode })
-            .from(tenants)
-            .where(eq(tenants.id, access.tenantId)),
-        );
-        alertPhone = normalisePhone(request.body.alertPhone, tenant?.c ?? "GB");
-        if (!alertPhone) {
-          throw new HttpError(400, "INVALID_PHONE", "The alert phone number isn't valid");
-        }
-      }
-      const settings = { ...request.body, alertPhone };
+      const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, access.tenantId)),
+      );
+      const phone = (value: string | null, label: string) => {
+        if (!value) return null;
+        const e164 = normalisePhone(value, tenant?.c ?? "GB");
+        if (!e164) throw new HttpError(400, "INVALID_PHONE", `The ${label} number isn't valid`);
+        return e164;
+      };
+      const settings = {
+        ...request.body,
+        alertPhone: phone(request.body.alertPhone, "alert"),
+        transferPhone: phone(request.body.transferPhone, "transfer"),
+        onCallPhone: phone(request.body.onCallPhone, "on-call"),
+        urgentSituations: request.body.urgentSituations || null,
+      };
       const values = { ...settings, tenantId: access.tenantId };
       await withTenant(deps.db, access.tenantId, async (tx) => {
         await tx

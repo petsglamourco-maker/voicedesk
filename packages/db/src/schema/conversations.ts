@@ -36,6 +36,14 @@ export const agentSettings = pgTable("agent_settings", {
   customerConfirmations: boolean("customer_confirmations").notNull().default(true),
   /** Mobile number that also gets urgent alerts by SMS (owners/admins always get email). */
   alertPhone: text("alert_phone"),
+  /** Phone calls: number to put callers through to when they ask for a person (Phase 3). */
+  transferPhone: text("transfer_phone"),
+  /** When transfers to transferPhone are allowed: "open" (opening hours) or "always". */
+  transferHours: text("transfer_hours").notNull().default("open"),
+  /** Out-of-hours number for urgent situations only. */
+  onCallPhone: text("on_call_phone"),
+  /** What counts as urgent for this business (e.g. "burst pipe, no heating"). */
+  urgentSituations: text("urgent_situations"),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,
