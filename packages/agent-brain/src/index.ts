@@ -28,3 +28,8 @@ export { runTurn, startConversation, type TurnEvent, type TurnResult } from "./e
 export { ConversationDriver } from "./driver";
 export { makeReference, normalisePhone, groupDigitsForReadback } from "./util";
 export { createDbAgentServices, loadAgentContext, type DbServiceDeps } from "./services-db";
+export {
+  conversationSummarySchema,
+  summarizeConversation,
+  type ConversationSummary,
+} from "./summary";

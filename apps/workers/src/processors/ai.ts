@@ -1,5 +1,5 @@
 import type { LlmProvider } from "@voicedesk/adapters";
-import { generateProfileDraft } from "@voicedesk/agent-brain";
+import { generateProfileDraft, summarizeConversation } from "@voicedesk/agent-brain";
 import type { Logger } from "@voicedesk/compliance/logger";
 import type { Database } from "@voicedesk/db";
 import type { AiJob, Job } from "@voicedesk/jobs";
@@ -18,10 +18,19 @@ export function createAiProcessor(deps: AiDeps, log: Logger) {
         log.info({ jobId: job.id, tenantId: data.tenantId, version }, "profile draft generated");
         return { version };
       }
-      case "conversation.summarize":
-        // Implemented with conversation summaries (Phase 1 step 8).
-        log.warn({ jobId: job.id }, "conversation.summarize not implemented yet");
-        return null;
+      case "conversation.summarize": {
+        const summary = await summarizeConversation(deps, data.tenantId, data.conversationId);
+        log.info(
+          {
+            jobId: job.id,
+            tenantId: data.tenantId,
+            intent: summary.intent,
+            by: summary.generatedBy,
+          },
+          "conversation summarised",
+        );
+        return { intent: summary.intent };
+      }
     }
   };
 }
