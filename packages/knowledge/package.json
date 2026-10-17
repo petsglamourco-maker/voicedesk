@@ -1,0 +1,29 @@
+{
+  "name": "@voicedesk/knowledge",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "@voicedesk/adapters": "workspace:*",
+    "@voicedesk/db": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "linkedom": "0.18.13",
+    "mammoth": "1.13.0",
+    "papaparse": "5.7.0",
+    "robots-parser": "3.0.1",
+    "undici": "8.12.2",
+    "unpdf": "1.9.0"
+  },
+  "devDependencies": {
+    "@types/papaparse": "5.5.2",
+    "@voicedesk/config": "workspace:*"
+  }
+}
