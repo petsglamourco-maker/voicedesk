@@ -15,7 +15,7 @@ import { HttpError, notFound } from "../lib/errors";
 import { requireSession } from "./guards";
 
 /** Platform-owner-only settings. Everyone else gets 404 (the routes don't "exist" for them). */
-async function requirePlatformOwner(deps: AppDeps, request: FastifyRequest) {
+export async function requirePlatformOwner(deps: AppDeps, request: FastifyRequest) {
   const session = await requireSession(deps.auth, request);
   if (!session.user.isPlatformOwner) throw notFound();
   return session;

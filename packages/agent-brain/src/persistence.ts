@@ -1,8 +1,60 @@
 import { conversationMessages, conversations, withTenant, type Database } from "@voicedesk/db";
 import { and, eq, sql } from "drizzle-orm";
-import type { TurnResult } from "./engine";
+import type { AgentContext } from "./context";
+import { startConversation, type TurnResult } from "./engine";
+import type { Lang } from "./languages";
 import type { ConversationState } from "./state";
 import { recordLlmUsage } from "./usage";
+
+/**
+ * Starts a conversation: fixed greeting (AI disclosure, plus the recording notice when calls
+ * are recorded), stored state and the greeting message. Shared by the test console, browser
+ * voice and phone calls.
+ */
+export async function createConversation(
+  db: Database,
+  ctx: AgentContext,
+  params: {
+    tenantId: string;
+    channel: "test_console" | "voice";
+    language?: Lang;
+    callerPhone?: string | null;
+    createdBy?: string | null;
+    phoneNumberId?: string | null;
+    callerNumberWithheld?: boolean;
+  },
+): Promise<{ conversationId: string; state: ConversationState; greeting: string }> {
+  const { state, greeting } = startConversation(ctx, {
+    language: params.language,
+    callerPhone: params.callerPhone ?? null,
+    recordingNotice: ctx.style === "voice" && ctx.recordCalls === true,
+  });
+  const conversationId = await withTenant(db, params.tenantId, async (tx) => {
+    const [row] = await tx
+      .insert(conversations)
+      .values({
+        tenantId: params.tenantId,
+        channel: params.channel,
+        style: ctx.style,
+        personaId: ctx.persona.id,
+        language: state.language,
+        state: state as unknown as Record<string, unknown>,
+        createdBy: params.createdBy ?? null,
+        phoneNumberId: params.phoneNumberId ?? null,
+        callerNumberWithheld: params.callerNumberWithheld ?? false,
+      })
+      .returning({ id: conversations.id });
+    await tx.insert(conversationMessages).values({
+      tenantId: params.tenantId,
+      conversationId: row!.id,
+      role: "agent",
+      content: greeting,
+      language: state.language,
+    });
+    return row!.id;
+  });
+  return { conversationId, state, greeting };
+}
 
 /**
  * Saves one engine turn: new state (optimistic concurrency on the turn counter), the

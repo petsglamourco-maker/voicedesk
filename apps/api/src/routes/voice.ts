@@ -1,13 +1,13 @@
 import {
+  createConversation,
   getPersona,
   greeting,
   LANGUAGES,
   loadAgentContext,
   PERSONA_IDS,
-  startConversation,
   voiceFor,
 } from "@voicedesk/agent-brain";
-import { conversationMessages, conversations, withTenant } from "@voicedesk/db";
+import { conversations, withTenant } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -56,31 +56,11 @@ export function registerVoiceRoutes(app: FastifyInstance, deps: AppDeps): void {
       );
       if (!deps.voice) throw notConfigured("Voice (LiveKit)");
       const ctx = await loadAgentContext(deps.db, access.tenantId, "voice");
-      const { state, greeting: text } = startConversation(ctx, {
+      const { conversationId, greeting: text } = await createConversation(deps.db, ctx, {
+        tenantId: access.tenantId,
+        channel: "test_console",
         language: request.body.language,
-        recordingNotice: ctx.recordCalls,
-      });
-      const conversationId = await withTenant(deps.db, access.tenantId, async (tx) => {
-        const [row] = await tx
-          .insert(conversations)
-          .values({
-            tenantId: access.tenantId,
-            channel: "test_console",
-            style: "voice",
-            personaId: ctx.persona.id,
-            language: state.language,
-            state: state as unknown as Record<string, unknown>,
-            createdBy: access.session.user.id,
-          })
-          .returning({ id: conversations.id });
-        await tx.insert(conversationMessages).values({
-          tenantId: access.tenantId,
-          conversationId: row!.id,
-          role: "agent",
-          content: text,
-          language: state.language,
-        });
-        return row!.id;
+        createdBy: access.session.user.id,
       });
       const roomName = `vd-${conversationId}`;
       try {

@@ -39,7 +39,12 @@ export {
   summarizeConversation,
   type ConversationSummary,
 } from "./summary";
-export { endConversation, loadConversationState, persistTurn } from "./persistence";
+export {
+  createConversation,
+  endConversation,
+  loadConversationState,
+  persistTurn,
+} from "./persistence";
 export {
   DEFAULT_TTS_MODEL,
   DEFAULT_VOICE_IDS,

@@ -18,6 +18,7 @@ import {
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
 import type { Env } from "./env";
+import { sipGatewayFromEnv, type SipGateway } from "./lib/sip";
 import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
 
 export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promise<void> {
@@ -67,6 +68,8 @@ export interface Container {
   voice?: VoiceGateway | null;
   /** Voice previews; null until ELEVENLABS_API_KEY is set. */
   tts?: TextToSpeechProvider | null;
+  /** LiveKit SIP routing for phone numbers; null until LIVEKIT_* are set. */
+  sip?: SipGateway | null;
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -97,6 +100,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     secrets,
     voice: voiceGatewayFromEnv(),
     tts: await ttsFromEnv(),
+    sip: sipGatewayFromEnv(),
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {

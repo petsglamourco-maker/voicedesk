@@ -35,6 +35,35 @@ export const agentSettings = pgTable("agent_settings", {
   ...timestamps,
 });
 
+export const phoneNumberStatus = pgEnum("phone_number_status", ["active", "disabled"]);
+
+/**
+ * Phone numbers routed to a business's assistant (Phase 2b, ADR 0013). Bought by the platform
+ * owner (Twilio) and registered in Platform admin, which creates the LiveKit SIP inbound trunk
+ * and dispatch rule. Businesses can read their own numbers; only platform access can write.
+ */
+export const phoneNumbers = pgTable(
+  "phone_numbers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** E.164, e.g. +442071234567. Globally unique. */
+    e164: text("e164").notNull(),
+    provider: text("provider").notNull().default("twilio"),
+    label: text("label"),
+    status: phoneNumberStatus("status").notNull().default("active"),
+    livekitTrunkId: text("livekit_trunk_id"),
+    livekitDispatchRuleId: text("livekit_dispatch_rule_id"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("phone_numbers_e164_idx").on(t.e164),
+    index("phone_numbers_tenant_idx").on(t.tenantId),
+  ],
+);
+
 export const conversationChannel = pgEnum("conversation_channel", [
   "test_console",
   "web_chat",
@@ -63,6 +92,14 @@ export const conversations = pgTable(
     contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
     summary: jsonb("summary").$type<Record<string, unknown>>(),
     createdBy: uuid("created_by"),
+    /** Phone calls: the number that was called. */
+    phoneNumberId: uuid("phone_number_id").references(() => phoneNumbers.id, {
+      onDelete: "set null",
+    }),
+    /** Phone calls: the caller hid their number. */
+    callerNumberWithheld: boolean("caller_number_withheld").notNull().default(false),
+    /** Object-storage key of the call recording (only when the business records calls). */
+    recordingKey: text("recording_key"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },

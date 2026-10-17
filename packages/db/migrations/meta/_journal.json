@@ -64,6 +64,20 @@
       "when": 1792262817008,
       "tag": "0008_voice_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792271115384,
+      "tag": "0009_phone_numbers",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792271116947,
+      "tag": "0010_phone_numbers_rls",
+      "breakpoints": true
     }
   ]
 }

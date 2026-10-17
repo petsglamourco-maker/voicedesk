@@ -35,7 +35,7 @@ export interface TestHarness {
  * run inline, so tests can assert on processed results without a worker.
  */
 export async function createHarness(
-  options: Pick<AppDeps, "voice" | "tts"> & { llm?: LlmProvider } = {},
+  options: Pick<AppDeps, "voice" | "tts" | "sip"> & { llm?: LlmProvider } = {},
 ): Promise<TestHarness> {
   loadRootEnv();
   const env = parseEnv({
@@ -78,6 +78,7 @@ export async function createHarness(
     llm: options.llm ?? llm,
     voice: options.voice ?? null,
     tts: options.tts ?? null,
+    sip: options.sip ?? null,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",
   });

@@ -10,6 +10,7 @@ import {
   knowledgeChunks,
   knowledgeDocuments,
   knowledgeSources,
+  phoneNumbers,
   tenants,
   tickets,
 } from "../src/schema";
@@ -296,5 +297,38 @@ describe("platform AI provider settings", () => {
           .returning(),
     );
     expect(viaPlatform).toHaveLength(1);
+  });
+});
+
+describe("phone numbers", () => {
+  it("are readable by their business but only written under platform access", async () => {
+    const e164 = `+4420${Math.floor(1e7 + Math.random() * 9e7)}`;
+    await expectPgError(
+      withTenant(dbs.app, tenantA, (tx) =>
+        tx.insert(phoneNumbers).values({ tenantId: tenantA, e164 }),
+      ),
+      /row-level security/,
+    );
+    const [row] = await withPlatformAccess(
+      dbs.app,
+      { actorUserId: randomUUID(), reason: "test" },
+      (tx) => tx.insert(phoneNumbers).values({ tenantId: tenantA, e164 }).returning(),
+    );
+    const own = await withTenant(dbs.app, tenantA, (tx) =>
+      tx.select().from(phoneNumbers).where(eq(phoneNumbers.id, row!.id)),
+    );
+    expect(own).toHaveLength(1);
+    const other = await withTenant(dbs.app, tenantB, (tx) =>
+      tx.select().from(phoneNumbers).where(eq(phoneNumbers.id, row!.id)),
+    );
+    expect(other).toHaveLength(0);
+    const changed = await withTenant(dbs.app, tenantA, (tx) =>
+      tx
+        .update(phoneNumbers)
+        .set({ label: "hijack" })
+        .where(eq(phoneNumbers.id, row!.id))
+        .returning(),
+    );
+    expect(changed).toHaveLength(0);
   });
 });
