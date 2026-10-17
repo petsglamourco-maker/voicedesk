@@ -5,7 +5,6 @@ import {
   conversations,
   phoneNumbers,
   withTenant,
-  type VoiceMetrics,
 } from "@voicedesk/db";
 import { and, asc, desc, eq, gte, isNotNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -54,7 +53,7 @@ function callView(row: ConversationRow, e164: string | null, showPhone: boolean)
     intent: summary?.intent ?? null,
     outcome: summary?.outcome ?? null,
     hasRecording: row.recordingKey !== null,
-    medianLatencyMs: (row.voiceMetrics as VoiceMetrics | null)?.medianMs ?? null,
+    medianLatencyMs: row.voiceMetrics?.medianMs ?? null,
   };
 }
 

@@ -53,4 +53,11 @@ test("add knowledge, approve the profile and chat with the assistant", async ({ 
   await expect(page.getByTestId("summary")).not.toContainText("Writing the summary", {
     timeout: 90_000,
   });
+
+  // Calls: a text chat is not a call; no number assigned yet, forwarding help hidden.
+  await page.getByRole("link", { name: "Calls", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Calls" })).toBeVisible();
+  await expect(page.getByText("No calls yet.")).toBeVisible();
+  await expect(page.getByText(/No phone number yet/)).toBeVisible();
+  await expect(page.getByTestId("latency-median")).toHaveText("—");
 });

@@ -55,6 +55,15 @@ Browser voice runs through [LiveKit Cloud](https://cloud.livekit.io) (free tier)
 3. **Test console** → Style: _Talk by voice (microphone)_ → _Start conversation_, then allow the microphone. You'll hear the greeting with the AI disclosure. You can interrupt, switch language ("can we speak Spanish?") and make a booking. The side panel shows how long each reply took.
 4. **Assistant** → _Preview voice_ plays each persona's greeting. _Record calls_ adds a recording notice to the greeting.
 
+## Take real phone calls (costs money: ask first)
+
+1. **Twilio** (twilio.com): create an account, then **Elastic SIP Trunking → Trunks → Create**. Under **Origination**, add `sip:<your LiveKit SIP host>;transport=tcp`. The host is in LiveKit Cloud → Project settings ("SIP URI").
+2. **Buy a UK number** in Twilio (Phone Numbers → Buy). UK numbers need an address bundle, which can take a few days to approve. Attach the number to the trunk.
+3. In VoiceDesk: **Platform admin → Phone numbers** → add the number in international format (`+44…`) and pick the business. This creates the LiveKit routing.
+4. Call the number. The call appears under **Calls** (transcript, summary, response time, and the recording if _Record calls_ is on). Owners and admins get a summary email within a minute (locally in Mailpit).
+
+A business can keep its existing number by forwarding calls to the VoiceDesk number. The Calls page shows the UK forwarding codes.
+
 ## Checks
 
 ```bash

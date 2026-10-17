@@ -8,8 +8,9 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 - **Phase 1 (Knowledge & text agent): built.** Crawler, uploads, ingestion with local embeddings, AI business profile with review and approval, conversation engine with personas and flows in 6 languages, streaming test console, records, summaries, evals.
   - Evals: 30 golden conversations (5 flows × 6 languages). Latest run on DeepSeek: 21/30, with every scenario creating the right record and no unrequested hand-offs.
 - **AI providers are switchable at runtime** (ADR 0012): Platform admin → AI providers lists Claude, DeepSeek and a local OpenAI-compatible model, each with on/off, priority order and automatic fallback.
-- **Phase 2a (browser voice): built, awaiting the live test** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. The live test needs the LiveKit, Deepgram and ElevenLabs keys in `.env`.
-- **Next:** Phase 2b, a UK phone number (Twilio → LiveKit SIP, call log, recordings, summary email). Needs the owner's approval because it costs money. Then Phases 3–7.
+- **Phase 2a (browser voice): done and live-tested** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. On DeepSeek the median was 1.5 s; Claude Haiku is still to be tried.
+- **Phase 2b (phone calls): built, awaiting a Twilio number.** Platform admin → Phone numbers creates a LiveKit SIP trunk and dispatch rule per number. The worker handles phone jobs: caller ID, silence prompts, hang-up via `end_conversation`, and an in-process stereo WAV recording to our S3. Also built: the Calls log with a 7-day latency dashboard, and the post-call summary email to owners/admins. Buying the number needs the owner's go-ahead because it costs money.
+- **Next:** Phase 3 (secretary features: real calendars, reminders, contacts + caller recognition, SMS, transfers).
 
 ## Layout
 
@@ -19,7 +20,8 @@ apps/api          Fastify API: auth, tenants, knowledge, profile, agent settings
 apps/web          Next.js 16 dashboard (Knowledge, Business profile, Assistant, Test console,
                   Records, Team…); proxies /api/* to the API (same-origin cookies)
 apps/workers      BullMQ: email, knowledge (crawl/extract/embed), ai (profile, summaries); health :4100
-apps/voice-agent  LiveKit Agents worker: Deepgram STT → agent-brain engine (llmNode) → ElevenLabs TTS; health :4200
+apps/voice-agent  LiveKit Agents worker (browser + phone calls): Deepgram STT → agent-brain engine
+                  (llmNode) → ElevenLabs TTS; recording, silence handling; health :4200
 packages/db       Drizzle schema + migrations (incl. RLS SQL), withTenant/withPlatformAccess, test helpers
 packages/auth     Better Auth factory + roles (generates packages/db/src/schema/auth.ts)
 packages/core     permissions, tenants/membership, audit, AI provider settings + createAppLlm, SecretBox
@@ -94,7 +96,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `ANTHROPIC_API_KEY`: optional fallback key for the Claude provider. Which providers are used is chosen in Platform admin → AI providers; with none switched on, the agent uses the mock
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
-- Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200)
+- Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 
 ## Local URLs
 
@@ -118,5 +120,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Voice turns are full engine turns** (`EngineVoiceAgent.llmNode` → `runTurn`). Keep `preemptiveGeneration` off, because tools would otherwise run on partial transcripts. Shared turn saving lives in `agent-brain` `persistTurn`; use it for any new channel.
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
+- **Phone routing:** one LiveKit inbound trunk and dispatch rule per number. The dispatch metadata `{ tenantId, phoneNumberId }` tells the worker which business a call is for. Reassigning or disabling a number rebuilds the route. `phone_numbers` is platform-write-only (RLS).
+- **Recordings never leave our infrastructure:** `session.start({ record: false })` (otherwise LiveKit Cloud would receive session reports), and the in-process `CallRecorder` + `TeeAudioOutput` write `tenants/<id>/recordings/<conversationId>.wav`. Only when `agent_settings.record_calls` is on, which also adds the spoken notice.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

@@ -51,5 +51,10 @@ including en/es/fr/de/zh/ar), interruption handling, metrics, and explicit agent
 - Deepgram's Model Improvement Programme is left at its default for testing. Opting out
   (`mipOptOut`) costs more and is a decision to take, with the UK GDPR review, before real
   customer calls.
-- Phase 2b adds SIP (a Twilio UK number → LiveKit inbound trunk and dispatch rule) to the
-  same worker; the browser path stays as the test console.
+- Phase 2b adds SIP to the same worker. Each Twilio number gets its own LiveKit inbound trunk
+  and dispatch rule (`individual`, room prefix `call-`), whose agent dispatch metadata is
+  `{ tenantId, phoneNumberId }`. The browser path stays as the test console.
+- Recordings are made in-process (caller track via rtc-node `AudioStream`; assistant audio
+  via a pass-through `AudioOutput`), not with LiveKit Egress. That avoids Egress cost and an
+  extra sub-processor, and the files go straight to our own storage. `record: false`
+  stops LiveKit Cloud session reports.
