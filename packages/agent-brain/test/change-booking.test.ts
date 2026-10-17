@@ -105,26 +105,17 @@ describe("cancel_booking and reschedule_booking", () => {
     env.state.turns = 1;
     await runTool("find_booking", { reference: booked.reference, name: "Sam" }, env);
     const move = { startsAt: "2026-10-20T09:15:00Z", callerConfirmed: true };
+    // No times offered yet: can't move straight away.
     expect((await runTool("reschedule_booking", move, env)).isError).toBe(true);
     env.state.turns = 2;
-    // A different time than the one read back needs its own read-back.
-    expect(
-      (await runTool("reschedule_booking", { ...move, startsAt: "2026-10-20T10:00:00Z" }, env))
-        .isError,
-    ).toBe(true);
+    await runTool("check_availability", { service: "Check-up", date: "2026-10-20" }, env);
+    expect(env.state.flow).toBe("change_booking");
+    // Offered and moved in the same turn: the caller hasn't chosen or confirmed yet.
+    expect((await runTool("reschedule_booking", move, env)).isError).toBe(true);
     env.state.turns = 3;
     expect(
-      (
-        await runTool(
-          "reschedule_booking",
-          { ...move, startsAt: "2026-10-20T10:00:00Z", callerConfirmed: false },
-          env,
-        )
-      ).isError,
+      (await runTool("reschedule_booking", { ...move, callerConfirmed: false }, env)).isError,
     ).toBe(true);
-    env.state.turns = 4;
-    await runTool("reschedule_booking", move, env); // read back 09:15 again
-    env.state.turns = 5;
     const moved = await runTool("reschedule_booking", move, env);
     expect(moved.isError).toBeFalsy();
     expect(moved.record).toMatchObject({ type: "reschedule" });

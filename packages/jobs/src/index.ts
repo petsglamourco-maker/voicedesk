@@ -8,6 +8,8 @@ export const QUEUES = {
   knowledge: "knowledge",
   /** LLM background work: profile generation, conversation summaries. */
   ai: "ai",
+  /** Customer confirmations and reminders (SMS/email) and staff alerts (Phase 3). */
+  notifications: "notifications",
 } as const;
 
 export interface SendEmailJob {
@@ -24,6 +26,31 @@ export interface ProcessSourceJob {
   tenantId: string;
   sourceId: string;
 }
+
+/**
+ * Notification events. Producers (agent services in the API and voice worker, records actions)
+ * only say what happened; the notifications worker decides who to tell and schedules reminders.
+ */
+export type NotificationJob =
+  | {
+      kind: "booking.changed";
+      tenantId: string;
+      bookingId: string;
+      change: "created" | "moved" | "cancelled";
+      /** Language of the conversation the change came from (customer messages use it). */
+      language?: string;
+    }
+  | {
+      kind: "booking.reminder";
+      tenantId: string;
+      bookingId: string;
+      startsAt: string;
+      language?: string;
+    }
+  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message"; id: string };
+
+/** BullMQ job id for a booking's reminder (so it can be moved or removed). */
+export const reminderJobId = (bookingId: string) => `reminder-${bookingId}`;
 
 export type AiJob =
   | { kind: "profile.generate"; tenantId: string; requestedBy: string | null }
@@ -75,6 +102,13 @@ export function createKnowledgeQueue(
     ...DEFAULT_JOB_OPTIONS,
     attempts: 2,
   });
+}
+
+export function createNotificationQueue(
+  connection: Redis,
+  options: QueueOptions = {},
+): Queue<NotificationJob> {
+  return makeQueue<NotificationJob>(QUEUES.notifications, connection, options, DEFAULT_JOB_OPTIONS);
 }
 
 export function createAiQueue(connection: Redis, options: QueueOptions = {}): Queue<AiJob> {

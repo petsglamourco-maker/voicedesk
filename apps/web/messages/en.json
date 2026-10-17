@@ -314,7 +314,22 @@
     "gapsHint": "Add the answer to your business profile (FAQs) or knowledge, so the assistant can answer it next time without involving anyone.",
     "noGaps": "None. The assistant has answered everything it was asked.",
     "addAnswer": "Add the answer",
-    "markDone": "Mark as done"
+    "markDone": "Mark done",
+    "status": "Status",
+    "ticketStatus": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "resolved": "Resolved",
+      "closed": "Closed"
+    },
+    "bookingStatus": {
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled"
+    },
+    "done": "Done",
+    "new": "New",
+    "cancelBooking": "Cancel",
+    "confirmCancel": "Cancel this booking? It's removed from your calendar and the customer gets a cancellation text."
   },
   "platform": {
     "badge": "Platform admin",
@@ -535,5 +550,16 @@
       "sms": "SMS",
       "email": "Email"
     }
+  },
+  "notifications": {
+    "title": "Confirmations, reminders and alerts",
+    "hint": "Messages the assistant sends after it books, moves or cancels, and how your team hears about urgent problems.",
+    "confirmations": "Send customers a confirmation",
+    "confirmationsHint": "A short text (and an email, if they gave one) when a booking is made, moved or cancelled, in the language they spoke.",
+    "reminder": "Appointment reminder",
+    "noReminder": "No reminder",
+    "hoursBefore": "{hours} hours before",
+    "alertPhone": "Mobile for urgent alerts (optional)",
+    "alertPhoneHint": "Urgent problems, callback requests and urgent messages are emailed to owners and admins straight away. Add a mobile to get a text too."
   }
 }

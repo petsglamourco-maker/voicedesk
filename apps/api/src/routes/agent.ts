@@ -1,4 +1,10 @@
-import { LANGUAGES, PERSONA_IDS, PERSONAS } from "@voicedesk/agent-brain";
+import {
+  createDbAgentServices,
+  LANGUAGES,
+  normalisePhone,
+  PERSONA_IDS,
+  PERSONAS,
+} from "@voicedesk/agent-brain";
 import { recordAudit } from "@voicedesk/core";
 import {
   agentSettings,
@@ -6,6 +12,7 @@ import {
   contacts,
   knowledgeGaps,
   staffMessages,
+  tenants,
   tickets,
   withTenant,
 } from "@voicedesk/db";
@@ -14,7 +21,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
-import { notFound } from "../lib/errors";
+import { HttpError, notFound } from "../lib/errors";
 import { requireTenantAccess } from "./guards";
 
 const params = z.object({ tenantId: z.string() });
@@ -36,6 +43,11 @@ const settingsSchema = z.object({
         .regex(/^[A-Za-z0-9]*$/),
     )
     .default({}),
+  /** Hours before a booking to remind the customer; 0 = no reminders. */
+  reminderHours: z.number().int().min(0).max(168).default(24),
+  customerConfirmations: z.boolean().default(true),
+  /** Mobile for urgent alerts by SMS (any format; stored as E.164). */
+  alertPhone: z.string().trim().max(40).nullable().default(null),
 });
 
 const settingsResponse = z.object({
@@ -45,6 +57,9 @@ const settingsResponse = z.object({
   adminLanguage: z.string(),
   recordCalls: z.boolean(),
   voiceIds: z.record(z.string(), z.string()),
+  reminderHours: z.number(),
+  customerConfirmations: z.boolean(),
+  alertPhone: z.string().nullable(),
 });
 
 const DEFAULTS = {
@@ -54,6 +69,9 @@ const DEFAULTS = {
   adminLanguage: "en",
   recordCalls: false,
   voiceIds: {} as Record<string, string>,
+  reminderHours: 24,
+  customerConfirmations: true,
+  alertPhone: null as string | null,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -101,6 +119,9 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               adminLanguage: row.adminLanguage,
               recordCalls: row.recordCalls,
               voiceIds: row.voiceIds,
+              reminderHours: row.reminderHours,
+              customerConfirmations: row.customerConfirmations,
+              alertPhone: row.alertPhone,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),
@@ -118,12 +139,26 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "agent:configure",
       );
-      const values = { ...request.body, tenantId: access.tenantId };
+      let alertPhone: string | null = null;
+      if (request.body.alertPhone) {
+        const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
+          tx
+            .select({ c: tenants.countryCode })
+            .from(tenants)
+            .where(eq(tenants.id, access.tenantId)),
+        );
+        alertPhone = normalisePhone(request.body.alertPhone, tenant?.c ?? "GB");
+        if (!alertPhone) {
+          throw new HttpError(400, "INVALID_PHONE", "The alert phone number isn't valid");
+        }
+      }
+      const settings = { ...request.body, alertPhone };
+      const values = { ...settings, tenantId: access.tenantId };
       await withTenant(deps.db, access.tenantId, async (tx) => {
         await tx
           .insert(agentSettings)
           .values(values)
-          .onConflictDoUpdate({ target: agentSettings.tenantId, set: request.body });
+          .onConflictDoUpdate({ target: agentSettings.tenantId, set: settings });
         await recordAudit(tx, {
           tenantId: access.tenantId,
           actorType: "user",
@@ -226,6 +261,136 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       );
       if (updated.length === 0) throw notFound();
       return reply.status(204).send();
+    },
+  );
+
+  r.patch(
+    "/api/tenants/:tenantId/tickets/:ticketId",
+    {
+      schema: {
+        tags: ["records"],
+        summary: "Move a ticket along (open → in progress → resolved / closed)",
+        params: params.extend({ ticketId: z.string().uuid() }),
+        body: z.object({ status: z.enum(["open", "in_progress", "resolved", "closed"]) }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:write",
+      );
+      const [row] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .update(tickets)
+          .set({ status: request.body.status, updatedAt: new Date() })
+          .where(
+            and(eq(tickets.id, request.params.ticketId), eq(tickets.tenantId, access.tenantId)),
+          )
+          .returning({ id: tickets.id, status: tickets.status }),
+      );
+      if (!row) throw notFound();
+      return row;
+    },
+  );
+
+  r.patch(
+    "/api/tenants/:tenantId/messages/:messageId",
+    {
+      schema: {
+        tags: ["records"],
+        summary: "Mark a message as dealt with (or new again)",
+        params: params.extend({ messageId: z.string().uuid() }),
+        body: z.object({ status: z.enum(["new", "done"]) }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:write",
+      );
+      const [row] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .update(staffMessages)
+          .set({ status: request.body.status })
+          .where(
+            and(
+              eq(staffMessages.id, request.params.messageId),
+              eq(staffMessages.tenantId, access.tenantId),
+            ),
+          )
+          .returning({ id: staffMessages.id, status: staffMessages.status }),
+      );
+      if (!row) throw notFound();
+      return row;
+    },
+  );
+
+  r.post(
+    "/api/tenants/:tenantId/bookings/:bookingId/cancel",
+    {
+      schema: {
+        tags: ["records"],
+        summary: "Cancel a booking (removes it from the calendar and tells the customer)",
+        params: params.extend({ bookingId: z.string().uuid() }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:write",
+      );
+      const [booking] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .select()
+          .from(bookings)
+          .where(
+            and(eq(bookings.id, request.params.bookingId), eq(bookings.tenantId, access.tenantId)),
+          ),
+      );
+      if (!booking) throw notFound();
+      if (booking.status !== "confirmed") {
+        throw new HttpError(409, "NOT_CONFIRMED", "This booking is already cancelled");
+      }
+      const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx.select().from(tenants).where(eq(tenants.id, access.tenantId)),
+      );
+      // Same path as the assistant cancelling: calendar event removed, customer told.
+      const services = createDbAgentServices(
+        {
+          db: deps.db,
+          embeddings: await deps.embeddings(),
+          calendars: {
+            box: deps.secrets.box,
+            factory: deps.calendars?.factory ?? null,
+            log: (msg, data) => request.log.warn(data, msg),
+          },
+          notify: (event) => deps.jobs.notify({ ...event, tenantId: access.tenantId }),
+        },
+        {
+          tenantId: access.tenantId,
+          // Not used when cancelling; bookings made outside a conversation have none.
+          conversationId: booking.conversationId ?? "",
+          businessName: tenant?.name ?? "",
+          timezone: tenant?.timezone,
+        },
+      );
+      await services.cancelBooking(booking.id);
+      await withTenant(deps.db, access.tenantId, (tx) =>
+        recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: access.session.user.id,
+          action: "booking.cancelled",
+          metadata: { bookingId: booking.id },
+        }),
+      );
+      return { id: booking.id, status: "cancelled" };
     },
   );
 }

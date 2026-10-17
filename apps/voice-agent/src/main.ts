@@ -41,7 +41,12 @@ import {
   type CalendarFactory,
 } from "@voicedesk/core";
 import { createDb, type Database } from "@voicedesk/db";
-import { createAiQueue, createRedisConnection } from "@voicedesk/jobs";
+import {
+  createAiQueue,
+  createNotificationQueue,
+  createRedisConnection,
+  type NotificationJob,
+} from "@voicedesk/jobs";
 import { EngineLlmPlaceholder, EngineVoiceAgent } from "./agent";
 import { EngineBridge, median, type TurnTimings } from "./bridge";
 import {
@@ -74,6 +79,7 @@ let shared:
       embeddings: Promise<EmbeddingProvider>;
       storage: () => ObjectStorage;
       calendars: { box: SecretBox | null; factory: CalendarFactory | null };
+      notify: (job: NotificationJob) => Promise<void>;
     }
   | undefined;
 function resources() {
@@ -84,6 +90,13 @@ function resources() {
     shared = {
       db,
       calendars: { box, factory: oauth ? googleCalendarFactory(oauth) : null },
+      notify: (() => {
+        let queue: ReturnType<typeof createNotificationQueue> | undefined;
+        return async (job: NotificationJob) => {
+          queue ??= createNotificationQueue(createRedisConnection(process.env.REDIS_URL!));
+          await queue.add(job.kind, job);
+        };
+      })(),
       llm: createAppLlm(db, {
         box,
         anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
@@ -101,7 +114,7 @@ function resources() {
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     const job = parseJobMetadata(ctx.job.metadata);
-    const { db, llm, embeddings, storage, calendars } = resources();
+    const { db, llm, embeddings, storage, calendars, notify } = resources();
     const agentCtx = await loadAgentContext(db, job.tenantId, "voice");
     await ctx.connect();
 
@@ -193,6 +206,7 @@ export default defineAgent({
         llm,
         embeddings: await embeddings,
         calendars: { ...calendars, log: (msg, data) => log.warn(data, msg) },
+        notify: (event) => notify({ ...event, tenantId: ids.tenantId }),
       },
       agentCtx,
       ids,

@@ -106,6 +106,13 @@
       "when": 1792274484984,
       "tag": "0014_contacts_crm",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1792275118135,
+      "tag": "0015_notification_settings",
+      "breakpoints": true
     }
   ]
 }

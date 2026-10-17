@@ -91,24 +91,6 @@ export function namesMatch(given: string | undefined, booked: string): boolean {
   );
 }
 
-/**
- * Two-step confirmation for changing a booking: the first call records what was read back;
- * only a call in a later caller turn, with the caller's yes, goes ahead. The model can't
- * skip the read-back by setting callerConfirmed straight away.
- */
-function confirmedLater(
-  env: ToolEnv,
-  c: NonNullable<ConversationState["change"]>,
-  change: { action: "cancel" | "reschedule"; startsAt?: string },
-  callerConfirmed: boolean,
-): boolean {
-  const p = c.pending;
-  const same = p && p.action === change.action && p.startsAt === change.startsAt;
-  if (same && callerConfirmed && p.turn < env.state.turns) return true;
-  c.pending = { ...change, turn: env.state.turns };
-  return false;
-}
-
 function define<S extends z.ZodType>(def: ToolDef<S>): ToolDef<S> {
   return def;
 }
@@ -303,6 +285,7 @@ export const TOOLS = {
       });
       // Checking times for moving a booking keeps the change flow.
       if (env.state.flow !== "change_booking") env.state.flow = "booking";
+      else if (env.state.change) env.state.change.slotsTurn = env.state.turns;
       if (!result.ok) return error(result.reason, { tryAnotherDay: true });
       env.state.booking.service = profile.services.find(
         (s) => s.name.toLowerCase() === input.service.toLowerCase(),
@@ -498,6 +481,7 @@ export const TOOLS = {
           startsAt: b.startsAt.toISOString(),
           endsAt: b.endsAt.toISOString(),
           failedLookups: 0,
+          foundTurn: env.state.turns,
         });
       }
       return {
@@ -525,9 +509,10 @@ export const TOOLS = {
     run: async (env, { callerConfirmed }) => {
       const c = env.state.change ?? {};
       if (!c.bookingId) return error("Find the booking first with find_booking.");
-      if (!confirmedLater(env, c, { action: "cancel" }, callerConfirmed)) {
+      // The caller must have heard the booking read back (a turn after it was found) and said yes.
+      if (!callerConfirmed || (c.foundTurn ?? env.state.turns) >= env.state.turns) {
         return error(
-          "Not cancelled yet. Read the booking back (service, day, time) and ask the caller to confirm the cancellation. Call cancel_booking again after they say yes.",
+          "NOT cancelled. Do not tell the caller it is cancelled. Read the booking back (service, day, time), ask them to confirm, and call cancel_booking after they say yes.",
         );
       }
       await env.services.cancelBooking(c.bookingId);
@@ -584,10 +569,11 @@ export const TOOLS = {
         when,
       );
       if (!free) return error("That time is not available. Check availability again.");
-      const change = { action: "reschedule" as const, startsAt: when.toISOString() };
-      if (!confirmedLater(env, c, change, callerConfirmed)) {
+      // New times must have been offered in an earlier turn (the caller chose one), and the
+      // caller must have confirmed the read-back.
+      if (!callerConfirmed || c.slotsTurn === undefined || c.slotsTurn >= env.state.turns) {
         return error(
-          "Not moved yet. Read the change back (from the old day and time to the new one) and ask the caller to confirm. Call reschedule_booking again with the same startsAt after they say yes.",
+          "NOT moved. Do not tell the caller it is done. Offer times with check_availability, read the change back (old day and time to the new one), and call reschedule_booking after they say yes.",
         );
       }
       const endsAt = new Date(when.getTime() + duration * 60_000);

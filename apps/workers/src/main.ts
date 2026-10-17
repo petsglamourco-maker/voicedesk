@@ -1,15 +1,18 @@
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
-import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, smsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import { createAppLlm, SecretBox } from "@voicedesk/core";
 import { closeDb, createDb } from "@voicedesk/db";
 import {
   createEmailQueue,
+  createNotificationQueue,
   createRedisConnection,
   QUEUES,
+  reminderJobId,
+  type NotificationJob,
   type AiJob,
   type ProcessSourceJob,
   type SendEmailJob,
@@ -18,6 +21,7 @@ import { createSafeFetcher } from "@voicedesk/knowledge";
 import { Worker } from "bullmq";
 import { z } from "zod";
 import { createAiProcessor } from "./processors/ai";
+import { createNotificationProcessor } from "./processors/notifications";
 import { createProcessSourceProcessor } from "./processors/process-source";
 import { createSendEmailProcessor } from "./processors/send-email";
 
@@ -35,6 +39,7 @@ const env = z
     LOG_LEVEL: z.string().default("info"),
     WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4100),
     WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
+    SMS_FROM: z.string().min(1).max(15).default("VoiceDesk"),
   })
   .parse(process.env);
 
@@ -71,6 +76,8 @@ const appLlm = createAppLlm(
 );
 
 const emailQueue = createEmailQueue(connection);
+const notificationQueue = createNotificationQueue(connection);
+const sms = await smsFromEnv(email);
 
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {
@@ -83,6 +90,33 @@ const workers = [
     concurrency: 1,
     lockDuration: 10 * 60_000,
   }),
+  new Worker<NotificationJob>(
+    QUEUES.notifications,
+    createNotificationProcessor(
+      {
+        db,
+        sms,
+        email,
+        smsFrom: env.SMS_FROM,
+        webOrigin: env.WEB_ORIGIN,
+        reminders: {
+          schedule: async (job, runAt) => {
+            const id = reminderJobId(job.bookingId);
+            await notificationQueue.remove(id);
+            await notificationQueue.add(job.kind, job, {
+              jobId: id,
+              delay: Math.max(0, runAt.getTime() - Date.now()),
+            });
+          },
+          remove: async (bookingId) => {
+            await notificationQueue.remove(reminderJobId(bookingId));
+          },
+        },
+      },
+      log,
+    ),
+    { connection, concurrency: 5 },
+  ),
   new Worker<AiJob>(
     QUEUES.ai,
     createAiProcessor(
@@ -129,6 +163,7 @@ const shutdown = async () => {
   health.close();
   await Promise.all(workers.map((w) => w.close()));
   await emailQueue.close();
+  await notificationQueue.close();
   connection.disconnect();
   await closeDb(db);
   process.exit(0);

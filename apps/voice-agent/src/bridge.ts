@@ -17,6 +17,8 @@ export interface BridgeDeps {
   embeddings: EmbeddingProvider;
   /** External calendar access (Phase 3); see DbServiceDeps. */
   calendars?: DbServiceDeps["calendars"];
+  /** Confirmations, reminders and staff alerts; see DbServiceDeps. */
+  notify?: DbServiceDeps["notify"];
 }
 
 export interface TurnTimings {
@@ -77,7 +79,12 @@ export class EngineBridge {
     const run = async (): Promise<TurnResult | null> => {
       const previous = this.state;
       const services = createDbAgentServices(
-        { db: this.deps.db, embeddings: this.deps.embeddings, calendars: this.deps.calendars },
+        {
+          db: this.deps.db,
+          embeddings: this.deps.embeddings,
+          calendars: this.deps.calendars,
+          notify: this.deps.notify,
+        },
         { ...this.ids, businessName: this.ctx.businessName, timezone: this.ctx.timezone },
       );
       try {

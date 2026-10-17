@@ -147,6 +147,20 @@ describe("ending", () => {
   });
 });
 
+describe("ending without repeating the goodbye", () => {
+  it("stops after end_conversation when the goodbye was already said", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      MockLlmProvider.toolUse("end_conversation", {}, "Thanks for calling, goodbye!"),
+      text("Goodbye again!"),
+    );
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("That's all, bye.");
+    expect(turn.reply).toBe("Thanks for calling, goodbye!");
+    expect(llm.requests).toHaveLength(1);
+  });
+});
+
 describe("complaint flow", () => {
   it("refuses to create a ticket until the complaint details are captured", async () => {
     const llm = new MockLlmProvider();

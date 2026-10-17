@@ -130,6 +130,7 @@ export function registerConversationRoutes(app: FastifyInstance, deps: AppDeps):
             factory: deps.calendars?.factory ?? null,
             log: (msg, data) => request.log.warn(data, msg),
           },
+          notify: (event) => deps.jobs.notify({ ...event, tenantId: access.tenantId }),
         },
         {
           tenantId: access.tenantId,

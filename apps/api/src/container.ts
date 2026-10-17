@@ -20,10 +20,12 @@ import { closeDb, createDb, withTenant, type Database } from "@voicedesk/db";
 import {
   createAiQueue,
   createEmailQueue,
+  createNotificationQueue,
   createKnowledgeQueue,
   createRedisConnection,
   scheduleRecrawl,
   type AiJob,
+  type NotificationJob,
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
 import type { Env } from "./env";
@@ -61,6 +63,8 @@ export interface JobDispatcher {
   processSource(job: ProcessSourceJob): Promise<void>;
   scheduleRecrawl(job: ProcessSourceJob, recrawlDays: number | null | undefined): Promise<void>;
   enqueueAi(job: AiJob): Promise<void>;
+  /** Customer confirmations, reminders and staff alerts (apps/workers notifications queue). */
+  notify(job: NotificationJob): Promise<void>;
 }
 
 export interface Container {
@@ -94,6 +98,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const emailQueue = createEmailQueue(redis);
   const knowledgeQueue = createKnowledgeQueue(redis);
   const aiQueue = createAiQueue(redis);
+  const notificationQueue = createNotificationQueue(redis);
   const auth = createAppAuth(env, db, async (email) => {
     await emailQueue.add(email.kind, email);
   });
@@ -128,10 +133,18 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
       enqueueAi: async (job) => {
         await aiQueue.add(job.kind, job);
       },
+      notify: async (job) => {
+        await notificationQueue.add(job.kind, job);
+      },
     },
     checkRedis: async () => (await redis.ping()) === "PONG",
     close: async () => {
-      await Promise.all([emailQueue.close(), knowledgeQueue.close(), aiQueue.close()]);
+      await Promise.all([
+        emailQueue.close(),
+        knowledgeQueue.close(),
+        aiQueue.close(),
+        notificationQueue.close(),
+      ]);
       redis.disconnect();
       await closeDb(db);
     },

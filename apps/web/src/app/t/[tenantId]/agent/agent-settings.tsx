@@ -22,6 +22,9 @@ interface Settings {
   enabledLanguages: string[];
   adminLanguage: string;
   recordCalls: boolean;
+  reminderHours: number;
+  customerConfirmations: boolean;
+  alertPhone: string | null;
   voiceIds: Record<string, string>;
 }
 
@@ -43,6 +46,7 @@ export function AgentSettingsForm(props: {
 }) {
   const t = useTranslations("agent");
   const tv = useTranslations("voice");
+  const tn = useTranslations("notifications");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -243,6 +247,50 @@ export function AgentSettingsForm(props: {
               <span className="block text-sm text-muted-foreground">{tv("recordCallsHint")}</span>
             </span>
           </label>
+        </Card>
+
+        <Card>
+          <CardTitle>{tn("title")}</CardTitle>
+          <CardDescription>{tn("hint")}</CardDescription>
+          <div className="mt-4 space-y-4">
+            <label className="flex items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.customerConfirmations}
+                onChange={(e) => update({ customerConfirmations: e.target.checked })}
+              />
+              <span>
+                <span className="block font-medium">{tn("confirmations")}</span>
+                <span className="block text-muted-foreground">{tn("confirmationsHint")}</span>
+              </span>
+            </label>
+            <div className="max-w-xs">
+              <Label htmlFor="reminderHours">{tn("reminder")}</Label>
+              <Select
+                id="reminderHours"
+                value={String(settings.reminderHours)}
+                onChange={(e) => update({ reminderHours: Number(e.target.value) })}
+              >
+                {[0, 2, 12, 24, 48].map((h) => (
+                  <option key={h} value={h}>
+                    {h === 0 ? tn("noReminder") : tn("hoursBefore", { hours: h })}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="max-w-xs">
+              <Label htmlFor="alertPhone">{tn("alertPhone")}</Label>
+              <Input
+                id="alertPhone"
+                inputMode="tel"
+                placeholder="07700 900123"
+                value={settings.alertPhone ?? ""}
+                onChange={(e) => update({ alertPhone: e.target.value || null })}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{tn("alertPhoneHint")}</p>
+            </div>
+          </div>
         </Card>
 
         {props.canEdit ? (

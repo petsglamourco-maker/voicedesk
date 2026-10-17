@@ -39,6 +39,7 @@ export {
   createDbAgentServices,
   invalidateBusyCache,
   loadAgentContext,
+  type AgentNotification,
   type DbServiceDeps,
 } from "./services-db";
 export {
@@ -66,3 +67,12 @@ export {
   type CallEmailSummary,
 } from "./call-email";
 export { recogniseCaller, upsertContactByPhone, type KnownCaller } from "./contacts";
+export {
+  customerBookingText,
+  formatWhen,
+  planBookingNotification,
+  planBookingReminder,
+  planStaffAlert,
+  type NotificationPlan,
+  type OutgoingMessage,
+} from "./notifications";

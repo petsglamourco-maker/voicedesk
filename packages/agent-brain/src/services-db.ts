@@ -41,7 +41,17 @@ export interface DbServiceDeps {
     factory: CalendarFactory | null;
     log?: (message: string, data: Record<string, unknown>) => void;
   };
+  /**
+   * Tells the notifications worker what happened (customer confirmations, reminders, staff
+   * alerts). Failures are logged, never thrown: a booking stands even if a text can't be sent.
+   */
+  notify?: (event: AgentNotification) => Promise<void>;
 }
+
+/** What the agent did that someone should hear about (see NotificationJob in @voicedesk/jobs). */
+export type AgentNotification =
+  | { kind: "booking.changed"; bookingId: string; change: "created" | "moved" | "cancelled" }
+  | { kind: "staff.alert"; record: "ticket" | "message"; id: string };
 
 const BUSY_CACHE_MS = 60_000;
 const busyCache = new Map<string, { at: number; ranges: BusyRange[] }>();
@@ -80,6 +90,13 @@ export function createDbAgentServices(
   const { tenantId, conversationId, businessName } = scope;
   const tx = <T>(fn: Parameters<typeof withTenant<T>>[2]) => withTenant(db, tenantId, fn);
   const log = deps.calendars?.log ?? (() => undefined);
+  const notify = async (event: AgentNotification) => {
+    try {
+      await deps.notify?.(event);
+    } catch (error) {
+      log("notification failed", { tenantId, kind: event.kind, err: String(error) });
+    }
+  };
 
   /** The person a record is about: found or created by phone; also links the conversation. */
   async function contactFor(
@@ -204,6 +221,7 @@ export function createDbAgentServices(
         );
       }
       invalidateBusyCache(tenantId);
+      if (row) await notify({ kind: "booking.changed", bookingId, change: "cancelled" });
     },
 
     async rescheduleBooking(bookingId, startsAt, endsAt) {
@@ -225,11 +243,12 @@ export function createDbAgentServices(
         );
       }
       invalidateBusyCache(tenantId);
+      if (row) await notify({ kind: "booking.changed", bookingId, change: "moved" });
     },
 
     async createTicket(input) {
       const d = input.details;
-      return withReference(businessName, (reference) =>
+      const created = await withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
           const contactId = await contactFor(t, {
             phone: d.callbackPhone,
@@ -255,6 +274,11 @@ export function createDbAgentServices(
           return { id: row!.id, reference };
         }),
       );
+      // Urgent problems and callback requests shouldn't wait for the end-of-call summary.
+      if (input.priority === "urgent" || input.priority === "high" || d.wantsCallback) {
+        await notify({ kind: "staff.alert", record: "ticket", id: created.id });
+      }
+      return created;
     },
 
     async createBooking(input) {
@@ -298,11 +322,12 @@ export function createDbAgentServices(
         await markCalendarHealthy(db, tenantId, cal.connectionId);
       });
       invalidateBusyCache(tenantId);
+      await notify({ kind: "booking.changed", bookingId: created.id, change: "created" });
       return created;
     },
 
     async takeMessage(input) {
-      return withReference(businessName, (reference) =>
+      const created = await withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
           const contactId = await contactFor(t, {
             phone: input.callerPhone,
@@ -326,6 +351,10 @@ export function createDbAgentServices(
           return { id: row!.id, reference };
         }),
       );
+      if (input.urgency === "high") {
+        await notify({ kind: "staff.alert", record: "message", id: created.id });
+      }
+      return created;
     },
 
     async registerCustomer(input) {

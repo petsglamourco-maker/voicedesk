@@ -1,7 +1,9 @@
 // Builds providers from environment variables, so apps share one wiring.
 import { join } from "node:path";
+import type { EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
 import type { LlmProvider } from "./llm/types";
+import type { SmsProvider } from "./messaging/types";
 import { MockEmbeddingProvider, MockLlmProvider } from "./mocks";
 import { S3ObjectStorage } from "./storage/s3";
 
@@ -54,4 +56,22 @@ export async function llmFromEnv(env: Env = process.env): Promise<LlmProvider> {
       reasoning: env.LLM_MODEL_REASONING || "claude-sonnet-5-5",
     },
   });
+}
+
+/**
+ * SMS_PROVIDER=mailpit (default): texts are delivered as emails to Mailpit, free.
+ * SMS_PROVIDER=twilio: real texts (costs money; needs TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).
+ */
+export async function smsFromEnv(
+  email: EmailProvider,
+  env: Env = process.env,
+): Promise<SmsProvider> {
+  const { MailpitSmsProvider, TwilioSmsProvider } = await import("./messaging/sms");
+  if (env.SMS_PROVIDER === "twilio") {
+    return new TwilioSmsProvider({
+      accountSid: required(env, "TWILIO_ACCOUNT_SID"),
+      authToken: required(env, "TWILIO_AUTH_TOKEN"),
+    });
+  }
+  return new MailpitSmsProvider(email);
 }

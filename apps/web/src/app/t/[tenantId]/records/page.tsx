@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
 import { KnowledgeGaps, type Gap } from "./knowledge-gaps";
+import { BookingCancel, MessageDone, TicketStatus } from "./record-actions";
 
 export const metadata: Metadata = { title: "Records" };
 
@@ -36,6 +37,7 @@ interface Records {
     callerPhone: string;
     reason: string;
     urgency: string;
+    status: string;
     forStaff: string | null;
     createdAt: string;
   }>;
@@ -63,6 +65,7 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
   const when = (iso: string) =>
     format.dateTime(new Date(iso), { dateStyle: "medium", timeStyle: "short", timeZone: tz });
 
+  const canEdit = detail.permissions.includes("records:write");
   const empty = <p className="mt-3 text-sm text-muted-foreground">{t("empty")}</p>;
 
   return (
@@ -117,8 +120,8 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono font-medium">{r.reference}</span>
                   <Badge>{r.priority}</Badge>
-                  <Badge>{r.status}</Badge>
                   <span className="ms-auto text-xs text-muted-foreground">{when(r.createdAt)}</span>
+                  <TicketStatus tenantId={tenantId} id={r.id} status={r.status} canEdit={canEdit} />
                 </div>
                 <p className="mt-1">{r.summary}</p>
                 <p className="text-xs text-muted-foreground">
@@ -145,6 +148,7 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
                   </span>
                   <Badge>{m.urgency}</Badge>
                   <span className="ms-auto text-xs text-muted-foreground">{when(m.createdAt)}</span>
+                  <MessageDone tenantId={tenantId} id={m.id} status={m.status} canEdit={canEdit} />
                 </div>
                 <p className="mt-1">
                   {m.forStaff ? `${t("for", { name: m.forStaff })} ` : ""}
@@ -171,7 +175,14 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
                   {b.customerName}
                   {b.customerPhone ? ` · ${b.customerPhone}` : ""}
                 </span>
-                <Badge className="ms-auto">{b.status}</Badge>
+                <span className="ms-auto">
+                  <BookingCancel
+                    tenantId={tenantId}
+                    id={b.id}
+                    status={b.status}
+                    canEdit={canEdit}
+                  />
+                </span>
               </li>
             ))}
           </ul>

@@ -30,6 +30,12 @@ export const agentSettings = pgTable("agent_settings", {
   adminLanguage: text("admin_language").notNull().default("en"),
   /** Record calls (adds a spoken recording notice). Transcripts are always kept. */
   recordCalls: boolean("record_calls").notNull().default(false),
+  /** Hours before a booking to send the customer a reminder; 0 = no reminders. */
+  reminderHours: integer("reminder_hours").notNull().default(24),
+  /** Send customers a confirmation when a booking is made, moved or cancelled. */
+  customerConfirmations: boolean("customer_confirmations").notNull().default(true),
+  /** Mobile number that also gets urgent alerts by SMS (owners/admins always get email). */
+  alertPhone: text("alert_phone"),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,

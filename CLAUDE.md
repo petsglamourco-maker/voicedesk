@@ -11,7 +11,11 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 - **Phase 2a (browser voice): done and live-tested** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. On DeepSeek the median was 1.5 s; Claude Haiku is still to be tried.
 - **Phase 2b (phone calls): built, awaiting a Twilio number.** Platform admin → Phone numbers creates a LiveKit SIP trunk and dispatch rule per number. The worker handles phone jobs: caller ID, silence prompts, hang-up via `end_conversation`, and an in-process stereo WAV recording to our S3. Also built: the Calls log with a 7-day latency dashboard, and the post-call summary email to owners/admins. Buying the number needs the owner's go-ahead because it costs money.
 - **Phase 3 (secretary features): in progress** (plan: Google Calendar → manage bookings → contacts & caller recognition → confirmations/reminders/alerts → transfers → Outlook).
-  - **Done:** Google Calendar (ADR 0014): Integrations page, OAuth with encrypted tokens, availability merges Google free/busy, bookings create events, falls back safely when Google fails.
+  - **Done:**
+    - Google Calendar (ADR 0014): Integrations page, OAuth with encrypted tokens, availability merges Google free/busy, bookings create events, falls back safely when Google fails.
+    - Manage bookings by phone or chat (find / cancel / reschedule with identity checks).
+    - Contacts: caller recognition, CSV import, Contacts pages.
+    - Confirmations, reminders and staff alerts (ADR 0015): `notifications` queue; SMS shows in Mailpit until Twilio is approved. Records actions.
 
 ## Layout
 
@@ -98,6 +102,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Calendar integration (optional; redirect URI `${WEB_ORIGIN}/api/integrations/google/callback`)
+- `SMS_PROVIDER` (`mailpit` default, `twilio` costs money), `SMS_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 
 ## Local URLs
@@ -124,6 +129,8 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Phone routing:** one LiveKit inbound trunk and dispatch rule per number. The dispatch metadata `{ tenantId, phoneNumberId }` tells the worker which business a call is for. Reassigning or disabling a number rebuilds the route. `phone_numbers` is platform-write-only (RLS).
 - **Recordings never leave our infrastructure:** `session.start({ record: false })` (otherwise LiveKit Cloud would receive session reports), and the in-process `CallRecorder` + `TeeAudioOutput` write `tenants/<id>/recordings/<conversationId>.wav`. Only when `agent_settings.record_calls` is on, which also adds the spoken notice.
+- **Notifications:** agent services take an optional `notify` hook and only report events. All "who gets what" logic lives in `agent-brain/src/notifications.ts` planners; `apps/workers` just sends. Never log message text or phone numbers.
+- **Booking changes** are gated by turn order in `tools.ts`: cancel needs a later turn than `find_booking`; reschedule needs a later turn than `check_availability`. Don't replace this with a "call twice" confirmation, which made models ask twice or claim success after a refusal (evals 2026-10-18).
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

@@ -13,7 +13,8 @@
     "./llm/openai-compatible": "./src/llm/openai-compatible.ts",
     "./llm/router": "./src/llm/router.ts",
     "./speech/elevenlabs": "./src/speech/elevenlabs.ts",
-    "./calendar/google": "./src/calendar/google.ts"
+    "./calendar/google": "./src/calendar/google.ts",
+    "./messaging/sms": "./src/messaging/sms.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

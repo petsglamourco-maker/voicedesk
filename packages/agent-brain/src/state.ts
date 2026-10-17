@@ -59,11 +59,10 @@ export interface ChangeSlots {
   endsAt: string;
   /** Failed lookups (wrong reference or details); capped to stop guessing. */
   failedLookups: number;
-  /**
-   * The change read back to the caller and the turn it happened in. Confirmation is only
-   * accepted on a later turn, so the caller has actually heard it and said yes.
-   */
-  pending: { action: "cancel" | "reschedule"; startsAt?: string; turn: number };
+  /** Turn the booking was found (and read back): cancelling needs a later turn. */
+  foundTurn: number;
+  /** Turn new times were offered: moving needs a later turn (the caller picks and confirms). */
+  slotsTurn: number;
 }
 
 export interface MessageSlots {

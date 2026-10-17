@@ -9,7 +9,7 @@ import type { AuthEmail } from "@voicedesk/auth";
 import { loadRootEnv, requireEnv } from "@voicedesk/config/load-env";
 import { SecretBox, type ProviderSecrets } from "@voicedesk/core";
 import { closeDb, createDb, type Database } from "@voicedesk/db";
-import type { AiJob, ProcessSourceJob } from "@voicedesk/jobs";
+import type { AiJob, NotificationJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
@@ -25,7 +25,12 @@ export interface TestHarness {
   secrets: ProviderSecrets;
   db: Database;
   outbox: AuthEmail[];
-  jobs: { sources: ProcessSourceJob[]; ai: AiJob[]; recrawls: Array<[string, number | null]> };
+  jobs: {
+    sources: ProcessSourceJob[];
+    ai: AiJob[];
+    recrawls: Array<[string, number | null]>;
+    notifications: NotificationJob[];
+  };
   llm: MockLlmProvider;
   storage: InMemoryObjectStorage;
   close: () => Promise<void>;
@@ -53,7 +58,7 @@ export async function createHarness(
   const storage = new InMemoryObjectStorage();
   const embeddings = new MockEmbeddingProvider();
   const llm = new MockLlmProvider();
-  const recorded: TestHarness["jobs"] = { sources: [], ai: [], recrawls: [] };
+  const recorded: TestHarness["jobs"] = { sources: [], ai: [], recrawls: [], notifications: [] };
   const jobs: JobDispatcher = {
     processSource: async (job) => {
       recorded.sources.push(job);
@@ -65,6 +70,10 @@ export async function createHarness(
     },
     enqueueAi: (job) => {
       recorded.ai.push(job);
+      return Promise.resolve();
+    },
+    notify: (job) => {
+      recorded.notifications.push(job);
       return Promise.resolve();
     },
   };

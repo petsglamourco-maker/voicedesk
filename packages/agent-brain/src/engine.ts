@@ -266,6 +266,9 @@ export async function runTurn(
       }
       // All tool results for one assistant turn go back in a single user message.
       state.history.push({ role: "user", content: results });
+      // Goodbye already said alongside end_conversation: another round would only repeat it.
+      const toolNames = response.content.flatMap((b) => (b.type === "tool_use" ? [b.name] : []));
+      if (text && toolNames.length > 0 && toolNames.every((n) => n === "end_conversation")) break;
     }
   } catch (error) {
     if (!(error instanceof ProviderError)) throw error;
