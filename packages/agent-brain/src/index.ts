@@ -65,3 +65,4 @@ export {
   type CallEmailInput,
   type CallEmailSummary,
 } from "./call-email";
+export { recogniseCaller, upsertContactByPhone, type KnownCaller } from "./contacts";

@@ -1,11 +1,11 @@
 import {
+  createConversation,
   createDbAgentServices,
   LANGUAGES,
   loadAgentContext,
   normalisePhone,
   persistTurn,
   runTurn,
-  startConversation,
   type ConversationState,
 } from "@voicedesk/agent-brain";
 import { conversationMessages, conversations, withTenant } from "@voicedesk/db";
@@ -74,31 +74,16 @@ export function registerConversationRoutes(app: FastifyInstance, deps: AppDeps):
       const callerPhone = request.body.callerPhone
         ? normalisePhone(request.body.callerPhone, ctx.countryCode)
         : null;
-      const { state, greeting } = startConversation(ctx, {
+      const {
+        conversationId: id,
+        state,
+        greeting,
+      } = await createConversation(deps.db, ctx, {
+        tenantId: access.tenantId,
+        channel: "test_console",
         language: request.body.language,
         callerPhone,
-      });
-      const id = await withTenant(deps.db, access.tenantId, async (tx) => {
-        const [row] = await tx
-          .insert(conversations)
-          .values({
-            tenantId: access.tenantId,
-            channel: "test_console",
-            style: request.body.style,
-            personaId: ctx.persona.id,
-            language: state.language,
-            state: state as unknown as Record<string, unknown>,
-            createdBy: access.session.user.id,
-          })
-          .returning({ id: conversations.id });
-        await tx.insert(conversationMessages).values({
-          tenantId: access.tenantId,
-          conversationId: row!.id,
-          role: "agent",
-          content: greeting,
-          language: state.language,
-        });
-        return row!.id;
+        createdBy: access.session.user.id,
       });
       return reply.status(201).send({
         id,

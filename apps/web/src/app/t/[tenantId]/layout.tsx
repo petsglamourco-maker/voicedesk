@@ -25,6 +25,7 @@ export default async function TenantLayout(props: {
     { href: `/t/${tenantId}/integrations`, label: t("integrations") },
     { href: `/t/${tenantId}/console`, label: t("console") },
     { href: `/t/${tenantId}/calls`, label: t("calls") },
+    { href: `/t/${tenantId}/contacts`, label: t("contacts") },
     { href: `/t/${tenantId}/records`, label: t("records") },
     { href: `/t/${tenantId}/members`, label: t("members") },
     { href: `/t/${tenantId}/account`, label: t("account") },

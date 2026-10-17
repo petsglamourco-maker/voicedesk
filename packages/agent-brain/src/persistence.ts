@@ -1,6 +1,7 @@
 import { conversationMessages, conversations, withTenant, type Database } from "@voicedesk/db";
 import { and, eq, sql } from "drizzle-orm";
 import type { AgentContext } from "./context";
+import { recogniseCaller } from "./contacts";
 import { startConversation, type TurnResult } from "./engine";
 import type { Lang } from "./languages";
 import type { ConversationState } from "./state";
@@ -29,6 +30,24 @@ export async function createConversation(
     callerPhone: params.callerPhone ?? null,
     recordingNotice: ctx.style === "voice" && ctx.recordCalls === true,
   });
+  const known = await recogniseCaller(db, params.tenantId, params.callerPhone ?? null);
+  if (known) {
+    state.knownCaller = {
+      name: known.name,
+      // Local time, so the assistant can say it without converting.
+      upcoming: known.upcoming.map((u) => ({
+        ...u,
+        startsAt: new Date(u.startsAt).toLocaleString("en-GB", {
+          timeZone: ctx.timezone,
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      })),
+    };
+  }
   const conversationId = await withTenant(db, params.tenantId, async (tx) => {
     const [row] = await tx
       .insert(conversations)
@@ -42,6 +61,7 @@ export async function createConversation(
         createdBy: params.createdBy ?? null,
         phoneNumberId: params.phoneNumberId ?? null,
         callerNumberWithheld: params.callerNumberWithheld ?? false,
+        contactId: known?.contactId ?? null,
       })
       .returning({ id: conversations.id });
     await tx.insert(conversationMessages).values({

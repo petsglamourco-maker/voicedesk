@@ -142,6 +142,39 @@ describe("agent services with a connected Google calendar", () => {
     expect((await getCalendarConnection(dbs.app, tenantId))?.status).toBe("revoked");
   });
 
+  it("finds, moves and cancels bookings, keeping the Google event in step", async () => {
+    const tenantId = await connectedTenant();
+    const calendar = new InMemoryCalendarProvider();
+    const svc = await services(tenantId, () => calendar);
+    const startsAt = new Date(Date.now() + 3 * 86_400_000);
+    const created = await svc.createBooking({
+      service: "Check-up",
+      startsAt,
+      endsAt: new Date(startsAt.getTime() + 30 * 60_000),
+      customerName: "Sam Patel",
+      customerPhone: "+447700900123",
+      customerEmail: null,
+      notes: null,
+    });
+    const window = {
+      start: new Date(startsAt.getTime() - 86_400_000),
+      end: new Date(startsAt.getTime() + 2 * 86_400_000),
+    };
+    const byRef = await svc.findBookings({ reference: created.reference });
+    expect(byRef.map((b) => b.id)).toEqual([created.id]);
+    expect(await svc.findBookings({ phone: "+447700900123" })).toHaveLength(1);
+    expect(await svc.findBookings({ phone: "+447700900999" })).toHaveLength(0);
+
+    const later = new Date(startsAt.getTime() + 3600_000);
+    await svc.rescheduleBooking(created.id, later, new Date(later.getTime() + 30 * 60_000));
+    const [event] = await calendar.freeBusy(["primary"], window);
+    expect(event?.start.toISOString()).toBe(later.toISOString());
+
+    await svc.cancelBooking(created.id);
+    expect(await calendar.freeBusy(["primary"], window)).toEqual([]);
+    expect(await svc.findBookings({ reference: created.reference })).toEqual([]);
+  });
+
   it("stores the refresh token encrypted", async () => {
     const tenantId = await connectedTenant();
     const row = await getCalendarConnection(dbs.app, tenantId);

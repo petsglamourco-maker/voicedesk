@@ -33,7 +33,7 @@ function scripted() {
 
 describe("eval harness", () => {
   it("defines every flow in all six languages", () => {
-    expect(SCENARIOS).toHaveLength(30);
+    expect(SCENARIOS).toHaveLength(42);
     expect(new Set(SCENARIOS.map((s) => s.style))).toEqual(new Set(["chat", "voice"]));
   });
 

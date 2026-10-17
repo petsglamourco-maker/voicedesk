@@ -19,6 +19,7 @@ export const conversationSummarySchema = z.strictObject({
     "signup",
     "complaint",
     "booking",
+    "change_booking",
     "message",
     "human",
     "emergency",

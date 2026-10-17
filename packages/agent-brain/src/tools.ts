@@ -6,6 +6,7 @@ import { LANGUAGES } from "./languages";
 import type { AgentServices } from "./services";
 import {
   INTENTS,
+  MAX_FAILED_LOOKUPS,
   missingBookingSlots,
   missingComplaintSlots,
   missingMessageSlots,
@@ -69,6 +70,43 @@ function applyPhone(
   if (confirmedFlag !== undefined && phone) isConfirmed = confirmedFlag;
   if (phone) readBack = groupDigitsForReadback(phone, env.ctx.countryCode);
   return { phone, confirmed: isConfirmed, readBack };
+}
+
+/** Loose name check for verifying a booking: any given word of 3+ letters matches the booking name. */
+export function namesMatch(given: string | undefined, booked: string): boolean {
+  if (!given) return false;
+  const words = (s: string) =>
+    s
+      .toLocaleLowerCase()
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .split(/[^\p{L}]+/u)
+      .filter((w) => w.length >= 2);
+  const bookedWords = new Set(words(booked));
+  const givenWords = words(given);
+  // Chinese/Japanese names have no spaces: compare whole strings too.
+  return (
+    givenWords.some((w) => bookedWords.has(w) && w.length >= 3) ||
+    given.replace(/\s+/g, "") === booked.replace(/\s+/g, "")
+  );
+}
+
+/**
+ * Two-step confirmation for changing a booking: the first call records what was read back;
+ * only a call in a later caller turn, with the caller's yes, goes ahead. The model can't
+ * skip the read-back by setting callerConfirmed straight away.
+ */
+function confirmedLater(
+  env: ToolEnv,
+  c: NonNullable<ConversationState["change"]>,
+  change: { action: "cancel" | "reschedule"; startsAt?: string },
+  callerConfirmed: boolean,
+): boolean {
+  const p = c.pending;
+  const same = p && p.action === change.action && p.startsAt === change.startsAt;
+  if (same && callerConfirmed && p.turn < env.state.turns) return true;
+  c.pending = { ...change, turn: env.state.turns };
+  return false;
 }
 
 function define<S extends z.ZodType>(def: ToolDef<S>): ToolDef<S> {
@@ -263,7 +301,8 @@ export const TOOLS = {
         busy,
         now: env.ctx.now(),
       });
-      env.state.flow = "booking";
+      // Checking times for moving a booking keeps the change flow.
+      if (env.state.flow !== "change_booking") env.state.flow = "booking";
       if (!result.ok) return error(result.reason, { tryAnotherDay: true });
       env.state.booking.service = profile.services.find(
         (s) => s.name.toLowerCase() === input.service.toLowerCase(),
@@ -390,6 +429,182 @@ export const TOOLS = {
           reference: created.reference,
           when: startsAt.toLocaleString("en-GB", { timeZone: env.ctx.timezone }),
           date: localDateString(startsAt, env.ctx.timezone),
+        },
+        record,
+      };
+    },
+  }),
+
+  find_booking: define({
+    description:
+      "Find the caller's existing booking to change or cancel it. Give the reference and the name it was booked under (or the phone number). On a phone call, call it with no reference to look up the caller's own number. Never reveal anything about a booking it couldn't verify.",
+    input: z.object({
+      reference: opt.describe("Booking reference as the caller says it, e.g. BD-7K4Q"),
+      name: opt.describe("Name the booking was made under"),
+      phone: phoneField,
+    }),
+    run: async (env, input) => {
+      const c = (env.state.change ??= {});
+      env.state.flow = "change_booking";
+      if ((c.failedLookups ?? 0) >= MAX_FAILED_LOOKUPS) {
+        return error("Too many attempts. Offer to take a message for the team instead.");
+      }
+      const fail = (message: string) => {
+        c.failedLookups = (c.failedLookups ?? 0) + 1;
+        return error(message, { attemptsLeft: MAX_FAILED_LOOKUPS - c.failedLookups });
+      };
+      const spokenPhone = input.phone
+        ? (normalisePhone(input.phone, env.ctx.countryCode) ?? undefined)
+        : undefined;
+      const callerId = env.state.callerPhone ?? undefined;
+      let matches: Awaited<ReturnType<typeof env.services.findBookings>>;
+      if (input.reference) {
+        const found = await env.services.findBookings({
+          reference: input.reference.replace(/\s+/g, "").toUpperCase(),
+        });
+        // Identity check: the name or a phone number must match the booking.
+        matches = found.filter(
+          (b) =>
+            namesMatch(input.name, b.customerName) ||
+            (b.customerPhone !== null &&
+              (b.customerPhone === spokenPhone || b.customerPhone === callerId)),
+        );
+        if (matches.length === 0) {
+          return fail(
+            "No upcoming booking matches those details. Ask them to check the reference and the name it was booked under.",
+          );
+        }
+      } else if (callerId) {
+        matches = await env.services.findBookings({ phone: callerId });
+        if (matches.length === 0) {
+          return fail(
+            "No upcoming bookings for this number. Ask for the booking reference and name.",
+          );
+        }
+      } else {
+        return error("Ask for the booking reference and the name it was booked under.");
+      }
+      const tz = env.ctx.timezone;
+      const upcoming = matches
+        .filter((b) => b.startsAt > env.ctx.now())
+        .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime());
+      if (upcoming.length === 0) return error("That booking is in the past.");
+      if (upcoming.length === 1) {
+        const b = upcoming[0]!;
+        Object.assign(c, {
+          bookingId: b.id,
+          reference: b.reference,
+          service: b.service,
+          startsAt: b.startsAt.toISOString(),
+          endsAt: b.endsAt.toISOString(),
+          failedLookups: 0,
+        });
+      }
+      return {
+        result: {
+          bookings: upcoming.slice(0, 3).map((b) => ({
+            reference: b.reference,
+            service: b.service,
+            when: b.startsAt.toLocaleString("en-GB", { timeZone: tz }),
+            date: localDateString(b.startsAt, tz),
+          })),
+          ...(upcoming.length > 1
+            ? {
+                note: "Several bookings: ask which one, then call find_booking with its reference.",
+              }
+            : {}),
+        },
+      };
+    },
+  }),
+
+  cancel_booking: define({
+    description:
+      "Cancel the booking found with find_booking, after reading it back and the caller confirming.",
+    input: z.object({ callerConfirmed: z.boolean() }),
+    run: async (env, { callerConfirmed }) => {
+      const c = env.state.change ?? {};
+      if (!c.bookingId) return error("Find the booking first with find_booking.");
+      if (!confirmedLater(env, c, { action: "cancel" }, callerConfirmed)) {
+        return error(
+          "Not cancelled yet. Read the booking back (service, day, time) and ask the caller to confirm the cancellation. Call cancel_booking again after they say yes.",
+        );
+      }
+      await env.services.cancelBooking(c.bookingId);
+      const record: CreatedRecord = {
+        type: "cancellation",
+        reference: c.reference!,
+        id: c.bookingId,
+      };
+      env.state.records.push(record);
+      return { result: { cancelled: true, reference: c.reference }, record };
+    },
+  }),
+
+  reschedule_booking: define({
+    description:
+      "Move the booking found with find_booking to a new slot from check_availability, after reading the change back and the caller confirming.",
+    input: z.object({
+      startsAt: z
+        .string()
+        .describe("The new slot's startsAt exactly as returned by check_availability"),
+      callerConfirmed: z.boolean(),
+    }),
+    run: async (env, { startsAt, callerConfirmed }) => {
+      const c = env.state.change ?? {};
+      if (!c.bookingId) return error("Find the booking first with find_booking.");
+      const profile = env.ctx.profile;
+      if (!profile) return error("Bookings are not set up. Offer to take a message instead.");
+      const when = new Date(startsAt);
+      if (Number.isNaN(when.getTime()))
+        return error("startsAt must be a slot from check_availability");
+      const service = profile.services.find(
+        (s) => s.name.toLowerCase() === c.service?.toLowerCase(),
+      );
+      const duration =
+        service?.durationMinutes ??
+        (new Date(c.endsAt!).getTime() - new Date(c.startsAt!).getTime()) / 60_000;
+      const busy = (
+        await env.services.listBusy(
+          new Date(when.getTime() - 86_400_000),
+          new Date(when.getTime() + 86_400_000),
+        )
+      ).filter(
+        // The booking being moved doesn't block its own new time.
+        (r) => !(r.startsAt.toISOString() === c.startsAt && r.endsAt.toISOString() === c.endsAt),
+      );
+      const free = isSlotFree(
+        {
+          profile,
+          timeZone: env.ctx.timezone,
+          serviceName: service?.name ?? c.service!,
+          busy,
+          now: env.ctx.now(),
+        },
+        when,
+      );
+      if (!free) return error("That time is not available. Check availability again.");
+      const change = { action: "reschedule" as const, startsAt: when.toISOString() };
+      if (!confirmedLater(env, c, change, callerConfirmed)) {
+        return error(
+          "Not moved yet. Read the change back (from the old day and time to the new one) and ask the caller to confirm. Call reschedule_booking again with the same startsAt after they say yes.",
+        );
+      }
+      const endsAt = new Date(when.getTime() + duration * 60_000);
+      await env.services.rescheduleBooking(c.bookingId, when, endsAt);
+      const record: CreatedRecord = {
+        type: "reschedule",
+        reference: c.reference!,
+        id: c.bookingId,
+      };
+      env.state.records.push(record);
+      c.startsAt = when.toISOString();
+      c.endsAt = endsAt.toISOString();
+      return {
+        result: {
+          moved: true,
+          reference: c.reference,
+          when: when.toLocaleString("en-GB", { timeZone: env.ctx.timezone }),
         },
         record,
       };
@@ -552,7 +767,7 @@ export const TOOLS = {
 
   request_human: define({
     description:
-      "The caller explicitly wants to speak to a person now. Not for callback requests: those go on the complaint (wantsCallback) or a message.",
+      "Only when the caller explicitly asks to speak to a person now. Never when they are just saying goodbye or thanks. Not for callback requests: those go on the complaint (wantsCallback) or a message.",
     input: z.object({ reason: z.string() }),
     run: async (env, { reason }) => {
       const created = await env.services.requestHuman(reason);

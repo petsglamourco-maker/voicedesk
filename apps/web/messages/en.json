@@ -76,7 +76,8 @@
     "records": "Records",
     "platformAdmin": "Platform admin",
     "calls": "Calls",
-    "integrations": "Integrations"
+    "integrations": "Integrations",
+    "contacts": "Contacts"
   },
   "roles": {
     "owner": "Owner",
@@ -289,7 +290,9 @@
       "booking": "Booking",
       "message": "Message",
       "human_request": "Callback request",
-      "signup": "Sign-up"
+      "signup": "Sign-up",
+      "cancellation": "Cancelled booking",
+      "reschedule": "Moved booking"
     },
     "summary": "Summary",
     "summarising": "Writing the summary…",
@@ -479,5 +482,58 @@
     "reconnect": "Reconnect",
     "disconnect": "Disconnect",
     "confirmDisconnect": "Disconnect Google Calendar? The assistant will stop checking it and stop adding bookings to it. Existing events stay in your calendar."
+  },
+  "contacts": {
+    "title": "Contacts",
+    "subtitle": "Your customers. The assistant recognises callers by their number and adds new people when they book, sign up or leave a message.",
+    "importTitle": "Import from a spreadsheet",
+    "importHint": "Upload a CSV file (from Excel, Google Sheets or your old system) with names and phone numbers or emails. Up to 5,000 rows.",
+    "chooseFile": "CSV file",
+    "fileTooBig": "That file is too large. Split it into files under 3 MB.",
+    "rowsFound": "{count, plural, one {# row} other {# rows}} found. Check which column is which:",
+    "tooManyRows": "More than {max} rows; split the file.",
+    "notInFile": "— not in file —",
+    "field": {
+      "fullName": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "notes": "Notes",
+      "marketingConsent": "Agreed to marketing"
+    },
+    "lawfulBasis": "Only import people you have a lawful reason to contact (for example existing customers). Marketing is only sent to people marked as agreeing to it.",
+    "import": "Import {count, plural, one {# row} other {# rows}}",
+    "cancel": "Cancel",
+    "imported": "{created} added, {updated} updated{errors, plural, =0 {.} one {, # row skipped:} other {, # rows skipped:}}",
+    "rowError": "Line {line}: {reason}",
+    "search": "Search",
+    "searchPlaceholder": "Name, phone or email",
+    "empty": "No contacts yet. They appear when callers book or leave details, or import your existing customers above.",
+    "noMatches": "No contacts match that search.",
+    "total": "{count, plural, one {# contact} other {# contacts}}",
+    "marketingYes": "Marketing: yes",
+    "marketingNo": "Marketing: no",
+    "source": {
+      "assistant": "Added by assistant",
+      "import": "Imported",
+      "manual": "Added by hand"
+    },
+    "back": "All contacts",
+    "edit": "Edit",
+    "save": "Save",
+    "delete": "Delete",
+    "confirmDelete": "Delete this contact? Their calls, bookings and messages stay, but are no longer linked to them. This can't be undone.",
+    "interest": "Interested in",
+    "calls": "Calls and chats",
+    "bookings": "Bookings",
+    "tickets": "Complaints and issues",
+    "messages": "Messages",
+    "channel": {
+      "voice": "Phone call",
+      "test_console": "Test console",
+      "web_chat": "Website chat",
+      "whatsapp": "WhatsApp",
+      "sms": "SMS",
+      "email": "Email"
+    }
   }
 }

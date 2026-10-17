@@ -185,6 +185,7 @@ export const staffMessages = pgTable(
     conversationId: uuid("conversation_id").references(() => conversations.id, {
       onDelete: "set null",
     }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
     callerName: text("caller_name").notNull(),
     callerPhone: text("caller_phone").notNull(),
     forStaff: text("for_staff"),

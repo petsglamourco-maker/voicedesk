@@ -6,7 +6,8 @@ import { LANGUAGE_NAMES, LANGUAGES, type Lang } from "../src/languages";
  * to the order the agent asks questions in.
  */
 
-export type Flow = "enquiry" | "complaint" | "booking" | "message" | "convert";
+export type Flow =
+  "enquiry" | "complaint" | "booking" | "message" | "convert" | "reschedule" | "cancel";
 
 export interface Scenario {
   id: string;
@@ -17,7 +18,9 @@ export interface Scenario {
   goal: string;
   facts: Record<string, string>;
   /** Record the agent must create (enquiries create none). */
-  expectRecord: "ticket" | "booking" | "message" | null;
+  expectRecord: "ticket" | "booking" | "message" | "cancellation" | "reschedule" | null;
+  /** The caller already has this booking (reference TS-2221, Tue 20 Oct 10:00 London). */
+  existingBooking?: boolean;
   /** For enquiries: a fact the answer must contain (checked as a substring of digits/words). */
   expectMention?: string;
 }
@@ -71,6 +74,22 @@ const TEMPLATES: Record<Flow, (lang: Lang) => Omit<Scenario, "id" | "language" |
     goal: "You've just moved to the area and are looking for a new dentist for yourself and your 6-year-old. Ask what they offer, whether they see children, and whether there's evening availability. Also ask whether they accept a specific insurer called 'Medisure' (you don't know if they do). If the answers sound good, book a check-up for yourself next Tuesday morning. Do NOT ask for a callback or for a human.",
     facts: { name: NAMES[lang], phone: "07700 900321", email: "you'd rather not give one" },
     expectRecord: "booking",
+  }),
+  reschedule: (lang) => ({
+    flow: "reschedule",
+    callerPhone: null,
+    goal: "You have a check-up booked for tomorrow (Tuesday) at 10am, reference TS-2221. You can't make it any more: move it to Thursday afternoon. Accept the first Thursday afternoon time offered.",
+    facts: { name: NAMES[lang], "booking reference": "TS-2221" },
+    expectRecord: "reschedule",
+    existingBooking: true,
+  }),
+  cancel: (lang) => ({
+    flow: "cancel",
+    callerPhone: null,
+    goal: "Cancel your check-up booked for tomorrow (Tuesday) at 10am, reference TS-2221, because you're going away. You don't want to rebook now.",
+    facts: { name: NAMES[lang], "booking reference": "TS-2221" },
+    expectRecord: "cancellation",
+    existingBooking: true,
   }),
   message: (lang) => ({
     flow: "message",

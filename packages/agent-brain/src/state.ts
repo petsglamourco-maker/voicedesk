@@ -11,6 +11,7 @@ export const INTENTS = [
   "signup",
   "complaint",
   "booking",
+  "change_booking",
   "message",
   "human",
   "other",
@@ -49,6 +50,22 @@ export interface BookingSlots {
   notes: string;
 }
 
+/** Changing an existing booking: found (and verified) first, then cancelled or moved. */
+export interface ChangeSlots {
+  bookingId: string;
+  reference: string;
+  service: string;
+  startsAt: string;
+  endsAt: string;
+  /** Failed lookups (wrong reference or details); capped to stop guessing. */
+  failedLookups: number;
+  /**
+   * The change read back to the caller and the turn it happened in. Confirmation is only
+   * accepted on a later turn, so the caller has actually heard it and said yes.
+   */
+  pending: { action: "cancel" | "reschedule"; startsAt?: string; turn: number };
+}
+
 export interface MessageSlots {
   callerName: string;
   callerPhone: string;
@@ -70,7 +87,8 @@ export interface SignupSlots {
 }
 
 export interface CreatedRecord {
-  type: "ticket" | "booking" | "message" | "human_request" | "signup";
+  type:
+    "ticket" | "booking" | "message" | "human_request" | "signup" | "cancellation" | "reschedule";
   reference: string;
   id: string;
 }
@@ -83,8 +101,15 @@ export interface ConversationState {
   booking: Partial<BookingSlots>;
   message: Partial<MessageSlots>;
   signup: Partial<SignupSlots>;
+  /** Optional: conversations saved before Phase 3 don't have it. */
+  change?: Partial<ChangeSlots>;
   /** Caller ID from the channel, if known (offered back to the caller to confirm). */
   callerPhone: string | null;
+  /** A returning customer recognised by their number (Phase 3). */
+  knownCaller?: {
+    name: string | null;
+    upcoming: Array<{ reference: string; service: string; startsAt: string }>;
+  };
   records: CreatedRecord[];
   /** Full LLM transcript (append-only, including tool calls and system notes). */
   history: LlmMessage[];
@@ -103,6 +128,7 @@ export function initialState(language: Lang, callerPhone: string | null = null):
     booking: {},
     message: {},
     signup: {},
+    change: {},
     callerPhone,
     records: [],
     history: [],
@@ -182,6 +208,9 @@ export function priorityFor(c: Partial<ComplaintSlots>): "low" | "normal" | "hig
   return "normal";
 }
 
+/** After this many failed booking lookups the assistant stops (no guessing references). */
+export const MAX_FAILED_LOOKUPS = 3;
+
 /** Short operator note appended each turn: where we are and what is still needed. */
 export type PrimaryGoal = "booking" | "signup" | "both";
 
@@ -200,6 +229,15 @@ export function stepNote(
     `[Engine note — not from the caller] Local time now: ${now}. Reply in language: ${state.language}.`,
   ];
   const done = (type: CreatedRecord["type"]) => state.records.find((r) => r.type === type);
+  if (state.knownCaller && state.turns <= 2) {
+    const k = state.knownCaller;
+    const upcoming = k.upcoming
+      .map((b) => `${b.service} ${b.reference} at ${b.startsAt}`)
+      .join("; ");
+    lines.push(
+      `Returning customer (recognised by their phone number): ${k.name ?? "name not on file"}.${upcoming ? ` Upcoming bookings: ${upcoming}.` : ""} You may greet them by name. Still read back any detail before relying on it.`,
+    );
+  }
   switch (state.flow) {
     case "opening":
       lines.push(
@@ -235,6 +273,28 @@ export function stepNote(
         missing.length
           ? `Booking flow. Still needed: ${missing.join("; ")}.`
           : "Booking flow: all details captured. Read the booking back (service, day, time, name) and, once confirmed, call create_booking.",
+      );
+      break;
+    }
+    case "change_booking": {
+      const c = state.change ?? {};
+      const changed = done("cancellation") ?? done("reschedule");
+      if (changed) {
+        lines.push(
+          `Booking ${changed.reference} ${changed.type === "cancellation" ? "cancelled" : "moved"}. Confirm what changed; ask if there is anything else.`,
+        );
+        break;
+      }
+      if ((c.failedLookups ?? 0) >= MAX_FAILED_LOOKUPS) {
+        lines.push(
+          "Change booking: the booking couldn't be verified. Don't try again or reveal anything about bookings; offer to take a message for the team instead.",
+        );
+        break;
+      }
+      lines.push(
+        c.bookingId
+          ? `Change booking: found ${c.reference} (${c.service}). Ask whether they want to cancel it or move it. To move it, check_availability for the new day, offer slots, read the change back, get a yes, then reschedule_booking. To cancel, read it back, get a yes, then cancel_booking.`
+          : "Change booking: identify the booking first with find_booking: ask for the booking reference and the name it was booked under. On a phone call, find_booking with no reference uses the caller's number.",
       );
       break;
     }

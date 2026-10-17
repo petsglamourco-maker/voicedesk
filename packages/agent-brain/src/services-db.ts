@@ -13,6 +13,7 @@ import {
   auditLog,
   bookings,
   contacts,
+  conversations,
   knowledgeGaps,
   staffMessages,
   tenants,
@@ -21,9 +22,10 @@ import {
   type Database,
 } from "@voicedesk/db";
 import { searchKnowledge } from "@voicedesk/knowledge";
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lt } from "drizzle-orm";
 import type { AgentContext } from "./context";
 import { toLang } from "./languages";
+import { upsertContactByPhone } from "./contacts";
 import { getPersona } from "./personas";
 import { getApprovedProfile } from "./profile-store";
 import type { BusyRange } from "./availability";
@@ -78,6 +80,21 @@ export function createDbAgentServices(
   const { tenantId, conversationId, businessName } = scope;
   const tx = <T>(fn: Parameters<typeof withTenant<T>>[2]) => withTenant(db, tenantId, fn);
   const log = deps.calendars?.log ?? (() => undefined);
+
+  /** The person a record is about: found or created by phone; also links the conversation. */
+  async function contactFor(
+    t: Parameters<Parameters<typeof withTenant>[2]>[0],
+    person: { phone: string | null | undefined; name?: string | null; email?: string | null },
+  ): Promise<string | null> {
+    const contactId = await upsertContactByPhone(t, tenantId, person);
+    if (contactId) {
+      await t
+        .update(conversations)
+        .set({ contactId })
+        .where(and(eq(conversations.id, conversationId), isNull(conversations.contactId)));
+    }
+    return contactId;
+  }
 
   let calendar: Promise<TenantCalendar | null> | undefined;
   const getCalendar = () =>
@@ -144,16 +161,88 @@ export function createDbAgentServices(
       return [...own, ...(external ?? [])];
     },
 
+    async findBookings(query) {
+      const rows = await tx((t) =>
+        t
+          .select()
+          .from(bookings)
+          .where(
+            and(
+              eq(bookings.tenantId, tenantId),
+              eq(bookings.status, "confirmed"),
+              gt(bookings.startsAt, new Date()),
+              ...(query.reference ? [eq(bookings.reference, query.reference)] : []),
+              ...(query.phone ? [eq(bookings.customerPhone, query.phone)] : []),
+            ),
+          )
+          .orderBy(asc(bookings.startsAt))
+          .limit(10),
+      );
+      return rows.map((b) => ({
+        id: b.id,
+        reference: b.reference,
+        service: b.service,
+        startsAt: b.startsAt,
+        endsAt: b.endsAt,
+        customerName: b.customerName,
+        customerPhone: b.customerPhone,
+      }));
+    },
+
+    async cancelBooking(bookingId) {
+      const [row] = await tx((t) =>
+        t
+          .update(bookings)
+          .set({ status: "cancelled", updatedAt: new Date() })
+          .where(and(eq(bookings.id, bookingId), eq(bookings.tenantId, tenantId)))
+          .returning(),
+      );
+      if (row?.externalEventId) {
+        const eventId = row.externalEventId;
+        await withCalendar("delete event", (cal) =>
+          cal.provider.deleteEvent(cal.calendarId, eventId),
+        );
+      }
+      invalidateBusyCache(tenantId);
+    },
+
+    async rescheduleBooking(bookingId, startsAt, endsAt) {
+      const [row] = await tx((t) =>
+        t
+          .update(bookings)
+          .set({ startsAt, endsAt, updatedAt: new Date() })
+          .where(and(eq(bookings.id, bookingId), eq(bookings.tenantId, tenantId)))
+          .returning(),
+      );
+      if (row?.externalEventId) {
+        const eventId = row.externalEventId;
+        await withCalendar("move event", (cal) =>
+          cal.provider.updateEvent(cal.calendarId, eventId, {
+            start: startsAt,
+            end: endsAt,
+            timezone: scope.timezone ?? "UTC",
+          }),
+        );
+      }
+      invalidateBusyCache(tenantId);
+    },
+
     async createTicket(input) {
       const d = input.details;
       return withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
+          const contactId = await contactFor(t, {
+            phone: d.callbackPhone,
+            name: d.callerName,
+            email: d.emailConfirmed ? d.email : null,
+          });
           const [row] = await t
             .insert(tickets)
             .values({
               tenantId,
               reference,
               conversationId,
+              contactId,
               priority: input.priority,
               details: d,
               callbackPhone: d.callbackPhone ?? null,
@@ -171,9 +260,14 @@ export function createDbAgentServices(
     async createBooking(input) {
       const created = await withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
+          const contactId = await contactFor(t, {
+            phone: input.customerPhone,
+            name: input.customerName,
+            email: input.customerEmail,
+          });
           const [row] = await t
             .insert(bookings)
-            .values({ tenantId, reference, conversationId, ...input })
+            .values({ tenantId, reference, conversationId, contactId, ...input })
             .returning({ id: bookings.id });
           return { id: row!.id, reference };
         }),
@@ -210,12 +304,17 @@ export function createDbAgentServices(
     async takeMessage(input) {
       return withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
+          const contactId = await contactFor(t, {
+            phone: input.callerPhone,
+            name: input.callerName,
+          });
           const [row] = await t
             .insert(staffMessages)
             .values({
               tenantId,
               reference,
               conversationId,
+              contactId,
               callerName: input.callerName,
               callerPhone: input.callerPhone,
               forStaff: input.forStaff ?? null,

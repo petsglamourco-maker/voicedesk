@@ -69,6 +69,8 @@ export const contacts = pgTable(
     consentAt: timestamp("consent_at", { withTimezone: true }),
     /** Reference given to the customer when the assistant signed them up. */
     reference: text("reference"),
+    /** Free-text notes from the business (CSV import or the contact page). */
+    notes: text("notes"),
     ...timestamps,
   },
   (t) => [

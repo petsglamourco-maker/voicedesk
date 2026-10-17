@@ -18,6 +18,16 @@ export interface TicketInput {
   priority: "low" | "normal" | "high" | "urgent";
 }
 
+export interface BookingSummary {
+  id: string;
+  reference: string;
+  service: string;
+  startsAt: Date;
+  endsAt: Date;
+  customerName: string;
+  customerPhone: string | null;
+}
+
 export interface BookingInput {
   service: string;
   startsAt: Date;
@@ -48,6 +58,10 @@ export interface AgentServices {
   searchKnowledge(query: string): Promise<KnowledgeResult[]>;
   /** Existing bookings overlapping [from, to). */
   listBusy(from: Date, to: Date): Promise<BusyRange[]>;
+  /** Upcoming confirmed bookings by reference and/or customer phone (E.164). */
+  findBookings(query: { reference?: string; phone?: string }): Promise<BookingSummary[]>;
+  cancelBooking(bookingId: string): Promise<void>;
+  rescheduleBooking(bookingId: string, startsAt: Date, endsAt: Date): Promise<void>;
   createTicket(input: TicketInput): Promise<Created>;
   createBooking(input: BookingInput): Promise<Created>;
   takeMessage(input: MessageInput): Promise<Created>;
@@ -62,7 +76,7 @@ export interface AgentServices {
 /** In-memory services for tests, evals and the simulated-call harness. */
 export class InMemoryAgentServices implements AgentServices {
   readonly tickets: Array<TicketInput & Created> = [];
-  readonly bookings: Array<BookingInput & Created> = [];
+  readonly bookings: Array<BookingInput & Created & { status?: string }> = [];
   readonly messages: Array<MessageInput & Created> = [];
   readonly humanRequests: Array<{ reason: string } & Created> = [];
   readonly signups: Array<SignupInput & Created> = [];
@@ -100,9 +114,42 @@ export class InMemoryAgentServices implements AgentServices {
   listBusy(from: Date, to: Date): Promise<BusyRange[]> {
     return Promise.resolve(
       this.bookings
-        .filter((b) => b.startsAt < to && b.endsAt > from)
+        .filter((b) => b.status !== "cancelled" && b.startsAt < to && b.endsAt > from)
         .map((b) => ({ startsAt: b.startsAt, endsAt: b.endsAt })),
     );
+  }
+
+  findBookings(query: { reference?: string; phone?: string }): Promise<BookingSummary[]> {
+    return Promise.resolve(
+      this.bookings
+        .filter(
+          (b) =>
+            b.status !== "cancelled" &&
+            (!query.reference || b.reference.toUpperCase() === query.reference.toUpperCase()) &&
+            (!query.phone || b.customerPhone === query.phone),
+        )
+        .map((b) => ({
+          id: b.id,
+          reference: b.reference,
+          service: b.service,
+          startsAt: b.startsAt,
+          endsAt: b.endsAt,
+          customerName: b.customerName,
+          customerPhone: b.customerPhone,
+        })),
+    );
+  }
+
+  cancelBooking(bookingId: string): Promise<void> {
+    const b = this.bookings.find((x) => x.id === bookingId);
+    if (b) b.status = "cancelled";
+    return Promise.resolve();
+  }
+
+  rescheduleBooking(bookingId: string, startsAt: Date, endsAt: Date): Promise<void> {
+    const b = this.bookings.find((x) => x.id === bookingId);
+    if (b) Object.assign(b, { startsAt, endsAt });
+    return Promise.resolve();
   }
 
   createTicket(input: TicketInput): Promise<Created> {
