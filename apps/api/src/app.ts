@@ -12,6 +12,8 @@ import {
 } from "fastify-type-provider-zod";
 import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
+import { registerAgentRoutes } from "./routes/agent";
+import { registerConversationRoutes } from "./routes/conversations";
 import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
 import { registerKnowledgeRoutes } from "./routes/knowledge";
@@ -66,6 +68,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerTenantRoutes(app, deps);
   registerKnowledgeRoutes(app, deps);
   registerProfileRoutes(app, deps);
+  registerAgentRoutes(app, deps);
+  registerConversationRoutes(app, deps);
 
   return app;
 }

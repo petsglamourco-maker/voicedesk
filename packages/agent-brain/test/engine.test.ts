@@ -315,3 +315,13 @@ describe("message and human flows", () => {
     expect(turn.state.flow).toBe("message");
   });
 });
+
+describe("language fallback", () => {
+  it("switches a Chinese or Arabic conversation to English for short Latin-script messages", async () => {
+    const { driver } = setup();
+    driver.start({ language: "ar" });
+    const turn = await driver.say("My friend is not breathing");
+    expect(turn.state.language).toBe("en");
+    expect(turn.reply).toContain("hang up and call 999");
+  });
+});

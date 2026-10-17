@@ -41,6 +41,18 @@ export interface EngineDeps {
 
 const MAX_TOOL_ROUNDS = 6;
 
+/**
+ * Short messages often defeat stopword detection. If the conversation is in a
+ * non-Latin-script language but the caller writes mostly Latin letters, assume English
+ * (the model can still switch precisely with set_language).
+ */
+function scriptFallback(text: string, current: Lang): Lang | null {
+  if (current !== "zh" && current !== "ar") return null;
+  const letters = text.match(/\p{L}/gu)?.length ?? 0;
+  const latin = text.match(/[A-Za-z]/g)?.length ?? 0;
+  return letters >= 8 && latin / letters > 0.8 ? "en" : null;
+}
+
 function localNow(ctx: AgentContext): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: ctx.timezone,
@@ -92,7 +104,7 @@ export async function runTurn(
   state.turns++;
 
   // Cheap language detection; the model can also switch explicitly via set_language.
-  const detected = detectLanguage(callerText);
+  const detected = detectLanguage(callerText) ?? scriptFallback(callerText, state.language);
   if (isLang(detected) && detected !== state.language) {
     state.language = detected;
     events.push({ type: "language", language: detected });

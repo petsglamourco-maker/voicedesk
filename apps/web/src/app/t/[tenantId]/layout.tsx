@@ -21,6 +21,9 @@ export default async function TenantLayout(props: {
     { href: `/t/${tenantId}`, label: t("overview") },
     { href: `/t/${tenantId}/knowledge`, label: t("knowledge") },
     { href: `/t/${tenantId}/profile`, label: t("profile") },
+    { href: `/t/${tenantId}/agent`, label: t("agent") },
+    { href: `/t/${tenantId}/console`, label: t("console") },
+    { href: `/t/${tenantId}/records`, label: t("records") },
     { href: `/t/${tenantId}/members`, label: t("members") },
     { href: `/t/${tenantId}/account`, label: t("account") },
   ];
@@ -41,7 +44,10 @@ export default async function TenantLayout(props: {
             <SignOutButton />
           </div>
         </div>
-        <nav aria-label={t("navLabel")} className="mx-auto flex max-w-5xl gap-1 px-4">
+        <nav
+          aria-label={t("navLabel")}
+          className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4"
+        >
           {nav.map((item) => (
             <Link
               key={item.href}

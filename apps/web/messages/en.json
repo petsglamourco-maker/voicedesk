@@ -70,7 +70,10 @@
     "recentActivity": "Recent activity",
     "noActivity": "No activity yet.",
     "knowledge": "Knowledge",
-    "profile": "Business profile"
+    "profile": "Business profile",
+    "agent": "Assistant",
+    "console": "Test console",
+    "records": "Records"
   },
   "roles": {
     "owner": "Owner",
@@ -219,5 +222,63 @@
     "staffName": "Name",
     "staffRole": "Role",
     "remove": "Remove"
+  },
+  "agent": {
+    "title": "Assistant",
+    "subtitle": "Choose how your AI assistant sounds and which languages it speaks. It always tells customers it's an AI.",
+    "persona": "Persona",
+    "personaHint": "Each persona has its own tone. You can give it a different name.",
+    "gender": {
+      "female": "female voice",
+      "male": "male voice"
+    },
+    "bestFor": "Best for: {use}",
+    "rename": "Name shown to customers",
+    "languages": "Languages",
+    "languagesHint": "The assistant replies in the customer's language when it's enabled here.",
+    "adminLanguage": "Language for summaries and notifications",
+    "save": "Save",
+    "saved": "Saved."
+  },
+  "console": {
+    "title": "Test console",
+    "subtitle": "Talk to your assistant exactly as a customer would. Records it creates here are real, so you can check the whole flow.",
+    "startLanguage": "Start in",
+    "style": "Style",
+    "styleChat": "Website chat",
+    "styleVoice": "Phone call (voice rules)",
+    "callerId": "Simulated caller ID",
+    "start": "Start conversation",
+    "restart": "Start new conversation",
+    "end": "End & summarise",
+    "noProfile": "No business profile is approved yet, so the assistant knows nothing about the business. Approve a profile first for realistic answers.",
+    "you": "You",
+    "agent": "Assistant",
+    "messageLabel": "Your message",
+    "placeholder": "Type as a customer…",
+    "ended": "Conversation ended",
+    "send": "Send",
+    "engine": "Engine",
+    "flow": "Flow",
+    "language": "Language",
+    "toolLog": "Tool calls",
+    "record": {
+      "ticket": "Ticket",
+      "booking": "Booking",
+      "message": "Message",
+      "human_request": "Callback request"
+    },
+    "summary": "Summary",
+    "summarising": "Writing the summary…"
+  },
+  "records": {
+    "title": "Records",
+    "subtitle": "Complaints, messages and bookings your assistant has captured.",
+    "tickets": "Complaints and issues",
+    "messages": "Messages for the team",
+    "bookings": "Bookings",
+    "empty": "Nothing yet.",
+    "callback": "Call back on {phone} · {time}",
+    "for": "For {name}:"
   }
 }
