@@ -1,12 +1,20 @@
 import type { LlmProvider } from "@voicedesk/adapters";
-import { generateProfileDraft, summarizeConversation } from "@voicedesk/agent-brain";
+import {
+  generateProfileDraft,
+  prepareCallSummaryEmails,
+  summarizeConversation,
+} from "@voicedesk/agent-brain";
 import type { Logger } from "@voicedesk/compliance/logger";
 import type { Database } from "@voicedesk/db";
-import type { AiJob, Job } from "@voicedesk/jobs";
+import type { AiJob, Job, SendEmailJob } from "@voicedesk/jobs";
 
 export interface AiDeps {
   db: Database;
   llm: LlmProvider;
+  /** Queues an email (the email worker sends it). */
+  sendEmail: (job: SendEmailJob) => Promise<void>;
+  /** Browser-facing origin for links in emails. */
+  webOrigin: string;
 }
 
 export function createAiProcessor(deps: AiDeps, log: Logger) {
@@ -29,7 +37,20 @@ export function createAiProcessor(deps: AiDeps, log: Logger) {
           },
           "conversation summarised",
         );
-        return { intent: summary.intent };
+        // Phone calls: tell the business straight away (target: within 60 s of hang-up).
+        const emails = await prepareCallSummaryEmails(
+          deps.db,
+          data.tenantId,
+          data.conversationId,
+          deps.webOrigin,
+        );
+        for (const email of emails) {
+          await deps.sendEmail({ ...email, tenantId: data.tenantId, kind: "call.summary" });
+        }
+        if (emails.length) {
+          log.info({ jobId: job.id, recipients: emails.length }, "call summary emailed");
+        }
+        return { intent: summary.intent, emailed: emails.length };
       }
     }
   };

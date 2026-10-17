@@ -44,6 +44,7 @@ import {
   loadGreeting,
   parseJobMetadata,
   saveRecording,
+  saveVoiceMetrics,
   type JobIds,
 } from "./job";
 import { CallRecorder, RECORDING_SAMPLE_RATE } from "./recorder";
@@ -284,14 +285,20 @@ export default defineAgent({
 
     ctx.addShutdownCallback(async () => {
       await bridge.drain();
-      const voiceToVoice = latencies.map((t) =>
-        t.ttsFirstByteMs === undefined
-          ? undefined
-          : (t.endOfUtteranceMs ?? 0) + (t.llmFirstTextMs ?? 0) + t.ttsFirstByteMs,
-      );
-      jobLog.info(
-        { turns: latencies.length, medianVoiceToVoiceMs: median(voiceToVoice) },
-        "voice call ended",
+      const turns = latencies.map((t) => ({
+        endOfUtteranceMs: t.endOfUtteranceMs,
+        llmFirstTextMs: t.llmFirstTextMs,
+        ttsFirstByteMs: t.ttsFirstByteMs,
+        filler: t.filler,
+        totalMs:
+          t.ttsFirstByteMs === undefined || t.llmFirstTextMs === undefined
+            ? undefined
+            : (t.endOfUtteranceMs ?? 0) + t.llmFirstTextMs + t.ttsFirstByteMs,
+      }));
+      const medianMs = median(turns.map((t) => t.totalMs));
+      jobLog.info({ turns: turns.length, medianVoiceToVoiceMs: medianMs }, "voice call ended");
+      await saveVoiceMetrics(db, ids, { turns, medianMs }).catch((err: unknown) =>
+        jobLog.error({ err }, "saving voice metrics failed"),
       );
       if (recorder && recorder.durationSeconds > 1) {
         await saveRecording(db, storage(), ids, recorder.toWav()).catch((err: unknown) =>

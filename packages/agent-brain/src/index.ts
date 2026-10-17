@@ -54,3 +54,9 @@ export {
   voiceFor,
   type VoiceChoice,
 } from "./voices";
+export {
+  buildCallSummaryEmail,
+  prepareCallSummaryEmails,
+  type CallEmailInput,
+  type CallEmailSummary,
+} from "./call-email";

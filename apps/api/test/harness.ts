@@ -27,6 +27,7 @@ export interface TestHarness {
   outbox: AuthEmail[];
   jobs: { sources: ProcessSourceJob[]; ai: AiJob[]; recrawls: Array<[string, number | null]> };
   llm: MockLlmProvider;
+  storage: InMemoryObjectStorage;
   close: () => Promise<void>;
 }
 
@@ -89,6 +90,7 @@ export async function createHarness(
     outbox,
     jobs: recorded,
     llm,
+    storage,
     close: async () => {
       await app.close();
       await closeDb(db);

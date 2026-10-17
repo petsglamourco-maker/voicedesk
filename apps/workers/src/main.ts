@@ -7,6 +7,7 @@ import { loadRootEnv } from "@voicedesk/config/load-env";
 import { createAppLlm, SecretBox } from "@voicedesk/core";
 import { closeDb, createDb } from "@voicedesk/db";
 import {
+  createEmailQueue,
   createRedisConnection,
   QUEUES,
   type AiJob,
@@ -33,6 +34,7 @@ const env = z
     EMAIL_FROM: z.string().min(3),
     LOG_LEVEL: z.string().default("info"),
     WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4100),
+    WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   })
   .parse(process.env);
 
@@ -68,6 +70,8 @@ const appLlm = createAppLlm(
   { log: (msg, data) => log.warn(data, msg) },
 );
 
+const emailQueue = createEmailQueue(connection);
+
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {
     connection,
@@ -79,11 +83,25 @@ const workers = [
     concurrency: 1,
     lockDuration: 10 * 60_000,
   }),
-  new Worker<AiJob>(QUEUES.ai, createAiProcessor({ db, llm: appLlm }, log), {
-    connection,
-    concurrency: 2,
-    lockDuration: 5 * 60_000,
-  }),
+  new Worker<AiJob>(
+    QUEUES.ai,
+    createAiProcessor(
+      {
+        db,
+        llm: appLlm,
+        webOrigin: env.WEB_ORIGIN,
+        sendEmail: async (job) => {
+          await emailQueue.add(job.kind, job);
+        },
+      },
+      log,
+    ),
+    {
+      connection,
+      concurrency: 2,
+      lockDuration: 5 * 60_000,
+    },
+  ),
 ];
 
 for (const worker of workers) {
@@ -110,6 +128,7 @@ log.info(
 const shutdown = async () => {
   health.close();
   await Promise.all(workers.map((w) => w.close()));
+  await emailQueue.close();
   connection.disconnect();
   await closeDb(db);
   process.exit(0);

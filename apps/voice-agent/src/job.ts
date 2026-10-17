@@ -5,6 +5,7 @@ import {
   phoneNumbers,
   withTenant,
   type Database,
+  type VoiceMetrics,
 } from "@voicedesk/db";
 import { and, asc, eq } from "drizzle-orm";
 
@@ -72,6 +73,16 @@ export async function activePhoneNumber(
       .where(and(eq(phoneNumbers.id, phoneNumberId), eq(phoneNumbers.tenantId, tenantId))),
   );
   return row && row.status === "active" ? { id: row.id, e164: row.e164 } : null;
+}
+
+/** Per-call latency summary for the call log and the latency dashboard. */
+export async function saveVoiceMetrics(db: Database, ids: JobIds, metrics: VoiceMetrics) {
+  await withTenant(db, ids.tenantId, (tx) =>
+    tx
+      .update(conversations)
+      .set({ voiceMetrics: metrics })
+      .where(eq(conversations.id, ids.conversationId)),
+  );
 }
 
 /** Uploads the call recording to our object storage and links it to the conversation. */

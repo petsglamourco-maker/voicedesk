@@ -74,6 +74,18 @@ export const conversationChannel = pgEnum("conversation_channel", [
 ]);
 export const conversationStatus = pgEnum("conversation_status", ["active", "ended"]);
 
+/** Per-turn voice latency (ms): end of speech → turn committed → first text → first audio. */
+export interface VoiceMetrics {
+  turns: Array<{
+    endOfUtteranceMs?: number;
+    llmFirstTextMs?: number;
+    ttsFirstByteMs?: number;
+    totalMs?: number;
+    filler?: boolean;
+  }>;
+  medianMs: number | null;
+}
+
 export const conversations = pgTable(
   "conversations",
   {
@@ -100,6 +112,8 @@ export const conversations = pgTable(
     callerNumberWithheld: boolean("caller_number_withheld").notNull().default(false),
     /** Object-storage key of the call recording (only when the business records calls). */
     recordingKey: text("recording_key"),
+    /** Voice calls: per-turn latency, written by the voice worker when the call ends. */
+    voiceMetrics: jsonb("voice_metrics").$type<VoiceMetrics>(),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },

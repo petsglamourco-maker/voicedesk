@@ -1,0 +1,1 @@
+ALTER TABLE "conversations" ADD COLUMN "voice_metrics" jsonb;
