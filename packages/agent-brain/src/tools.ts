@@ -536,7 +536,8 @@ export const TOOLS = {
   }),
 
   request_human: define({
-    description: "The caller wants to speak to a person (or needs one). Records the request.",
+    description:
+      "The caller explicitly wants to speak to a person now. Not for callback requests: those go on the complaint (wantsCallback) or a message.",
     input: z.object({ reason: z.string() }),
     run: async (env, { reason }) => {
       const created = await env.services.requestHuman(reason);
@@ -555,7 +556,7 @@ export const TOOLS = {
       return {
         result: {
           available: false,
-          next: "Nobody from the team can join right now. Apologise briefly and offer to take a message so someone calls them back.",
+          next: "A person can't join this conversation. Say so simply (don't claim the team is busy or unavailable), offer to help with anything yourself, and offer to take a message so someone gets back to them.",
         },
         record,
       };

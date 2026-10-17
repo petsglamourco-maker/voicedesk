@@ -34,7 +34,7 @@ export const PROFILE: BusinessProfile = {
   openingHours: emptyProfile("x").openingHours.map((h) =>
     h.day === "sat" || h.day === "sun"
       ? { ...h, closed: true }
-      : { ...h, open: "09:00", close: "17:00" },
+      : { ...h, open: "09:00", close: h.day === "thu" ? "20:00" : "17:00" },
   ),
   location: {
     address: "12 High Street, London NW1 7AA",
