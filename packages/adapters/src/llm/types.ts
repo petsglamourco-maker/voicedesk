@@ -68,9 +68,37 @@ export interface LlmResponse {
 
 export interface LlmProvider {
   readonly name: string;
+  /** False when no real model is configured (e.g. every provider switched off). */
+  available?: () => Promise<boolean>;
   complete(request: LlmRequest): Promise<LlmResponse>;
   /** Streams text deltas; resolves with the full response once complete. */
   stream(request: LlmRequest, onText: (delta: string) => void): Promise<LlmResponse>;
+}
+
+/**
+ * Provider-native assistant content, tagged with the provider that produced it. It is only
+ * replayed to that same provider (e.g. Claude thinking blocks, DeepSeek reasoning_content);
+ * other providers rebuild the turn from the neutral `content` blocks.
+ */
+export interface TaggedRaw {
+  provider: string;
+  data: unknown;
+}
+
+/** Returns the native content for `provider`, if this message was produced by it. */
+export function nativeRawFor(message: LlmMessage, provider: string): unknown {
+  const raw = message.raw;
+  if (raw === undefined || raw === null) return undefined;
+  // Conversations stored before tagging hold Claude content block arrays.
+  if (Array.isArray(raw)) return provider === "anthropic" ? raw : undefined;
+  const tagged = raw as Partial<TaggedRaw>;
+  return tagged.provider === provider ? tagged.data : undefined;
+}
+
+/** Whether an LLM is actually configured (not the offline mock / an empty router). */
+export async function isLlmAvailable(llm: LlmProvider): Promise<boolean> {
+  if (llm.available) return llm.available();
+  return llm.name !== "mock-llm";
 }
 
 export function responseText(response: LlmResponse): string {

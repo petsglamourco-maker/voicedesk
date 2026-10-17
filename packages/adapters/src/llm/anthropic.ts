@@ -1,13 +1,15 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ProviderError } from "../errors";
 import { estimateCostUsd } from "./pricing";
-import type {
-  LlmContentBlock,
-  LlmMessage,
-  LlmProvider,
-  LlmRequest,
-  LlmResponse,
-  ModelTier,
+import {
+  nativeRawFor,
+  type LlmContentBlock,
+  type LlmMessage,
+  type LlmProvider,
+  type LlmRequest,
+  type LlmResponse,
+  type ModelTier,
+  type TaggedRaw,
 } from "./types";
 
 export interface AnthropicLlmConfig {
@@ -95,9 +97,10 @@ export class AnthropicLlmProvider implements LlmProvider {
 }
 
 function toMessageParam(message: LlmMessage): Anthropic.MessageParam {
-  if (message.role === "assistant" && message.raw) {
-    // Replay provider-native content (including thinking blocks) unchanged.
-    return { role: "assistant", content: message.raw as Anthropic.ContentBlockParam[] };
+  const native = message.role === "assistant" ? nativeRawFor(message, "anthropic") : undefined;
+  if (native) {
+    // Replay Claude's own content (including thinking blocks) unchanged.
+    return { role: "assistant", content: native as Anthropic.ContentBlockParam[] };
   }
   if (typeof message.content === "string") {
     return { role: message.role, content: message.content };
@@ -139,7 +142,7 @@ function fromMessage(model: string, message: Anthropic.Message): LlmResponse {
   };
   return {
     content,
-    raw: message.content,
+    raw: { provider: "anthropic", data: message.content } satisfies TaggedRaw,
     stopReason:
       message.stop_reason === "end_turn" ||
       message.stop_reason === "tool_use" ||
