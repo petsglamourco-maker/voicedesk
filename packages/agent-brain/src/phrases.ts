@@ -44,6 +44,20 @@ export function recordingNotice(lang: Lang): string {
   return RECORDING_NOTICE[lang];
 }
 
+/** Spoken when a voice reply is slow (e.g. a lookup), so the caller isn't left in silence. */
+const HOLD_ON: Record<Lang, string> = {
+  en: "Just a moment.",
+  es: "Un momento.",
+  fr: "Un instant.",
+  de: "Einen Moment.",
+  zh: "请稍等。",
+  ar: "لحظة من فضلك.",
+};
+
+export function holdOnPhrase(lang: Lang): string {
+  return HOLD_ON[lang];
+}
+
 const EMERGENCY: Record<Lang, (n: string) => string> = {
   en: (n) =>
     `If someone is in danger or this is a medical emergency, please hang up and call ${n} now. I'm an AI assistant and I can't send help. If it isn't an emergency, I'm happy to help.`,

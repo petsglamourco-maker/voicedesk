@@ -1,4 +1,5 @@
 import { llm, voice } from "@livekit/agents";
+import { holdOnPhrase } from "@voicedesk/agent-brain";
 import type { EngineBridge, TurnTimings } from "./bridge";
 
 /**
@@ -35,6 +36,9 @@ export interface TimingHooks {
   report: (timings: TurnTimings) => void;
 }
 
+/** After this long without reply text, say a short hold-on phrase (lookups take 2–5 s). */
+export const FILLER_AFTER_MS = 1000;
+
 /**
  * Turns one caller utterance into a text stream for TTS by running a full engine turn.
  * Separate from the LiveKit class so it can be tested without a room.
@@ -43,20 +47,30 @@ export function engineReplyStream(
   bridge: EngineBridge,
   callerText: string,
   hooks: TimingHooks,
+  fillerAfterMs: number = FILLER_AFTER_MS,
 ): ReadableStream<string> {
   const startedAt = Date.now();
   const timings: TurnTimings = { ...hooks.pending() };
   let open = true;
+  const firstText = () => {
+    if (timings.llmFirstTextMs !== undefined) return;
+    timings.llmFirstTextMs = Date.now() - startedAt;
+    hooks.report(timings);
+  };
   return new ReadableStream<string>({
     start: (controller) => {
+      const filler = setTimeout(() => {
+        if (!open || timings.llmFirstTextMs !== undefined) return;
+        timings.filler = true;
+        firstText();
+        controller.enqueue(`${holdOnPhrase(bridge.language)} `);
+      }, fillerAfterMs);
       void bridge
         .handleTurn(
           callerText,
           (delta) => {
-            if (timings.llmFirstTextMs === undefined) {
-              timings.llmFirstTextMs = Date.now() - startedAt;
-              hooks.report(timings);
-            }
+            clearTimeout(filler);
+            firstText();
             // After a barge-in LiveKit cancels the stream; the turn still completes and is
             // saved, so a booking the caller already confirmed is not lost.
             if (open) controller.enqueue(delta);
@@ -68,6 +82,7 @@ export function engineReplyStream(
           hooks.report(timings);
         })
         .finally(() => {
+          clearTimeout(filler);
           if (open) controller.close();
           open = false;
         });

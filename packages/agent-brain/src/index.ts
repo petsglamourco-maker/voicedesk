@@ -20,6 +20,7 @@ export {
 export {
   emergencyMessage,
   greeting,
+  holdOnPhrase,
   looksLikeLifeThreateningEmergency,
   recordingNotice,
 } from "./phrases";

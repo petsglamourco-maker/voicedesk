@@ -1,5 +1,5 @@
 import { llm } from "@livekit/agents";
-import { MockEmbeddingProvider, MockLlmProvider } from "@voicedesk/adapters";
+import { MockEmbeddingProvider, MockLlmProvider, type LlmProvider } from "@voicedesk/adapters";
 import {
   loadAgentContext,
   loadConversationState,
@@ -136,6 +136,36 @@ describe("EngineBridge", () => {
     await bridge.drain();
     const saved = await loadConversationState(dbs.app, tenantId, conversationId);
     expect(saved?.state.turns).toBe(1);
+  });
+
+  it("says a hold-on phrase when the reply is slow", async () => {
+    const { ctx, state, conversationId } = await newConversation();
+    const inner = new MockLlmProvider().enqueue(MockLlmProvider.text("Found it."));
+    const slow: LlmProvider = {
+      name: "slow",
+      complete: (r) => inner.complete(r),
+      stream: async (r, onText) => {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        return inner.stream(r, onText);
+      },
+    };
+    const bridge = new EngineBridge(
+      { db: dbs.app, llm: slow, embeddings: new MockEmbeddingProvider() },
+      ctx,
+      { tenantId, conversationId },
+      state,
+    );
+    const reported: TurnTimings[] = [];
+    const text = await readAll(
+      engineReplyStream(
+        bridge,
+        "Do you have parking?",
+        { pending: () => ({}), report: (t) => reported.push({ ...t }) },
+        30,
+      ),
+    );
+    expect(text).toBe("Just a moment. Found it.");
+    expect(reported.at(-1)?.filler).toBe(true);
   });
 
   it("reports a language switch so speech recognition and TTS follow it", async () => {

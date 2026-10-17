@@ -380,6 +380,7 @@
     "preview": "Preview voice",
     "previewUnavailable": "Voice preview needs an ElevenLabs key in .env.",
     "recordCalls": "Record calls",
-    "recordCallsHint": "Adds a short recording notice to the greeting. Transcripts are always kept."
+    "recordCallsHint": "Adds a short recording notice to the greeting. Transcripts are always kept.",
+    "fillerHint": "* The assistant said “Just a moment” while it looked something up; the full answer came later."
   }
 }

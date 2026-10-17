@@ -121,6 +121,9 @@ export default defineAgent({
         turnDetection: new inference.TurnDetector({ version: "v1-mini" }),
         // Never start a turn on a partial transcript: turns can create bookings and tickets.
         preemptiveGeneration: { enabled: false },
+        // Default waits up to 2.5 s when the detector thinks the caller may go on; in the
+        // first live test a third of turns hit that cap.
+        endpointing: { maxDelay: 1500 },
       },
     });
 

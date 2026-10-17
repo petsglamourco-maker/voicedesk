@@ -27,6 +27,8 @@ export interface TurnTimings {
   ttsFirstByteMs?: number;
   /** Engine turn including tools. */
   engineMs?: number;
+  /** A hold-on phrase was spoken because the reply was slow (llmFirstTextMs is when). */
+  filler?: boolean;
 }
 
 /**

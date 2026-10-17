@@ -20,6 +20,7 @@ interface Latency {
   llmFirstTextMs?: number;
   ttsFirstByteMs?: number;
   engineMs?: number;
+  filler?: boolean;
 }
 
 interface Segment {
@@ -218,6 +219,9 @@ export function VoiceCall(props: { session: VoiceSession; onEnded: () => void })
             </Badge>
           </p>
           <table className="mt-3 w-full text-xs">
+            <caption className="caption-bottom pt-2 text-start text-muted-foreground">
+              {t("fillerHint")}
+            </caption>
             <thead className="text-muted-foreground">
               <tr>
                 <th className="text-start font-normal">#</th>
@@ -232,7 +236,10 @@ export function VoiceCall(props: { session: VoiceSession; onEnded: () => void })
                 <tr key={l.turn}>
                   <td>{l.turn}</td>
                   <td className="text-end">{l.endOfUtteranceMs ?? "—"}</td>
-                  <td className="text-end">{l.llmFirstTextMs ?? "—"}</td>
+                  <td className="text-end" title={l.filler ? t("fillerHint") : undefined}>
+                    {l.llmFirstTextMs ?? "—"}
+                    {l.filler ? "*" : ""}
+                  </td>
                   <td className="text-end">{l.ttsFirstByteMs ?? "—"}</td>
                   <td className="text-end font-medium">{total(l) ?? "—"}</td>
                 </tr>
