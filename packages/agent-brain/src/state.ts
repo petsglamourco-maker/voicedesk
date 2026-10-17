@@ -118,6 +118,8 @@ export interface ConversationState {
   endRequested?: boolean;
   /** Phone calls: put the caller through to this number once the current reply is spoken. */
   transfer?: { to: string };
+  /** Turn the last booking was made in (guards against a duplicate create in one turn). */
+  lastBookingTurn?: number;
 }
 
 export function initialState(language: Lang, callerPhone: string | null = null): ConversationState {
@@ -262,10 +264,11 @@ export function stepNote(
       break;
     }
     case "booking": {
-      const booking = done("booking");
-      if (booking) {
+      const booking = state.records.findLast((r) => r.type === "booking");
+      // Just booked, and no new booking started since.
+      if (booking && !state.booking.service && !state.booking.startsAt) {
         lines.push(
-          `Booked as ${booking.reference}. Confirm the date and time and the reference; ask if there is anything else. Don't promise any contact from the team.`,
+          `Booked as ${booking.reference}. Confirm the date and time and the reference; ask if there is anything else (another booking is fine). Don't promise any contact from the team.`,
         );
         break;
       }

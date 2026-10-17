@@ -35,13 +35,7 @@ import {
 } from "@voicedesk/agent-brain";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
-import {
-  createAppLlm,
-  googleCalendarFactory,
-  googleOAuthFromEnv,
-  SecretBox,
-  type CalendarFactory,
-} from "@voicedesk/core";
+import { createAppLlm, calendarsFromEnv, SecretBox, type CalendarFactory } from "@voicedesk/core";
 import { createDb, type Database } from "@voicedesk/db";
 import {
   createAiQueue,
@@ -88,10 +82,9 @@ function resources() {
   if (!shared) {
     const db = createDb(process.env.DATABASE_URL!);
     const box = SecretBox.fromEnv();
-    const oauth = googleOAuthFromEnv();
     shared = {
       db,
-      calendars: { box, factory: oauth ? googleCalendarFactory(oauth) : null },
+      calendars: { box, factory: calendarsFromEnv().factory },
       notify: (() => {
         let queue: ReturnType<typeof createNotificationQueue> | undefined;
         return async (job: NotificationJob) => {

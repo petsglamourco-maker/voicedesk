@@ -157,3 +157,32 @@ describe("namesMatch", () => {
     expect(namesMatch(given, booked)).toBe(expected);
   });
 });
+
+describe("several bookings in one conversation", () => {
+  it("books a parent and then a child, but not twice in one turn", async () => {
+    const services = new InMemoryAgentServices();
+    const env: ToolEnv = { ctx: makeContext(), services, state: initialState("en") };
+    const book = async (name: string, startsAt: string) => {
+      await runTool("check_availability", { service: "Check-up", date: "2026-10-20" }, env);
+      await runTool(
+        "update_booking",
+        {
+          service: "Check-up",
+          startsAt,
+          customerName: name,
+          phone: "07700 900123",
+          phoneConfirmed: true,
+        },
+        env,
+      );
+      return runTool("create_booking", { callerConfirmed: true }, env);
+    };
+    env.state.turns = 1;
+    expect((await book("Camille Martin", "2026-10-20T09:00:00Z")).isError).toBeFalsy();
+    expect((await runTool("create_booking", { callerConfirmed: true }, env)).isError).toBe(true);
+    expect(env.state.booking.phone).toBe("+447700900123"); // carried over
+    env.state.turns = 2;
+    expect((await book("Léo Martin", "2026-10-20T09:30:00Z")).isError).toBeFalsy();
+    expect(services.bookings.map((b) => b.customerName)).toEqual(["Camille Martin", "Léo Martin"]);
+  });
+});

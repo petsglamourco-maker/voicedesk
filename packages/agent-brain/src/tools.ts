@@ -368,7 +368,11 @@ export const TOOLS = {
     input: z.object({ callerConfirmed: z.boolean() }),
     run: async (env, { callerConfirmed }) => {
       const b = env.state.booking;
-      if (env.state.records.some((r) => r.type === "booking")) return error("Already booked");
+      // One booking per caller turn (a repeated call is a duplicate); several per conversation
+      // are fine, e.g. a parent booking for themselves and a child.
+      if (env.state.lastBookingTurn === env.state.turns) {
+        return error("Already booked in this turn. Confirm the booking to the caller.");
+      }
       const missing = missingBookingSlots(b);
       if (missing.length) return error("Not ready: details missing", { missing });
       if (!callerConfirmed)
@@ -407,6 +411,9 @@ export const TOOLS = {
       });
       const record: CreatedRecord = { type: "booking", ...created };
       env.state.records.push(record);
+      env.state.lastBookingTurn = env.state.turns;
+      // Ready for another booking; the confirmed contact details carry over.
+      env.state.booking = { phone: b.phone, phoneConfirmed: b.phoneConfirmed, email: b.email };
       return {
         result: {
           reference: created.reference,

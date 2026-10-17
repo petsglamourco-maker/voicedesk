@@ -1,31 +1,89 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { CalendarProvider } from "@voicedesk/adapters";
+import { GoogleCalendarProvider, GoogleOAuthClient } from "@voicedesk/adapters/calendar/google";
 import {
-  GoogleCalendarProvider,
-  GoogleOAuthClient,
-  isGoogleAuthRevoked,
-} from "@voicedesk/adapters/calendar/google";
+  MicrosoftCalendarProvider,
+  MicrosoftOAuthClient,
+} from "@voicedesk/adapters/calendar/microsoft";
 import { calendarConnections, withTenant, type Database } from "@voicedesk/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { SecretBox } from "./secret-box";
 
 /**
  * Calendar integrations (Phase 3, ADR 0014): OAuth connect flow, encrypted token storage and
- * a provider per business for the agent's availability and bookings.
+ * a provider per business for the agent's availability and bookings. One connected calendar
+ * per business (Google or Microsoft 365), so there's a single source of truth.
  */
 
-export const GOOGLE_CALLBACK_PATH = "/api/integrations/google/callback";
+export const CALENDAR_PROVIDERS = ["google", "microsoft"] as const;
+export type CalendarProviderKey = (typeof CALENDAR_PROVIDERS)[number];
 
-export function googleOAuthFromEnv(env: NodeJS.ProcessEnv = process.env): GoogleOAuthClient | null {
-  const clientId = env.GOOGLE_CLIENT_ID;
-  const clientSecret = env.GOOGLE_CLIENT_SECRET;
-  if (!clientId || !clientSecret) return null;
+export function isCalendarProvider(value: string): value is CalendarProviderKey {
+  return (CALENDAR_PROVIDERS as readonly string[]).includes(value);
+}
+
+export const calendarCallbackPath = (provider: CalendarProviderKey) =>
+  `/api/integrations/${provider}/callback`;
+
+/** The OAuth parts the connect flow needs (Google and Microsoft clients both fit). */
+export interface CalendarOAuthClient {
+  authorizeUrl(state: string): string;
+  exchangeCode(code: string): Promise<{ refreshToken?: string; email?: string }>;
+  revoke(token: string): Promise<void>;
+}
+
+/**
+ * Builds a business's calendar from its stored connection. `saveRefreshToken` persists
+ * rotated refresh tokens (Microsoft rotates them on every refresh).
+ */
+export type CalendarFactory = (
+  row: CalendarConnectionRow,
+  refreshToken: string,
+  saveRefreshToken?: (token: string) => Promise<void>,
+) => CalendarProvider;
+
+export interface CalendarIntegrations {
+  oauth: Partial<Record<CalendarProviderKey, CalendarOAuthClient>>;
+  factory: CalendarFactory | null;
+}
+
+/** OAuth clients for the providers configured in .env, and a factory that uses them. */
+export function calendarsFromEnv(env: NodeJS.ProcessEnv = process.env): CalendarIntegrations {
   const origin = env.WEB_ORIGIN ?? "http://localhost:3000";
-  return new GoogleOAuthClient({
-    clientId,
-    clientSecret,
-    redirectUri: `${origin}${GOOGLE_CALLBACK_PATH}`,
-  });
+  const google =
+    env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? new GoogleOAuthClient({
+          clientId: env.GOOGLE_CLIENT_ID,
+          clientSecret: env.GOOGLE_CLIENT_SECRET,
+          redirectUri: `${origin}${calendarCallbackPath("google")}`,
+        })
+      : undefined;
+  const microsoft =
+    env.MICROSOFT_CLIENT_ID && env.MICROSOFT_CLIENT_SECRET
+      ? new MicrosoftOAuthClient({
+          clientId: env.MICROSOFT_CLIENT_ID,
+          clientSecret: env.MICROSOFT_CLIENT_SECRET,
+          redirectUri: `${origin}${calendarCallbackPath("microsoft")}`,
+          tenant: env.MICROSOFT_TENANT || undefined,
+        })
+      : undefined;
+  const factory: CalendarFactory = (row, refreshToken, saveRefreshToken) => {
+    if (row.provider === "google" && google) {
+      return new GoogleCalendarProvider({ oauth: google, refreshToken });
+    }
+    if (row.provider === "microsoft" && microsoft) {
+      return new MicrosoftCalendarProvider({
+        oauth: microsoft,
+        refreshToken,
+        onRefreshToken: saveRefreshToken,
+      });
+    }
+    throw new Error(`${row.provider} calendar isn't configured on this server`);
+  };
+  return {
+    oauth: { ...(google ? { google } : {}), ...(microsoft ? { microsoft } : {}) },
+    factory: google || microsoft ? factory : null,
+  };
 }
 
 // --- OAuth state: signed, expiring, and bound to the browser by a nonce cookie -------------
@@ -33,6 +91,7 @@ export function googleOAuthFromEnv(env: NodeJS.ProcessEnv = process.env): Google
 export interface OAuthState {
   tenantId: string;
   userId: string;
+  provider: string;
   nonce: string;
   exp: number;
 }
@@ -45,13 +104,12 @@ function sign(payload: string, secret: string): string {
 
 export function createOAuthState(
   secret: string,
-  tenantId: string,
-  userId: string,
+  params: { tenantId: string; userId: string; provider: string },
   now: number = Date.now(),
 ): { state: string; nonce: string } {
   const nonce = randomBytes(16).toString("base64url");
   const payload = Buffer.from(
-    JSON.stringify({ tenantId, userId, nonce, exp: now + STATE_TTL_MS } satisfies OAuthState),
+    JSON.stringify({ ...params, nonce, exp: now + STATE_TTL_MS } satisfies OAuthState),
   ).toString("base64url");
   return { state: `${payload}.${sign(payload, secret)}`, nonce };
 }
@@ -108,35 +166,39 @@ export function toConnectionView(row: CalendarConnectionRow): CalendarConnection
   };
 }
 
+/** The business's connected calendar, whichever provider. */
 export async function getCalendarConnection(
   db: Database,
   tenantId: string,
-  provider = "google",
 ): Promise<CalendarConnectionRow | null> {
   const [row] = await withTenant(db, tenantId, (tx) =>
-    tx
-      .select()
-      .from(calendarConnections)
-      .where(
-        and(eq(calendarConnections.tenantId, tenantId), eq(calendarConnections.provider, provider)),
-      ),
+    tx.select().from(calendarConnections).where(eq(calendarConnections.tenantId, tenantId)),
   );
   return row ?? null;
 }
 
-/** Creates or replaces the business's Google connection (reconnecting keeps the chosen calendar). */
-export async function saveGoogleConnection(
+/** Creates or replaces the business's connection (reconnecting keeps the chosen calendar). */
+export async function saveCalendarConnection(
   db: Database,
   box: SecretBox,
-  params: { tenantId: string; userId: string; refreshToken: string; accountEmail?: string },
+  params: {
+    tenantId: string;
+    provider: CalendarProviderKey;
+    userId: string;
+    refreshToken: string;
+    accountEmail?: string;
+  },
 ): Promise<CalendarConnectionRow> {
-  const encrypted = box.encrypt(params.refreshToken, tokenContext(params.tenantId, "google"));
+  const encrypted = box.encrypt(
+    params.refreshToken,
+    tokenContext(params.tenantId, params.provider),
+  );
   const [row] = await withTenant(db, params.tenantId, (tx) =>
     tx
       .insert(calendarConnections)
       .values({
         tenantId: params.tenantId,
-        provider: "google",
+        provider: params.provider,
         accountEmail: params.accountEmail ?? null,
         refreshTokenEncrypted: encrypted,
         status: "active",
@@ -159,6 +221,15 @@ export async function saveGoogleConnection(
   return row!;
 }
 
+/** Kept for existing callers and tests. */
+export function saveGoogleConnection(
+  db: Database,
+  box: SecretBox,
+  params: { tenantId: string; userId: string; refreshToken: string; accountEmail?: string },
+): Promise<CalendarConnectionRow> {
+  return saveCalendarConnection(db, box, { ...params, provider: "google" });
+}
+
 export async function chooseCalendar(
   db: Database,
   tenantId: string,
@@ -168,30 +239,42 @@ export async function chooseCalendar(
     tx
       .update(calendarConnections)
       .set({ calendarId: calendar.id, calendarName: calendar.name, updatedAt: new Date() })
-      .where(
-        and(eq(calendarConnections.tenantId, tenantId), eq(calendarConnections.provider, "google")),
-      )
+      .where(eq(calendarConnections.tenantId, tenantId))
       .returning(),
   );
   return row ?? null;
 }
 
-export async function deleteCalendarConnection(
-  db: Database,
-  tenantId: string,
-  provider = "google",
-): Promise<void> {
+export async function deleteCalendarConnection(db: Database, tenantId: string): Promise<void> {
   await withTenant(db, tenantId, (tx) =>
-    tx
-      .delete(calendarConnections)
-      .where(
-        and(eq(calendarConnections.tenantId, tenantId), eq(calendarConnections.provider, provider)),
-      ),
+    tx.delete(calendarConnections).where(eq(calendarConnections.tenantId, tenantId)),
   );
 }
 
 export function decryptRefreshToken(box: SecretBox, row: CalendarConnectionRow): string {
   return box.decrypt(row.refreshTokenEncrypted, tokenContext(row.tenantId, row.provider));
+}
+
+/** Saves a rotated refresh token (Microsoft). */
+export async function updateRefreshToken(
+  db: Database,
+  box: SecretBox,
+  row: CalendarConnectionRow,
+  refreshToken: string,
+): Promise<void> {
+  await withTenant(db, row.tenantId, (tx) =>
+    tx
+      .update(calendarConnections)
+      .set({
+        refreshTokenEncrypted: box.encrypt(refreshToken, tokenContext(row.tenantId, row.provider)),
+      })
+      .where(eq(calendarConnections.id, row.id)),
+  );
+}
+
+/** "invalid_grant" from either provider: access was revoked or expired; reconnect needed. */
+export function isCalendarAuthRevoked(error: unknown): boolean {
+  return error instanceof Error && /invalid_grant/.test(error.message);
 }
 
 /** Records a failure on the card; revoked access means the business must reconnect. */
@@ -206,7 +289,7 @@ export async function markCalendarError(
     tx
       .update(calendarConnections)
       .set({
-        status: isGoogleAuthRevoked(error) ? "revoked" : "error",
+        status: isCalendarAuthRevoked(error) ? "revoked" : "error",
         lastError: message,
         lastErrorAt: new Date(),
       })
@@ -233,16 +316,6 @@ export interface TenantCalendar {
   provider: CalendarProvider;
 }
 
-/** Factory seam so tests can swap in an in-memory calendar. */
-export type CalendarFactory = (
-  row: CalendarConnectionRow,
-  refreshToken: string,
-) => CalendarProvider;
-
-export function googleCalendarFactory(oauth: GoogleOAuthClient): CalendarFactory {
-  return (_row, refreshToken) => new GoogleCalendarProvider({ oauth, refreshToken });
-}
-
 /**
  * The calendar the agent books into, or null (not connected, no calendar chosen, revoked,
  * or encryption not configured): the agent then uses VoiceDesk's own bookings only.
@@ -259,6 +332,8 @@ export async function tenantCalendar(
   return {
     connectionId: row.id,
     calendarId: row.calendarId,
-    provider: factory(row, decryptRefreshToken(box, row)),
+    provider: factory(row, decryptRefreshToken(box, row), (token) =>
+      updateRefreshToken(db, box, row, token),
+    ),
   };
 }

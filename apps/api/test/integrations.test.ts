@@ -41,7 +41,7 @@ let h: TestHarness;
 let owner: Awaited<ReturnType<typeof createOwnerWithTenant>>;
 
 beforeAll(async () => {
-  h = await createHarness({ calendars: { oauth, factory: () => calendar } });
+  h = await createHarness({ calendars: { oauth: { google: oauth }, factory: () => calendar } });
   owner = await createOwnerWithTenant(h, "Integrations Co");
 });
 afterAll(() => h.close());
@@ -97,20 +97,25 @@ describe("Google Calendar connection", () => {
       headers: as(`${owner.cookie}; ${nonceCookie}`),
     });
     expect(done.statusCode).toBe(302);
-    expect(done.headers.location).toBe(`/t/${owner.tenantId}/integrations?google=connected`);
+    expect(done.headers.location).toBe(`/t/${owner.tenantId}/integrations?calendar=connected`);
 
     const status = await h.app.inject({ method: "GET", url: base(), headers: as(owner.cookie) });
     expect(status.json()).toMatchObject({
-      google: {
-        available: true,
+      calendar: {
+        available: { google: true, microsoft: false },
         canManage: true,
-        connection: { accountEmail: "owner@bright.example", calendarId: null, status: "active" },
+        connection: {
+          provider: "google",
+          accountEmail: "owner@bright.example",
+          calendarId: null,
+          status: "active",
+        },
       },
     });
 
     const list = await h.app.inject({
       method: "GET",
-      url: `${base()}/google/calendars`,
+      url: `${base()}/calendar/calendars`,
       headers: as(owner.cookie),
     });
     expect(list.json<{ calendars: Array<{ id: string }> }>().calendars.map((c) => c.id)).toEqual([
@@ -119,14 +124,14 @@ describe("Google Calendar connection", () => {
     ]);
     const bad = await h.app.inject({
       method: "PUT",
-      url: `${base()}/google/calendar`,
+      url: `${base()}/calendar`,
       headers: as(owner.cookie),
       payload: { id: "someone-elses" },
     });
     expect(bad.statusCode).toBe(400);
     const chosen = await h.app.inject({
       method: "PUT",
-      url: `${base()}/google/calendar`,
+      url: `${base()}/calendar`,
       headers: as(owner.cookie),
       payload: { id: "team" },
     });
@@ -136,15 +141,22 @@ describe("Google Calendar connection", () => {
     const peek = await h.app.inject({ method: "GET", url: base(), headers: as(other.cookie) });
     expect(peek.statusCode).toBe(404);
 
+    const notConfigured = await h.app.inject({
+      method: "GET",
+      url: `${base()}/microsoft/start`,
+      headers: as(owner.cookie),
+    });
+    expect(notConfigured.statusCode).toBe(503); // Microsoft isn't configured in this harness
+
     const off = await h.app.inject({
       method: "DELETE",
-      url: `${base()}/google`,
+      url: `${base()}/calendar`,
       headers: as(owner.cookie),
     });
     expect(off.statusCode).toBe(204);
     expect(revoked).toContain("rt-1");
     const after = await h.app.inject({ method: "GET", url: base(), headers: as(owner.cookie) });
-    expect(after.json<{ google: { connection: unknown } }>().google.connection).toBeNull();
+    expect(after.json<{ calendar: { connection: unknown } }>().calendar.connection).toBeNull();
   });
 });
 
@@ -157,7 +169,9 @@ describe("without Google configured", () => {
       url: `/api/tenants/${o.tenantId}/integrations`,
       headers: as(o.cookie),
     });
-    expect(status.json()).toMatchObject({ google: { available: false } });
+    expect(status.json()).toMatchObject({
+      calendar: { available: { google: false, microsoft: false } },
+    });
     const start = await bare.app.inject({
       method: "GET",
       url: `/api/tenants/${o.tenantId}/integrations/google/start`,

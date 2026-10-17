@@ -6,14 +6,12 @@ import type {
 } from "@voicedesk/adapters";
 import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
-import type { GoogleOAuthClient } from "@voicedesk/adapters/calendar/google";
 import {
   createAppLlm,
-  googleCalendarFactory,
-  googleOAuthFromEnv,
+  calendarsFromEnv,
   recordAudit,
   SecretBox,
-  type CalendarFactory,
+  type CalendarIntegrations,
   type ProviderSecrets,
 } from "@voicedesk/core";
 import { closeDb, createDb, withTenant, type Database } from "@voicedesk/db";
@@ -84,7 +82,7 @@ export interface Container {
   /** LiveKit SIP routing for phone numbers; null until LIVEKIT_* are set. */
   sip?: SipGateway | null;
   /** Calendar integrations (Phase 3): Google OAuth client and provider factory. */
-  calendars?: { oauth: GoogleOAuthClient | null; factory: CalendarFactory | null };
+  calendars?: CalendarIntegrations;
   /** Signs OAuth `state` values (the Better Auth secret). */
   oauthStateSecret: string;
   checkRedis: () => Promise<boolean>;
@@ -119,10 +117,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     voice: voiceGatewayFromEnv(),
     tts: await ttsFromEnv(),
     sip: sipGatewayFromEnv(),
-    calendars: (() => {
-      const oauth = googleOAuthFromEnv();
-      return { oauth, factory: oauth ? googleCalendarFactory(oauth) : null };
-    })(),
+    calendars: calendarsFromEnv(),
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {

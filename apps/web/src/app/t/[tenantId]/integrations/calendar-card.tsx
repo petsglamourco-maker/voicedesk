@@ -14,8 +14,11 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
 
+type Provider = "google" | "microsoft";
+
 interface Connection {
   id: string;
+  provider: Provider;
   accountEmail: string | null;
   calendarId: string | null;
   calendarName: string | null;
@@ -25,15 +28,19 @@ interface Connection {
 }
 
 export interface IntegrationsResponse {
-  google: { available: boolean; canManage: boolean; connection: Connection | null };
+  calendar: {
+    available: Record<Provider, boolean>;
+    canManage: boolean;
+    connection: Connection | null;
+  };
 }
 
 const RESULTS = ["connected", "cancelled", "failed", "no_refresh_token"] as const;
 
-/** Connect Google Calendar, choose the calendar bookings go into, see problems (ADR 0014). */
-export function GoogleCalendarCard(props: {
+/** Connect Google Calendar or Microsoft 365, choose the booking calendar (ADR 0014). */
+export function CalendarCard(props: {
   tenantId: string;
-  initial: IntegrationsResponse["google"];
+  initial: IntegrationsResponse["calendar"];
   result: string | null;
 }) {
   const t = useTranslations("integrations");
@@ -46,11 +53,12 @@ export function GoogleCalendarCard(props: {
   const [error, setError] = useState<string | null>(null);
   const base = `/api/tenants/${props.tenantId}/integrations`;
   const result = RESULTS.find((r) => r === props.result) ?? null;
+  const canManage = props.initial.canManage;
 
   useEffect(() => {
-    if (!connection || !props.initial.canManage || connection.status === "revoked") return;
+    if (!connection || !canManage || connection.status === "revoked") return;
     let cancelled = false;
-    api<{ calendars: typeof calendars }>(`${base}/google/calendars`)
+    api<{ calendars: typeof calendars }>(`${base}/calendar/calendars`)
       .then((r) => {
         if (!cancelled) setCalendars(r.calendars);
       })
@@ -60,17 +68,14 @@ export function GoogleCalendarCard(props: {
     return () => {
       cancelled = true;
     };
-  }, [connection, props.initial.canManage, base, common]);
+  }, [connection, canManage, base, common]);
 
   async function choose(id: string) {
     setBusy(true);
     setError(null);
     try {
       setConnection(
-        await api<Connection>(`${base}/google/calendar`, {
-          method: "PUT",
-          body: JSON.stringify({ id }),
-        }),
+        await api<Connection>(`${base}/calendar`, { method: "PUT", body: JSON.stringify({ id }) }),
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : common("errorGeneric"));
@@ -83,7 +88,7 @@ export function GoogleCalendarCard(props: {
     if (!window.confirm(t("confirmDisconnect"))) return;
     setBusy(true);
     try {
-      await api(`${base}/google`, { method: "DELETE" });
+      await api(`${base}/calendar`, { method: "DELETE" });
       setConnection(null);
       setCalendars([]);
     } catch (e) {
@@ -93,21 +98,36 @@ export function GoogleCalendarCard(props: {
     }
   }
 
+  const providerName = (p: Provider) => t(`provider.${p}`);
+  const connectLink = (p: Provider) => (
+    <a
+      key={p}
+      href={`${base}/${p}/start`}
+      className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+    >
+      {t("connectWith", { provider: providerName(p) })}
+    </a>
+  );
+  const available = (["google", "microsoft"] as const).filter((p) => props.initial.available[p]);
+
   return (
-    <Card data-testid="google-calendar">
+    <Card data-testid="calendar-integration">
       <div className="flex flex-wrap items-center gap-2">
-        <CardTitle>{t("googleTitle")}</CardTitle>
+        <CardTitle>{t("calendarTitle")}</CardTitle>
         {connection ? (
-          connection.status === "active" ? (
-            <Badge className="border-success/40 text-success">{t("statusActive")}</Badge>
-          ) : connection.status === "revoked" ? (
-            <Badge className="border-danger/40 text-danger">{t("statusRevoked")}</Badge>
-          ) : (
-            <Badge className="border-warning/40 text-warning">{t("statusError")}</Badge>
-          )
+          <>
+            <Badge>{providerName(connection.provider)}</Badge>
+            {connection.status === "active" ? (
+              <Badge className="border-success/40 text-success">{t("statusActive")}</Badge>
+            ) : connection.status === "revoked" ? (
+              <Badge className="border-danger/40 text-danger">{t("statusRevoked")}</Badge>
+            ) : (
+              <Badge className="border-warning/40 text-warning">{t("statusError")}</Badge>
+            )}
+          </>
         ) : null}
       </div>
-      <CardDescription>{t("googleHint")}</CardDescription>
+      <CardDescription>{t("calendarHint")}</CardDescription>
 
       {result ? (
         <Alert className="mt-4" tone={result === "connected" ? "success" : "error"}>
@@ -119,22 +139,17 @@ export function GoogleCalendarCard(props: {
           {error}
         </Alert>
       ) : null}
-      {connection?.status !== "active" && connection?.lastError ? (
+      {connection && connection.status !== "active" && connection.lastError ? (
         <Alert className="mt-4" tone="error">
           {connection.status === "revoked" ? t("revokedHelp") : t("errorHelp")}
         </Alert>
       ) : null}
 
-      {!props.initial.available ? (
-        <p className="mt-4 text-sm text-muted-foreground">{t("notConfigured")}</p>
-      ) : !connection ? (
-        props.initial.canManage ? (
-          <a
-            href={`${base}/google/start`}
-            className="mt-4 inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
-          >
-            {t("connect")}
-          </a>
+      {!connection ? (
+        available.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">{t("notConfigured")}</p>
+        ) : canManage ? (
+          <div className="mt-4 flex flex-wrap gap-2">{available.map(connectLink)}</div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">{t("askOwner")}</p>
         )
@@ -143,7 +158,7 @@ export function GoogleCalendarCard(props: {
           <p>
             {t("account")}: <span className="font-medium">{connection.accountEmail ?? "—"}</span>
           </p>
-          {props.initial.canManage ? (
+          {canManage ? (
             <div className="max-w-sm">
               <Label htmlFor="calendar">{t("calendar")}</Label>
               <Select
@@ -173,11 +188,11 @@ export function GoogleCalendarCard(props: {
               {t("calendar")}: {connection.calendarName ?? "—"}
             </p>
           )}
-          {props.initial.canManage ? (
+          {canManage ? (
             <div className="flex gap-2">
               {connection.status === "revoked" ? (
                 <a
-                  href={`${base}/google/start`}
+                  href={`${base}/${connection.provider}/start`}
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   {t("reconnect")}

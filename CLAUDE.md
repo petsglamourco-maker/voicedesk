@@ -17,7 +17,9 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
     - Contacts: caller recognition, CSV import, Contacts pages.
     - Confirmations, reminders and staff alerts (ADR 0015): `notifications` queue; SMS shows in Mailpit until Twilio is approved. Records actions.
     - Phone transfers (ADR 0015): `request_human` on phone calls → `transferTarget` (hours, on-call number for urgent situations) → SIP REFER after the sentence is spoken, with a context text to the person answering. Falls back to a message if the transfer fails.
-  - **Next in Phase 3:** Outlook calendar (Microsoft Graph). Live tests need Google OAuth credentials and, for transfers, the Twilio number.
+    - Outlook / Microsoft 365 calendars (Graph, rotating refresh tokens saved encrypted); one calendar per business.
+  - **Phase 3 is built.** Live tests need Google or Microsoft OAuth credentials, and the Twilio number for transfers.
+- **Next:** Phase 4 (omnichannel: WhatsApp, website chat widget, form capture, unified inbox, human takeover, email triage).
 
 ## Layout
 
@@ -104,6 +106,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Calendar integration (optional; redirect URI `${WEB_ORIGIN}/api/integrations/google/callback`)
+- `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT`: Outlook / Microsoft 365 (optional; redirect URI `${WEB_ORIGIN}/api/integrations/microsoft/callback`)
 - `SMS_PROVIDER` (`mailpit` default, `twilio` costs money), `SMS_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 

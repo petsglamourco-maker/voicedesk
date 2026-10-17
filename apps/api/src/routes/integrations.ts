@@ -1,16 +1,20 @@
 import {
+  CALENDAR_PROVIDERS,
+  can,
   chooseCalendar,
   createOAuthState,
   decryptRefreshToken,
   deleteCalendarConnection,
   getCalendarConnection,
-  recordAudit,
-  saveGoogleConnection,
-  toConnectionView,
-  verifyOAuthState,
-  can,
   getMembershipRole,
   isBusinessRole,
+  isCalendarProvider,
+  recordAudit,
+  saveCalendarConnection,
+  toConnectionView,
+  updateRefreshToken,
+  verifyOAuthState,
+  type CalendarProviderKey,
 } from "@voicedesk/core";
 import { withTenant } from "@voicedesk/db";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
@@ -21,6 +25,7 @@ import { HttpError, notFound } from "../lib/errors";
 import { requireSession, requireTenantAccess } from "./guards";
 
 const params = z.object({ tenantId: z.string() });
+const providerParams = params.extend({ provider: z.enum(CALENDAR_PROVIDERS) });
 const NONCE_COOKIE = "vd_oauth_nonce";
 
 function readCookie(request: FastifyRequest, name: string): string | undefined {
@@ -39,18 +44,20 @@ function setNonceCookie(reply: FastifyReply, value: string, maxAge: number): voi
   );
 }
 
+/** Calendar integrations: Google Calendar and Microsoft 365 (ADR 0014). */
 export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ["integrations"];
-  const google = deps.calendars?.oauth ?? null;
+  const oauth = deps.calendars?.oauth ?? {};
   const box = deps.secrets.box;
 
-  function requireGoogle() {
-    if (!google) {
+  function requireProvider(provider: CalendarProviderKey) {
+    const client = oauth[provider];
+    if (!client) {
       throw new HttpError(
         503,
-        "GOOGLE_NOT_CONFIGURED",
-        "Google Calendar isn't configured on this server (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)",
+        "CALENDAR_NOT_CONFIGURED",
+        `${provider === "google" ? "Google Calendar" : "Microsoft 365"} isn't configured on this server`,
       );
     }
     if (!box) {
@@ -60,7 +67,16 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
         "SETTINGS_ENCRYPTION_KEY is missing, so calendar access can't be stored safely",
       );
     }
-    return { google, box };
+    return { client, box };
+  }
+
+  async function connectedCalendar(tenantId: string) {
+    const row = await getCalendarConnection(deps.db, tenantId);
+    if (!row || !box || !deps.calendars?.factory) throw notFound();
+    const provider = deps.calendars.factory(row, decryptRefreshToken(box, row), (token) =>
+      updateRefreshToken(deps.db, box, row, token),
+    );
+    return { row, provider };
   }
 
   r.get(
@@ -68,7 +84,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     {
       schema: {
         tags,
-        summary: "Connected calendars and whether each provider is available",
+        summary: "The connected calendar and which providers are available",
         params,
       },
     },
@@ -81,8 +97,10 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
       );
       const row = await getCalendarConnection(deps.db, access.tenantId);
       return {
-        google: {
-          available: google !== null && box !== null,
+        calendar: {
+          available: Object.fromEntries(
+            CALENDAR_PROVIDERS.map((p) => [p, oauth[p] !== undefined && box !== null]),
+          ) as Record<CalendarProviderKey, boolean>,
           canManage: can(access.role, "agent:configure"),
           connection: row ? toConnectionView(row) : null,
         },
@@ -91,8 +109,14 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
   );
 
   r.get(
-    "/api/tenants/:tenantId/integrations/google/start",
-    { schema: { tags, summary: "Redirects to Google to connect a calendar", params } },
+    "/api/tenants/:tenantId/integrations/:provider/start",
+    {
+      schema: {
+        tags,
+        summary: "Redirects to Google or Microsoft to connect a calendar",
+        params: providerParams,
+      },
+    },
     async (request, reply) => {
       const access = await requireTenantAccess(
         deps,
@@ -100,23 +124,32 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
         request.params.tenantId,
         "agent:configure",
       );
-      const { google: oauth } = requireGoogle();
-      const { state, nonce } = createOAuthState(
-        deps.oauthStateSecret,
-        access.tenantId,
-        access.session.user.id,
-      );
+      const { client } = requireProvider(request.params.provider);
+      const existing = await getCalendarConnection(deps.db, access.tenantId);
+      if (existing && existing.provider !== request.params.provider) {
+        throw new HttpError(
+          409,
+          "OTHER_CALENDAR_CONNECTED",
+          "Another calendar is already connected. Disconnect it first.",
+        );
+      }
+      const { state, nonce } = createOAuthState(deps.oauthStateSecret, {
+        tenantId: access.tenantId,
+        userId: access.session.user.id,
+        provider: request.params.provider,
+      });
       setNonceCookie(reply, nonce, 600);
-      return reply.redirect(oauth.authorizeUrl(state), 302);
+      return reply.redirect(client.authorizeUrl(state), 302);
     },
   );
 
   r.get(
-    "/api/integrations/google/callback",
+    "/api/integrations/:provider/callback",
     {
       schema: {
         tags,
-        summary: "Google OAuth redirect target",
+        summary: "OAuth redirect target",
+        params: z.object({ provider: z.enum(CALENDAR_PROVIDERS) }),
         querystring: z.object({
           code: z.string().optional(),
           state: z.string().optional(),
@@ -134,8 +167,12 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
           )
         : null;
       setNonceCookie(reply, "", 0); // one use only
-      // The person finishing the flow must be the one who started it, still allowed to.
-      if (!parsed || parsed.userId !== session.user.id) {
+      // The person finishing the flow must be the one who started it, for this provider.
+      if (
+        !parsed ||
+        parsed.userId !== session.user.id ||
+        parsed.provider !== request.params.provider
+      ) {
         throw new HttpError(
           400,
           "INVALID_OAUTH_STATE",
@@ -144,18 +181,20 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
       }
       const role = await getMembershipRole(deps.db, session.user.id, parsed.tenantId);
       if (!role || !isBusinessRole(role) || !can(role, "agent:configure")) throw notFound();
+      const provider = request.params.provider;
       const back = `/t/${parsed.tenantId}/integrations`;
       if (request.query.error || !request.query.code) {
-        return reply.redirect(`${back}?google=cancelled`, 302);
+        return reply.redirect(`${back}?calendar=cancelled`, 302);
       }
-      const { google: oauth, box: secretBox } = requireGoogle();
+      const { client, box: secretBox } = requireProvider(provider);
       try {
-        const tokens = await oauth.exchangeCode(request.query.code);
+        const tokens = await client.exchangeCode(request.query.code);
         if (!tokens.refreshToken) {
-          return reply.redirect(`${back}?google=no_refresh_token`, 302);
+          return reply.redirect(`${back}?calendar=no_refresh_token`, 302);
         }
-        await saveGoogleConnection(deps.db, secretBox, {
+        await saveCalendarConnection(deps.db, secretBox, {
           tenantId: parsed.tenantId,
+          provider,
           userId: session.user.id,
           refreshToken: tokens.refreshToken,
           accountEmail: tokens.email,
@@ -165,20 +204,21 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
             tenantId: parsed.tenantId,
             actorType: "user",
             actorUserId: session.user.id,
-            action: "integration.google_connected",
+            action: "integration.calendar_connected",
+            metadata: { provider },
           }),
         );
-        return reply.redirect(`${back}?google=connected`, 302);
+        return reply.redirect(`${back}?calendar=connected`, 302);
       } catch (error) {
-        request.log.error({ err: error }, "google oauth exchange failed");
-        return reply.redirect(`${back}?google=failed`, 302);
+        request.log.error({ err: error, provider }, "calendar oauth exchange failed");
+        return reply.redirect(`${back}?calendar=failed`, 302);
       }
     },
   );
 
   r.get(
-    "/api/tenants/:tenantId/integrations/google/calendars",
-    { schema: { tags, summary: "Calendars the connected Google account can write to", params } },
+    "/api/tenants/:tenantId/integrations/calendar/calendars",
+    { schema: { tags, summary: "Calendars the connected account can write to", params } },
     async (request) => {
       const access = await requireTenantAccess(
         deps,
@@ -186,27 +226,28 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
         request.params.tenantId,
         "agent:configure",
       );
-      const { box: secretBox } = requireGoogle();
-      const row = await getCalendarConnection(deps.db, access.tenantId);
-      if (!row || !deps.calendars?.factory) throw notFound();
-      const provider = deps.calendars.factory(row, decryptRefreshToken(secretBox, row));
+      const { provider } = await connectedCalendar(access.tenantId);
       try {
         return { calendars: (await provider.listCalendars?.()) ?? [] };
       } catch (error) {
-        request.log.warn({ err: error }, "listing google calendars failed");
-        throw new HttpError(502, "GOOGLE_UNAVAILABLE", "Google didn't respond. Try reconnecting.");
+        request.log.warn({ err: error }, "listing calendars failed");
+        throw new HttpError(
+          502,
+          "CALENDAR_UNAVAILABLE",
+          "The calendar service didn't respond. Try reconnecting.",
+        );
       }
     },
   );
 
   r.put(
-    "/api/tenants/:tenantId/integrations/google/calendar",
+    "/api/tenants/:tenantId/integrations/calendar",
     {
       schema: {
         tags,
         summary: "Choose the calendar bookings go into",
         params,
-        body: z.object({ id: z.string().min(1).max(300) }),
+        body: z.object({ id: z.string().min(1).max(500) }),
       },
     },
     async (request) => {
@@ -216,13 +257,8 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
         request.params.tenantId,
         "agent:configure",
       );
-      const { box: secretBox } = requireGoogle();
-      const row = await getCalendarConnection(deps.db, access.tenantId);
-      if (!row || !deps.calendars?.factory) throw notFound();
-      const calendars =
-        (await deps.calendars
-          .factory(row, decryptRefreshToken(secretBox, row))
-          .listCalendars?.()) ?? [];
+      const { provider } = await connectedCalendar(access.tenantId);
+      const calendars = (await provider.listCalendars?.()) ?? [];
       const chosen = calendars.find((c) => c.id === request.body.id);
       if (!chosen) throw new HttpError(400, "UNKNOWN_CALENDAR", "That calendar isn't available");
       const updated = await chooseCalendar(deps.db, access.tenantId, chosen);
@@ -231,8 +267,14 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
   );
 
   r.delete(
-    "/api/tenants/:tenantId/integrations/google",
-    { schema: { tags, summary: "Disconnect Google Calendar (revokes access)", params } },
+    "/api/tenants/:tenantId/integrations/calendar",
+    {
+      schema: {
+        tags,
+        summary: "Disconnect the calendar (revokes access where the provider allows)",
+        params,
+      },
+    },
     async (request, reply) => {
       const access = await requireTenantAccess(
         deps,
@@ -242,8 +284,9 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
       );
       const row = await getCalendarConnection(deps.db, access.tenantId);
       if (!row) throw notFound();
-      if (google && box) {
-        await google.revoke(decryptRefreshToken(box, row)).catch(() => undefined);
+      const client = isCalendarProvider(row.provider) ? oauth[row.provider] : undefined;
+      if (client && box) {
+        await client.revoke(decryptRefreshToken(box, row)).catch(() => undefined);
       }
       await deleteCalendarConnection(deps.db, access.tenantId);
       await withTenant(deps.db, access.tenantId, (tx) =>
@@ -251,7 +294,8 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
           tenantId: access.tenantId,
           actorType: "user",
           actorUserId: access.session.user.id,
-          action: "integration.google_disconnected",
+          action: "integration.calendar_disconnected",
+          metadata: { provider: row.provider },
         }),
       );
       return reply.status(204).send();

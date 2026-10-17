@@ -31,6 +31,19 @@ Calendar or Microsoft 365. Calls must never fail because a calendar API is slow 
   connection shows "Problem" and the error, and the next success clears it. `invalid_grant`
   marks the connection "Needs reconnecting" and stops using it.
 
+## Microsoft 365 (added 2026-10-18)
+
+- `MicrosoftCalendarProvider` uses Microsoft Graph: `calendarView` for busy times (events
+  shown as "free" or cancelled don't block), plus events in UTC with no attendees, so Outlook
+  sends no invitations. Scopes: `Calendars.ReadWrite`, `User.Read`, `offline_access`.
+- Microsoft rotates refresh tokens on every refresh, and the old token lapses about 90 days
+  after it was issued. The provider hands each new token to `updateRefreshToken`, which
+  re-encrypts it.
+- Microsoft has no per-app revoke endpoint. Disconnecting deletes our token, and the business
+  removes VoiceDesk under My Account → Apps.
+- One calendar per business: connecting a second provider is refused (409) until the first
+  is disconnected, so availability has a single source of truth.
+
 ## Consequences
 
 - A booking can exist in VoiceDesk without its Google event if Google was down at that

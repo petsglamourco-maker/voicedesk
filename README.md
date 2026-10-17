@@ -64,6 +64,17 @@ Browser voice runs through [LiveKit Cloud](https://cloud.livekit.io) (free tier)
 5. Put the client ID and secret into `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (never in chat), then restart `pnpm dev`.
 6. In the app: **Integrations → Connect Google Calendar**, sign in, then choose the calendar bookings should go into.
 
+## Connect Outlook / Microsoft 365 (free)
+
+1. Go to the [Microsoft Entra admin center](https://entra.microsoft.com), then **App registrations → New registration**.
+2. Name it "VoiceDesk dev". For supported account types, choose _Accounts in any organizational directory and personal Microsoft accounts_. Redirect URI: platform **Web**, `http://localhost:3000/api/integrations/microsoft/callback`.
+3. **Certificates & secrets → New client secret**: copy the secret's **Value**.
+4. **API permissions → Add → Microsoft Graph → Delegated**: add `Calendars.ReadWrite`, `User.Read`, `offline_access`, `openid` and `email`.
+5. Put the Application (client) ID and the secret into `.env` as `MICROSOFT_CLIENT_ID` and `MICROSOFT_CLIENT_SECRET`, then restart `pnpm dev`.
+6. In the app: **Integrations → Connect Outlook / Microsoft 365**, then choose the calendar.
+
+A business connects one calendar at a time (Google or Microsoft).
+
 ## Take real phone calls (costs money: ask first)
 
 1. **Twilio** (twilio.com): create an account, then **Elastic SIP Trunking → Trunks → Create**. Under **Origination**, add `sip:<your LiveKit SIP host>;transport=tcp`. The host is in LiveKit Cloud → Project settings ("SIP URI").
