@@ -1,4 +1,9 @@
-import type { EmbeddingProvider, LlmProvider, ObjectStorage } from "@voicedesk/adapters";
+import type {
+  EmbeddingProvider,
+  LlmProvider,
+  ObjectStorage,
+  TextToSpeechProvider,
+} from "@voicedesk/adapters";
 import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
 import { createAppLlm, recordAudit, SecretBox, type ProviderSecrets } from "@voicedesk/core";
@@ -13,6 +18,7 @@ import {
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
 import type { Env } from "./env";
+import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
 
 export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promise<void> {
   return async (event) => {
@@ -57,6 +63,10 @@ export interface Container {
   /** Routes to the AI providers switched on in platform settings (ADR 0012). */
   llm: LlmProvider & { invalidate?: () => void };
   secrets: ProviderSecrets;
+  /** LiveKit voice sessions; null until LIVEKIT_* are set in .env. */
+  voice?: VoiceGateway | null;
+  /** Voice previews; null until ELEVENLABS_API_KEY is set. */
+  tts?: TextToSpeechProvider | null;
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -85,6 +95,8 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     storage,
     llm: createAppLlm(db, secrets),
     secrets,
+    voice: voiceGatewayFromEnv(),
+    tts: await ttsFromEnv(),
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {

@@ -24,6 +24,18 @@ const settingsSchema = z.object({
   personaNames: z.record(z.string(), z.string().trim().min(1).max(40)),
   enabledLanguages: z.array(z.enum(LANGUAGES)).min(1),
   adminLanguage: z.enum(LANGUAGES),
+  recordCalls: z.boolean().default(false),
+  /** ElevenLabs voice ids per persona; empty string = default voice. */
+  voiceIds: z
+    .record(
+      z.string(),
+      z
+        .string()
+        .trim()
+        .max(64)
+        .regex(/^[A-Za-z0-9]*$/),
+    )
+    .default({}),
 });
 
 const settingsResponse = z.object({
@@ -31,6 +43,8 @@ const settingsResponse = z.object({
   personaNames: z.record(z.string(), z.string()),
   enabledLanguages: z.array(z.string()),
   adminLanguage: z.string(),
+  recordCalls: z.boolean(),
+  voiceIds: z.record(z.string(), z.string()),
 });
 
 const DEFAULTS = {
@@ -38,6 +52,8 @@ const DEFAULTS = {
   personaNames: {} as Record<string, string>,
   enabledLanguages: [...LANGUAGES] as string[],
   adminLanguage: "en",
+  recordCalls: false,
+  voiceIds: {} as Record<string, string>,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -83,6 +99,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               personaNames: row.personaNames,
               enabledLanguages: row.enabledLanguages,
               adminLanguage: row.adminLanguage,
+              recordCalls: row.recordCalls,
+              voiceIds: row.voiceIds,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),
@@ -111,7 +129,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
           actorType: "user",
           actorUserId: access.session.user.id,
           action: "agent.settings_updated",
-          metadata: { personaId: request.body.personaId },
+          metadata: { personaId: request.body.personaId, recordCalls: request.body.recordCalls },
         });
       });
       return reply.status(204).send();

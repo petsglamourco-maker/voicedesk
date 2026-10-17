@@ -3,7 +3,7 @@ import {
   LANGUAGES,
   loadAgentContext,
   normalisePhone,
-  recordLlmUsage,
+  persistTurn,
   runTurn,
   startConversation,
   type ConversationState,
@@ -169,60 +169,12 @@ export function registerConversationRoutes(app: FastifyInstance, deps: AppDeps):
         for (const event of result.events) send("event", event);
         const costUsd = result.usage.reduce((s, u) => s + u.costUsd, 0);
 
-        const saved = await withTenant(deps.db, access.tenantId, async (tx) => {
-          // Optimistic concurrency: only save if no other turn landed meanwhile.
-          const updated = await tx
-            .update(conversations)
-            .set({
-              state: result.state as unknown as Record<string, unknown>,
-              language: result.state.language,
-            })
-            .where(
-              and(
-                eq(conversations.id, conversation.id),
-                sql`(${conversations.state}->>'turns')::int = ${previous.turns}`,
-              ),
-            )
-            .returning({ id: conversations.id });
-          if (updated.length === 0) return false;
-          await tx.insert(conversationMessages).values([
-            {
-              tenantId: access.tenantId,
-              conversationId: conversation.id,
-              role: "caller",
-              content: request.body.text,
-              language: result.state.language,
-            },
-            {
-              tenantId: access.tenantId,
-              conversationId: conversation.id,
-              role: "agent",
-              content: result.reply,
-              language: result.state.language,
-              metadata: {
-                flow: result.state.flow,
-                latencyMs: result.latencyMs,
-                costUsd,
-                events: result.events,
-                tokens: result.usage.map((u) => ({
-                  model: u.model,
-                  input: u.inputTokens,
-                  output: u.outputTokens,
-                  cacheRead: u.cacheReadTokens,
-                })),
-              },
-            },
-          ]);
-          for (const usage of result.usage) {
-            await recordLlmUsage(
-              { tx },
-              access.tenantId,
-              "conversation.turn",
-              usage,
-              conversation.id,
-            );
-          }
-          return true;
+        const saved = await persistTurn(deps.db, {
+          tenantId: access.tenantId,
+          conversationId: conversation.id,
+          previous,
+          callerText: request.body.text,
+          result,
         });
         if (!saved) {
           send("error", {

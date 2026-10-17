@@ -17,5 +17,9 @@ export interface AgentContext {
   style: "chat" | "voice";
   /** Local emergency number to direct callers to (999 in the UK). */
   emergencyNumber: string;
+  /** Calls are recorded, so voice greetings add a recording notice. */
+  recordCalls?: boolean;
+  /** Per-persona TTS voice overrides (see voices.ts for the defaults). */
+  voiceIds?: Record<string, string>;
   now: () => Date;
 }

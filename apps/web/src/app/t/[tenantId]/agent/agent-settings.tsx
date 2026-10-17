@@ -21,6 +21,8 @@ interface Settings {
   personaNames: Record<string, string>;
   enabledLanguages: string[];
   adminLanguage: string;
+  recordCalls: boolean;
+  voiceIds: Record<string, string>;
 }
 
 export interface AgentResponse {
@@ -40,17 +42,44 @@ export function AgentSettingsForm(props: {
   canEdit: boolean;
 }) {
   const t = useTranslations("agent");
+  const tv = useTranslations("voice");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [previewing, setPreviewing] = useState<string | null>(null);
+  const [previewLanguage, setPreviewLanguage] = useState(
+    props.initial.settings.enabledLanguages[0] ?? "en",
+  );
 
   const update = (patch: Partial<Settings>) => {
     setSettings((s) => ({ ...s, ...patch }));
     setSaved(false);
   };
+
+  async function preview(personaId: string) {
+    setPreviewing(personaId);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tenants/${props.tenantId}/agent/voice-preview`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ personaId, language: previewLanguage }),
+      });
+      if (res.status === 503) throw new Error(tv("previewUnavailable"));
+      if (!res.ok) throw new Error(common("errorGeneric"));
+      const url = URL.createObjectURL(await res.blob());
+      const audio = new Audio(url);
+      audio.onended = () => URL.revokeObjectURL(url);
+      await audio.play();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : common("errorGeneric"));
+    } finally {
+      setPreviewing(null);
+    }
+  }
 
   async function save() {
     setPending(true);
@@ -81,6 +110,23 @@ export function AgentSettingsForm(props: {
         <Card>
           <CardTitle>{t("persona")}</CardTitle>
           <CardDescription>{t("personaHint")}</CardDescription>
+          <div className="mt-3 flex items-center gap-2 text-sm">
+            <Label htmlFor="previewLanguage" className="text-sm">
+              {tv("preview")}:
+            </Label>
+            <Select
+              id="previewLanguage"
+              className="h-9 w-40"
+              value={previewLanguage}
+              onChange={(e) => setPreviewLanguage(e.target.value)}
+            >
+              {LOCALES.map((code) => (
+                <option key={code} value={code}>
+                  {languages(code)}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div
             role="radiogroup"
             aria-label={t("persona")}
@@ -132,6 +178,15 @@ export function AgentSettingsForm(props: {
                       }}
                     />
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void preview(p.id)}
+                    disabled={previewing !== null}
+                  >
+                    {previewing === p.id ? common("working") : `▶ ${tv("preview")}`}
+                  </Button>
                 </div>
               );
             })}
@@ -173,6 +228,21 @@ export function AgentSettingsForm(props: {
               ))}
             </Select>
           </div>
+        </Card>
+
+        <Card>
+          <label className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={settings.recordCalls}
+              onChange={(e) => update({ recordCalls: e.target.checked })}
+            />
+            <span>
+              <span className="block font-medium">{tv("recordCalls")}</span>
+              <span className="block text-sm text-muted-foreground">{tv("recordCallsHint")}</span>
+            </span>
+          </label>
         </Card>
 
         {props.canEdit ? (

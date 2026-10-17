@@ -290,7 +290,8 @@
       "signup": "Sign-up"
     },
     "summary": "Summary",
-    "summarising": "Writing the summary…"
+    "summarising": "Writing the summary…",
+    "styleCall": "Talk by voice (microphone)"
   },
   "records": {
     "title": "Records",
@@ -355,5 +356,30 @@
     "test": "Test connection",
     "testing": "Testing…",
     "failed": "Something went wrong."
+  },
+  "voice": {
+    "ended": "Call ended",
+    "hangUp": "Hang up",
+    "state": {
+      "connecting": "Connecting…",
+      "initializing": "Assistant joining…",
+      "idle": "Ready",
+      "listening": "Listening",
+      "thinking": "Thinking",
+      "speaking": "Speaking"
+    },
+    "agentMissing": "The voice assistant hasn't joined. Check that the voice agent is running and the LiveKit, Deepgram and ElevenLabs keys are set in .env.",
+    "connectFailed": "Couldn't connect the call. Check your microphone permission and try again.",
+    "latency": "Response time",
+    "latencyHint": "Per reply, in milliseconds: end of your speech → reply text → first audio. Target: median under 800 ms.",
+    "median": "Median:",
+    "colTurn": "Turn end",
+    "colLlm": "Reply",
+    "colTts": "Voice",
+    "colTotal": "Total",
+    "preview": "Preview voice",
+    "previewUnavailable": "Voice preview needs an ElevenLabs key in .env.",
+    "recordCalls": "Record calls",
+    "recordCallsHint": "Adds a short recording notice to the greeting. Transcripts are always kept."
   }
 }

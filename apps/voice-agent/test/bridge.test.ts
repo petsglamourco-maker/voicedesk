@@ -1,0 +1,186 @@
+import { llm } from "@livekit/agents";
+import { MockEmbeddingProvider, MockLlmProvider } from "@voicedesk/adapters";
+import {
+  loadAgentContext,
+  loadConversationState,
+  startConversation,
+  type Lang,
+} from "@voicedesk/agent-brain";
+import { closeDb, conversationMessages, conversations, withTenant } from "@voicedesk/db";
+import { connectTestDbs, createTestTenant, type TestDbs } from "@voicedesk/db/testing";
+import { asc, eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { engineReplyStream, newCallerText } from "../src/agent";
+import { EngineBridge, median, type TurnTimings } from "../src/bridge";
+import { parseJobMetadata } from "../src/job";
+
+let dbs: TestDbs;
+let tenantId: string;
+
+beforeAll(async () => {
+  dbs = connectTestDbs();
+  tenantId = await createTestTenant(dbs.app, "Voice Bridge Co");
+});
+afterAll(async () => {
+  await closeDb(dbs.app);
+  await closeDb(dbs.owner);
+});
+
+async function newConversation() {
+  const ctx = await loadAgentContext(dbs.app, tenantId, "voice");
+  const { state, greeting } = startConversation(ctx);
+  const conversationId = await withTenant(dbs.app, tenantId, async (tx) => {
+    const [row] = await tx
+      .insert(conversations)
+      .values({
+        tenantId,
+        channel: "test_console",
+        style: "voice",
+        personaId: ctx.persona.id,
+        language: state.language,
+        state: state as unknown as Record<string, unknown>,
+      })
+      .returning({ id: conversations.id });
+    await tx.insert(conversationMessages).values({
+      tenantId,
+      conversationId: row!.id,
+      role: "agent",
+      content: greeting,
+      language: state.language,
+    });
+    return row!.id;
+  });
+  return { ctx, state, conversationId };
+}
+
+async function readAll(stream: ReadableStream<string>): Promise<string> {
+  let out = "";
+  for await (const chunk of stream) out += chunk;
+  return out;
+}
+
+const noTimings = { pending: () => ({}), report: () => undefined };
+
+describe("EngineBridge", () => {
+  it("streams the engine reply and saves the turn with voice latency", async () => {
+    const { ctx, state, conversationId } = await newConversation();
+    const model = new MockLlmProvider().enqueue(MockLlmProvider.text("We open at nine."));
+    const bridge = new EngineBridge(
+      { db: dbs.app, llm: model, embeddings: new MockEmbeddingProvider() },
+      ctx,
+      { tenantId, conversationId },
+      state,
+    );
+    const reported: TurnTimings[] = [];
+    const text = await readAll(
+      engineReplyStream(bridge, "When do you open?", {
+        pending: () => ({ endOfUtteranceMs: 300 }),
+        report: (t) => reported.push({ ...t }),
+      }),
+    );
+    expect(text).toBe("We open at nine.");
+    await bridge.drain();
+    expect(bridge.turns).toBe(1);
+    expect(reported.at(-1)).toMatchObject({ endOfUtteranceMs: 300 });
+    expect(reported.at(-1)?.llmFirstTextMs).toBeTypeOf("number");
+    expect(reported.at(-1)?.engineMs).toBeTypeOf("number");
+
+    const messages = await withTenant(dbs.app, tenantId, (tx) =>
+      tx
+        .select()
+        .from(conversationMessages)
+        .where(eq(conversationMessages.conversationId, conversationId))
+        .orderBy(asc(conversationMessages.id)),
+    );
+    expect(messages.map((m) => m.role)).toEqual(["agent", "caller", "agent"]);
+    expect(messages[2]?.metadata).toMatchObject({
+      channel: "voice",
+      latency: { endOfUtteranceMs: 300 },
+    });
+    // The voice style rules were in the system prompt.
+    expect(model.requests[0]?.system.join(" ")).toMatch(/spoken|voice|call/i);
+  });
+
+  it("serialises overlapping turns so neither is lost", async () => {
+    const { ctx, state, conversationId } = await newConversation();
+    const model = new MockLlmProvider().enqueue(
+      MockLlmProvider.text("First answer."),
+      MockLlmProvider.text("Second answer."),
+    );
+    const bridge = new EngineBridge(
+      { db: dbs.app, llm: model, embeddings: new MockEmbeddingProvider() },
+      ctx,
+      { tenantId, conversationId },
+      state,
+    );
+    const [a, b] = await Promise.all([
+      readAll(engineReplyStream(bridge, "Hello there", noTimings)),
+      readAll(engineReplyStream(bridge, "And one more thing", noTimings)),
+    ]);
+    expect([a, b]).toEqual(["First answer.", "Second answer."]);
+    const saved = await loadConversationState(dbs.app, tenantId, conversationId);
+    expect(saved?.state.turns).toBe(2);
+  });
+
+  it("keeps saving the turn after the caller interrupts", async () => {
+    const { ctx, state, conversationId } = await newConversation();
+    const model = new MockLlmProvider().enqueue(MockLlmProvider.text("A long answer."));
+    const bridge = new EngineBridge(
+      { db: dbs.app, llm: model, embeddings: new MockEmbeddingProvider() },
+      ctx,
+      { tenantId, conversationId },
+      state,
+    );
+    const stream = engineReplyStream(bridge, "What services do you have?", noTimings);
+    await stream.cancel("barge-in");
+    await bridge.drain();
+    const saved = await loadConversationState(dbs.app, tenantId, conversationId);
+    expect(saved?.state.turns).toBe(1);
+  });
+
+  it("reports a language switch so speech recognition and TTS follow it", async () => {
+    const { ctx, state, conversationId } = await newConversation();
+    const switched: Lang[] = [];
+    const model = new MockLlmProvider().enqueue(
+      MockLlmProvider.toolUse("set_language", { language: "zh" }),
+      MockLlmProvider.text("当然可以。"),
+    );
+    const bridge = new EngineBridge(
+      { db: dbs.app, llm: model, embeddings: new MockEmbeddingProvider() },
+      ctx,
+      { tenantId, conversationId },
+      state,
+      { onLanguage: (l) => switched.push(l) },
+    );
+    await readAll(engineReplyStream(bridge, "Can we continue in Mandarin please?", noTimings));
+    expect(switched).toEqual(["zh"]);
+    expect(bridge.language).toBe("zh");
+  });
+});
+
+describe("helpers", () => {
+  it("takes the caller's words since the agent last spoke", () => {
+    const chat = llm.ChatContext.empty();
+    chat.addMessage({ role: "assistant", content: "Hello, how can I help?" });
+    chat.addMessage({ role: "user", content: "I'd like to book" });
+    chat.addMessage({ role: "user", content: "a check-up please" });
+    expect(newCallerText(chat)).toBe("I'd like to book a check-up please");
+    chat.addMessage({ role: "assistant", content: "Sure." });
+    expect(newCallerText(chat)).toBe("");
+  });
+
+  it("parses dispatch metadata strictly", () => {
+    expect(parseJobMetadata('{"tenantId":"t","conversationId":"c"}')).toEqual({
+      tenantId: "t",
+      conversationId: "c",
+    });
+    expect(() => parseJobMetadata("")).toThrow();
+    expect(() => parseJobMetadata('{"tenantId":1}')).toThrow();
+  });
+
+  it("computes medians", () => {
+    expect(median([300, undefined, 100, 200])).toBe(200);
+    expect(median([100, 200])).toBe(150);
+    expect(median([])).toBeNull();
+  });
+});

@@ -12,6 +12,7 @@ import {
   emergencyMessage,
   greeting,
   looksLikeLifeThreateningEmergency,
+  recordingNotice,
   troubleMessage,
 } from "./phrases";
 import { buildSystemPrompt } from "./prompt";
@@ -68,15 +69,17 @@ function localNow(ctx: AgentContext): string {
 /** Opens a conversation: fixed greeting with the mandatory AI disclosure. */
 export function startConversation(
   ctx: AgentContext,
-  options: { language?: Lang; callerPhone?: string | null } = {},
+  options: { language?: Lang; callerPhone?: string | null; recordingNotice?: boolean } = {},
 ): { state: ConversationState; greeting: string } {
   const language = options.language ?? ctx.defaultLanguage;
   const state = initialState(language, options.callerPhone ?? null);
-  const text = greeting(language, {
+  const hello = greeting(language, {
     business: ctx.businessName,
     name: ctx.personaName,
     gender: ctx.persona.gender,
   });
+  // Recording notice (brief §3.3) goes right after the AI disclosure, before the question.
+  const text = options.recordingNotice ? `${hello} ${recordingNotice(language)}` : hello;
   // The API requires the first message to come from the user; mark the connection.
   state.history.push(
     { role: "user", content: "[Conversation started]" },

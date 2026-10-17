@@ -1,6 +1,6 @@
 # ADR 0008 — Python voice worker on LiveKit Agents
 
-- **Status:** Proposed (to be confirmed at the start of Phase 2)
+- **Status:** Superseded by [ADR 0013](0013-node-voice-worker.md) (2026-10-17)
 
 ## Context
 

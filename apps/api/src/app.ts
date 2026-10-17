@@ -21,6 +21,7 @@ import { registerKnowledgeRoutes } from "./routes/knowledge";
 import { registerMeRoutes } from "./routes/me";
 import { registerProfileRoutes } from "./routes/profile";
 import { registerTenantRoutes } from "./routes/tenants";
+import { registerVoiceRoutes } from "./routes/voice";
 
 export type AppDeps = Omit<Container, "close"> & { logLevel?: string };
 
@@ -72,6 +73,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerAgentRoutes(app, deps);
   registerConversationRoutes(app, deps);
   registerPlatformRoutes(app, deps);
+  registerVoiceRoutes(app, deps);
 
   return app;
 }

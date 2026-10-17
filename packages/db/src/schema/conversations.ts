@@ -28,6 +28,10 @@ export const agentSettings = pgTable("agent_settings", {
     .default(["en", "es", "zh", "fr", "ar", "de"]),
   /** Language summaries and notifications are written in. */
   adminLanguage: text("admin_language").notNull().default("en"),
+  /** Record calls (adds a spoken recording notice). Transcripts are always kept. */
+  recordCalls: boolean("record_calls").notNull().default(false),
+  /** Optional TTS voice id per persona, overriding the defaults. */
+  voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,
 });
 

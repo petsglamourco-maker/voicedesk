@@ -41,7 +41,19 @@ The app works without an AI key: knowledge, the profile editor and the test cons
 2. Add `ANTHROPIC_API_KEY=...` to `.env` and restart `pnpm dev`.
 3. In the app: **Knowledge** → add your website, **Business profile** → _Generate from knowledge_ → check it → _Approve & publish_, then **Test console**.
 
-`pnpm eval` runs 24 golden conversations (4 flows × 6 languages) against Claude and prints the spend (about $0.50).
+`pnpm eval` runs 30 golden conversations (5 flows × 6 languages) against the AI providers switched on in Platform admin and prints the spend (about $0.06 on DeepSeek, more on Claude).
+
+## Talk to the assistant by voice (optional, costs a few cents per test)
+
+Browser voice runs through [LiveKit Cloud](https://cloud.livekit.io) (free tier), [Deepgram](https://console.deepgram.com) speech recognition ($200 free credit) and [ElevenLabs](https://elevenlabs.io) voices (pay as you go, about 1–2¢ per minute of speech).
+
+1. Create the three accounts and copy the keys into `.env` (never into chat or git):
+   - `LIVEKIT_URL` (`wss://<project>.livekit.cloud`), `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`: LiveKit Cloud → Settings → Keys
+   - `DEEPGRAM_API_KEY`
+   - `ELEVENLABS_API_KEY`
+2. Restart `pnpm dev`. The voice worker registers with LiveKit (health check: http://localhost:4200/).
+3. **Test console** → Style: _Talk by voice (microphone)_ → _Start conversation_, then allow the microphone. You'll hear the greeting with the AI disclosure. You can interrupt, switch language ("can we speak Spanish?") and make a booking. The side panel shows how long each reply took.
+4. **Assistant** → _Preview voice_ plays each persona's greeting. _Record calls_ adds a recording notice to the greeting.
 
 ## Checks
 

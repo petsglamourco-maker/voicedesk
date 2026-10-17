@@ -14,3 +14,7 @@ allowBuilds:
   onnxruntime-node: false
   # Script only prints a version-scheme warning.
   protobufjs: false
+  # No-op install script; platform binaries come as optional dependencies.
+  "@livekit/local-inference": false
+  # Prebuilt platform binaries (@img/sharp-*) are used; the script only checks/builds from source.
+  sharp: false

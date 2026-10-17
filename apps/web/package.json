@@ -15,6 +15,7 @@
     "@voicedesk/config": "workspace:*",
     "@voicedesk/ui": "workspace:*",
     "better-auth": "1.7.10",
+    "livekit-client": "2.22.4",
     "next": "16.4.1",
     "next-intl": "4.14.9",
     "react": "19.3.1",

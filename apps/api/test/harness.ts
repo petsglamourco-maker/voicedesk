@@ -13,7 +13,7 @@ import type { AiJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
-import { buildApp } from "../src/app";
+import { buildApp, type AppDeps } from "../src/app";
 import { createAppAuth, type JobDispatcher } from "../src/container";
 import { parseEnv } from "../src/env";
 
@@ -34,7 +34,9 @@ export interface TestHarness {
  * Builds the API against the test database with in-memory/mock providers. Knowledge jobs
  * run inline, so tests can assert on processed results without a worker.
  */
-export async function createHarness(options: { llm?: LlmProvider } = {}): Promise<TestHarness> {
+export async function createHarness(
+  options: Pick<AppDeps, "voice" | "tts"> & { llm?: LlmProvider } = {},
+): Promise<TestHarness> {
   loadRootEnv();
   const env = parseEnv({
     ...process.env,
@@ -74,6 +76,8 @@ export async function createHarness(options: { llm?: LlmProvider } = {}): Promis
     jobs,
     embeddings: () => Promise.resolve(embeddings),
     llm: options.llm ?? llm,
+    voice: options.voice ?? null,
+    tts: options.tts ?? null,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",
   });

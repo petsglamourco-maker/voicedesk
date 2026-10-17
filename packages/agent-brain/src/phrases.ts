@@ -31,6 +31,19 @@ export function greeting(lang: Lang, args: GreetingArgs): string {
   return GREETINGS[lang](args);
 }
 
+const RECORDING_NOTICE: Record<Lang, string> = {
+  en: "Just so you know, this call is recorded for quality and training.",
+  es: "Le informamos de que esta llamada se graba con fines de calidad y formación.",
+  fr: "Pour information, cet appel est enregistré à des fins de qualité et de formation.",
+  de: "Zu Ihrer Information: Dieses Gespräch wird zu Qualitäts- und Schulungszwecken aufgezeichnet.",
+  zh: "温馨提示，本次通话将被录音，用于质量和培训。",
+  ar: "للعلم، يتم تسجيل هذه المكالمة لأغراض الجودة والتدريب.",
+};
+
+export function recordingNotice(lang: Lang): string {
+  return RECORDING_NOTICE[lang];
+}
+
 const EMERGENCY: Record<Lang, (n: string) => string> = {
   en: (n) =>
     `If someone is in danger or this is a medical emergency, please hang up and call ${n} now. I'm an AI assistant and I can't send help. If it isn't an emergency, I'm happy to help.`,

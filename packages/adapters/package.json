@@ -11,7 +11,8 @@
     "./embeddings/local": "./src/embeddings/local.ts",
     "./from-env": "./src/from-env.ts",
     "./llm/openai-compatible": "./src/llm/openai-compatible.ts",
-    "./llm/router": "./src/llm/router.ts"
+    "./llm/router": "./src/llm/router.ts",
+    "./speech/elevenlabs": "./src/speech/elevenlabs.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

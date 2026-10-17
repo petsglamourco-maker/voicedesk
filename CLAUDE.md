@@ -6,9 +6,10 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 
 - **Phase 0 (Foundations): done.** Monorepo, RLS tenancy, Better Auth (orgs, invites, roles, TOTP 2FA), API, worker, web, adapters, compliance skeleton.
 - **Phase 1 (Knowledge & text agent): built.** Crawler, uploads, ingestion with local embeddings, AI business profile with review and approval, conversation engine with personas and flows in 6 languages, streaming test console, records, summaries, evals.
-  - **Pending:** the first live `pnpm eval` run, once `ANTHROPIC_API_KEY` is set.
+  - Evals: 30 golden conversations (5 flows × 6 languages). Latest run on DeepSeek: 21/30, with every scenario creating the right record and no unrequested hand-offs.
 - **AI providers are switchable at runtime** (ADR 0012): Platform admin → AI providers lists Claude, DeepSeek and a local OpenAI-compatible model, each with on/off, priority order and automatic fallback.
-- **Next:** Phase 2, voice MVP (see ADR 0008). Ask the owner before buying numbers or choosing paid tiers.
+- **Phase 2a (browser voice): built, awaiting the live test** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. The live test needs the LiveKit, Deepgram and ElevenLabs keys in `.env`.
+- **Next:** Phase 2b, a UK phone number (Twilio → LiveKit SIP, call log, recordings, summary email). Needs the owner's approval because it costs money. Then Phases 3–7.
 
 ## Layout
 
@@ -18,7 +19,7 @@ apps/api          Fastify API: auth, tenants, knowledge, profile, agent settings
 apps/web          Next.js 16 dashboard (Knowledge, Business profile, Assistant, Test console,
                   Records, Team…); proxies /api/* to the API (same-origin cookies)
 apps/workers      BullMQ: email, knowledge (crawl/extract/embed), ai (profile, summaries); health :4100
-apps/voice-agent  placeholder (Phase 2, see ADR 0008)
+apps/voice-agent  LiveKit Agents worker: Deepgram STT → agent-brain engine (llmNode) → ElevenLabs TTS; health :4200
 packages/db       Drizzle schema + migrations (incl. RLS SQL), withTenant/withPlatformAccess, test helpers
 packages/auth     Better Auth factory + roles (generates packages/db/src/schema/auth.ts)
 packages/core     permissions, tenants/membership, audit, AI provider settings + createAppLlm, SecretBox
@@ -93,6 +94,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `ANTHROPIC_API_KEY`: optional fallback key for the Claude provider. Which providers are used is chosen in Platform admin → AI providers; with none switched on, the agent uses the mock
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
+- Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200)
 
 ## Local URLs
 
@@ -113,4 +115,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Restart dev processes after adding a workspace dependency.** A running `tsx watch` caches failed resolution (`ERR_MODULE_NOT_FOUND`).
 - **Local model servers need a 16k+ context window.** Ollama defaults to 4,096 and silently truncates the start of the prompt, which drops the assistant's rules. "Test connection" warns about this.
 - **Tests that mutate `ai_providers` rows** (shared, platform-wide): only `packages/core` tests switch providers on, and they restore the rows afterwards. API tests must not enable providers, because package tests run in parallel.
+- **Voice turns are full engine turns** (`EngineVoiceAgent.llmNode` → `runTurn`). Keep `preemptiveGeneration` off, because tools would otherwise run on partial transcripts. Shared turn saving lives in `agent-brain` `persistTurn`; use it for any new channel.
+- **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
+- **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

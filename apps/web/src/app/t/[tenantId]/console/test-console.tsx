@@ -7,6 +7,7 @@ import { LOCALES } from "@/i18n/locales";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 import { postSse } from "@/lib/sse";
+import { VoiceCall, type VoiceSession } from "./voice-call";
 
 interface View {
   flow: string;
@@ -60,6 +61,7 @@ export function TestConsole({
   const [warning, setWarning] = useState<string | null>(null);
   const [ended, setEnded] = useState(false);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [voice, setVoice] = useState<VoiceSession | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,7 +89,20 @@ export function TestConsole({
     setEvents([]);
     setSummary(null);
     setEnded(false);
+    setVoice(null);
     try {
+      if (formString(form, "style") === "call") {
+        const session = await api<VoiceSession>(`/api/tenants/${tenantId}/voice/session`, {
+          method: "POST",
+          body: JSON.stringify({ language: formString(form, "language") }),
+        });
+        setConversationId(session.conversationId);
+        setLines([]);
+        setView(null);
+        setWarning(null);
+        setVoice(session);
+        return;
+      }
       const res = await api<{ id: string; greeting: string; hasProfile: boolean; view: View }>(
         base,
         {
@@ -152,6 +167,17 @@ export function TestConsole({
     }
   }
 
+  /** The voice worker ends the conversation when the call drops; this is the fallback. */
+  function voiceEnded() {
+    setEnded(true);
+    const id = conversationId;
+    if (id) {
+      setTimeout(() => {
+        void api(`${base}/${id}/end`, { method: "POST" }).catch(() => undefined);
+      }, 8000);
+    }
+  }
+
   async function end() {
     if (!conversationId) return;
     await api(`${base}/${conversationId}/end`, { method: "POST" });
@@ -187,6 +213,7 @@ export function TestConsole({
             <Select id="style" name="style" defaultValue="chat" className="w-48">
               <option value="chat">{t("styleChat")}</option>
               <option value="voice">{t("styleVoice")}</option>
+              <option value="call">{t("styleCall")}</option>
             </Select>
           </div>
           <div>
@@ -201,7 +228,7 @@ export function TestConsole({
           <Button type="submit" disabled={busy}>
             {conversationId ? t("restart") : t("start")}
           </Button>
-          {conversationId && !ended ? (
+          {conversationId && !ended && !voice ? (
             <Button variant="secondary" onClick={() => void end()} disabled={busy}>
               {t("end")}
             </Button>
@@ -212,7 +239,22 @@ export function TestConsole({
       {error ? <Alert tone="error">{error}</Alert> : null}
       {warning ? <Alert>{warning}</Alert> : null}
 
-      {conversationId ? (
+      {voice ? (
+        <div className="space-y-4">
+          <VoiceCall key={voice.conversationId} session={voice} onEnded={voiceEnded} />
+          {ended ? (
+            <Card className="p-4" data-testid="summary">
+              <CardTitle className="text-base">{t("summary")}</CardTitle>
+              <p className="mt-2 text-sm">{summary?.summary ?? t("summarising")}</p>
+              {summary ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {summary.intent} · {summary.outcome} · {summary.sentiment}
+                </p>
+              ) : null}
+            </Card>
+          ) : null}
+        </div>
+      ) : conversationId ? (
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <Card className="flex h-[560px] flex-col p-0">
             <div

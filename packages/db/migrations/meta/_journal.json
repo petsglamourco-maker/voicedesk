@@ -57,6 +57,13 @@
       "when": 1792257541435,
       "tag": "0007_knowledge_gaps_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792262817008,
+      "tag": "0008_voice_settings",
+      "breakpoints": true
     }
   ]
 }

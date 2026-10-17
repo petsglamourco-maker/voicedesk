@@ -17,7 +17,12 @@ export {
   type Persona,
   type PersonaId,
 } from "./personas";
-export { greeting, emergencyMessage, looksLikeLifeThreateningEmergency } from "./phrases";
+export {
+  emergencyMessage,
+  greeting,
+  looksLikeLifeThreateningEmergency,
+  recordingNotice,
+} from "./phrases";
 export type { AgentContext } from "./context";
 export { buildSystemPrompt, PROMPT_VERSION } from "./prompt";
 export * from "./state";
@@ -33,3 +38,11 @@ export {
   summarizeConversation,
   type ConversationSummary,
 } from "./summary";
+export { endConversation, loadConversationState, persistTurn } from "./persistence";
+export {
+  DEFAULT_TTS_MODEL,
+  DEFAULT_VOICE_IDS,
+  sttLanguageFor,
+  voiceFor,
+  type VoiceChoice,
+} from "./voices";

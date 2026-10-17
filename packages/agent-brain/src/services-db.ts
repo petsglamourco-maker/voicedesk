@@ -221,6 +221,8 @@ export async function loadAgentContext(
     profile,
     style,
     emergencyNumber,
+    recordCalls: settings?.recordCalls ?? false,
+    voiceIds: settings?.voiceIds ?? {},
     now,
   };
 }
