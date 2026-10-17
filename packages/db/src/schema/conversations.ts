@@ -198,6 +198,33 @@ export const staffMessages = pgTable(
 );
 
 /** Native internal calendar. External calendar sync arrives in Phase 3. */
+/**
+ * A business's connected external calendar (Phase 3, ADR 0014). The OAuth refresh token is
+ * encrypted with SecretBox (context `calendar_connections:<id>`); one per provider per business.
+ */
+export const calendarConnections = pgTable(
+  "calendar_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    accountEmail: text("account_email"),
+    /** Calendar bookings go into (and whose busy times are respected). Null until chosen. */
+    calendarId: text("calendar_id"),
+    calendarName: text("calendar_name"),
+    refreshTokenEncrypted: text("refresh_token_encrypted").notNull(),
+    /** active | error (temporary) | revoked (must reconnect). */
+    status: text("status").notNull().default("active"),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    connectedBy: uuid("connected_by"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("calendar_connections_tenant_provider_uq").on(t.tenantId, t.provider)],
+);
+
 export const bookings = pgTable(
   "bookings",
   {
@@ -218,6 +245,11 @@ export const bookings = pgTable(
     customerEmail: text("customer_email"),
     notes: text("notes"),
     status: text("status").notNull().default("confirmed"),
+    /** Event in the business's external calendar (Google), when one is connected. */
+    calendarConnectionId: uuid("calendar_connection_id").references(() => calendarConnections.id, {
+      onDelete: "set null",
+    }),
+    externalEventId: text("external_event_id"),
     ...timestamps,
   },
   (t) => [

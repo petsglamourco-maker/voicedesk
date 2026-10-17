@@ -4,6 +4,7 @@ import {
   persistTurn,
   runTurn,
   type AgentContext,
+  type DbServiceDeps,
   type ConversationState,
   type Lang,
   type TurnResult,
@@ -14,6 +15,8 @@ export interface BridgeDeps {
   db: Database;
   llm: LlmProvider;
   embeddings: EmbeddingProvider;
+  /** External calendar access (Phase 3); see DbServiceDeps. */
+  calendars?: DbServiceDeps["calendars"];
 }
 
 export interface TurnTimings {
@@ -74,8 +77,8 @@ export class EngineBridge {
     const run = async (): Promise<TurnResult | null> => {
       const previous = this.state;
       const services = createDbAgentServices(
-        { db: this.deps.db, embeddings: this.deps.embeddings },
-        { ...this.ids, businessName: this.ctx.businessName },
+        { db: this.deps.db, embeddings: this.deps.embeddings, calendars: this.deps.calendars },
+        { ...this.ids, businessName: this.ctx.businessName, timezone: this.ctx.timezone },
       );
       try {
         const result = await runTurn(

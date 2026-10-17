@@ -258,6 +258,13 @@ export class InMemoryCalendarProvider implements CalendarProvider {
   readonly name = "memory-calendar";
   private readonly events = new Map<string, Map<string, CalendarEvent>>();
 
+  listCalendars(): Promise<Array<{ id: string; name: string; primary: boolean }>> {
+    return Promise.resolve([
+      { id: "primary", name: "Main calendar", primary: true },
+      { id: "team", name: "Team diary", primary: false },
+    ]);
+  }
+
   private calendar(id: string): Map<string, CalendarEvent> {
     let cal = this.events.get(id);
     if (!cal) {

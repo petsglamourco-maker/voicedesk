@@ -17,5 +17,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0011](0011-approved-profile-grounding.md) | The approved business profile is the source of truth | Accepted           |
 | [0012](0012-switchable-ai-providers.md)    | Switchable AI providers with priority fallback       | Accepted           |
 | [0013](0013-node-voice-worker.md)          | Voice worker in TypeScript on LiveKit Agents (Node)  | Accepted           |
+| [0014](0014-calendar-integrations.md)      | Calendar integrations (Google first, Outlook next)   | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.

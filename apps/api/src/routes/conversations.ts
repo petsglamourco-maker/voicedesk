@@ -137,11 +137,20 @@ export function registerConversationRoutes(app: FastifyInstance, deps: AppDeps):
       const ctx = await loadAgentContext(deps.db, access.tenantId, style);
       const embeddings = await deps.embeddings();
       const services = createDbAgentServices(
-        { db: deps.db, embeddings },
+        {
+          db: deps.db,
+          embeddings,
+          calendars: {
+            box: deps.secrets.box,
+            factory: deps.calendars?.factory ?? null,
+            log: (msg, data) => request.log.warn(data, msg),
+          },
+        },
         {
           tenantId: access.tenantId,
           conversationId: conversation.id,
           businessName: ctx.businessName,
+          timezone: ctx.timezone,
         },
       );
 

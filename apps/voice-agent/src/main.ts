@@ -33,7 +33,13 @@ import {
 } from "@voicedesk/agent-brain";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
-import { createAppLlm, SecretBox } from "@voicedesk/core";
+import {
+  createAppLlm,
+  googleCalendarFactory,
+  googleOAuthFromEnv,
+  SecretBox,
+  type CalendarFactory,
+} from "@voicedesk/core";
 import { createDb, type Database } from "@voicedesk/db";
 import { createAiQueue, createRedisConnection } from "@voicedesk/jobs";
 import { EngineLlmPlaceholder, EngineVoiceAgent } from "./agent";
@@ -67,15 +73,19 @@ let shared:
       llm: LlmProvider;
       embeddings: Promise<EmbeddingProvider>;
       storage: () => ObjectStorage;
+      calendars: { box: SecretBox | null; factory: CalendarFactory | null };
     }
   | undefined;
 function resources() {
   if (!shared) {
     const db = createDb(process.env.DATABASE_URL!);
+    const box = SecretBox.fromEnv();
+    const oauth = googleOAuthFromEnv();
     shared = {
       db,
+      calendars: { box, factory: oauth ? googleCalendarFactory(oauth) : null },
       llm: createAppLlm(db, {
-        box: SecretBox.fromEnv(),
+        box,
         anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
       }),
       embeddings: embeddingsFromEnv(process.env, repoRoot),
@@ -91,7 +101,7 @@ function resources() {
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     const job = parseJobMetadata(ctx.job.metadata);
-    const { db, llm, embeddings, storage } = resources();
+    const { db, llm, embeddings, storage, calendars } = resources();
     const agentCtx = await loadAgentContext(db, job.tenantId, "voice");
     await ctx.connect();
 
@@ -178,7 +188,12 @@ export default defineAgent({
     // Set when the agent closes the conversation; the call ends once the goodbye is heard.
     let hangUpAfterSpeech = false;
     const bridge = new EngineBridge(
-      { db, llm, embeddings: await embeddings },
+      {
+        db,
+        llm,
+        embeddings: await embeddings,
+        calendars: { ...calendars, log: (msg, data) => log.warn(data, msg) },
+      },
       agentCtx,
       ids,
       state,

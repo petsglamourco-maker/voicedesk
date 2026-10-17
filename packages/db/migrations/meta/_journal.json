@@ -85,6 +85,20 @@
       "when": 1792271736344,
       "tag": "0011_voice_metrics",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792273741533,
+      "tag": "0012_calendar_connections",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792273742605,
+      "tag": "0013_calendar_connections_rls",
+      "breakpoints": true
     }
   ]
 }

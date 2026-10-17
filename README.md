@@ -55,6 +55,15 @@ Browser voice runs through [LiveKit Cloud](https://cloud.livekit.io) (free tier)
 3. **Test console** → Style: _Talk by voice (microphone)_ → _Start conversation_, then allow the microphone. You'll hear the greeting with the AI disclosure. You can interrupt, switch language ("can we speak Spanish?") and make a booking. The side panel shows how long each reply took.
 4. **Assistant** → _Preview voice_ plays each persona's greeting. _Record calls_ adds a recording notice to the greeting.
 
+## Connect Google Calendar (free)
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com) and create a project (e.g. "VoiceDesk dev").
+2. **APIs & Services → Library**: enable **Google Calendar API**.
+3. **APIs & Services → OAuth consent screen**: choose External, fill in the app name and your email, add the scopes `calendar.events`, `calendar.freebusy` and `calendar.calendarlist.readonly`, then **Publish app** (to "In production"). Apps left in "Testing" lose access after 7 days. Google will show an "unverified app" warning, which is fine for your own use.
+4. **APIs & Services → Credentials → Create credentials → OAuth client ID**: type "Web application", authorised redirect URI `http://localhost:3000/api/integrations/google/callback`.
+5. Put the client ID and secret into `.env` as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` (never in chat), then restart `pnpm dev`.
+6. In the app: **Integrations → Connect Google Calendar**, sign in, then choose the calendar bookings should go into.
+
 ## Take real phone calls (costs money: ask first)
 
 1. **Twilio** (twilio.com): create an account, then **Elastic SIP Trunking → Trunks → Create**. Under **Origination**, add `sip:<your LiveKit SIP host>;transport=tcp`. The host is in LiveKit Cloud → Project settings ("SIP URI").

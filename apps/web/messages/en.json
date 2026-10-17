@@ -75,7 +75,8 @@
     "console": "Test console",
     "records": "Records",
     "platformAdmin": "Platform admin",
-    "calls": "Calls"
+    "calls": "Calls",
+    "integrations": "Integrations"
   },
   "roles": {
     "owner": "Owner",
@@ -449,5 +450,34 @@
     "setup2": "Origination → add the URI sip:<your LiveKit SIP host>;transport=tcp (LiveKit Cloud → Project settings → SIP URI).",
     "setup3": "Phone Numbers → buy a UK number (needs an address bundle) and attach it to the trunk.",
     "setup4": "Add the number here and assign it to a business, then call it."
+  },
+  "integrations": {
+    "title": "Integrations",
+    "subtitle": "Connect the tools your business already uses, so the assistant works with them.",
+    "googleTitle": "Google Calendar",
+    "googleHint": "The assistant only offers times that are free in your calendar, and puts every booking it makes straight into it.",
+    "statusActive": "Connected",
+    "statusError": "Problem",
+    "statusRevoked": "Needs reconnecting",
+    "result": {
+      "connected": "Google Calendar connected. Now choose which calendar bookings go into.",
+      "cancelled": "Connection cancelled. Nothing was changed.",
+      "failed": "Google didn't accept the connection. Please try again.",
+      "no_refresh_token": "Google didn't grant ongoing access. Remove VoiceDesk in your Google account's security settings, then connect again."
+    },
+    "notConfigured": "Google Calendar isn't set up on this VoiceDesk server yet (the administrator needs to add Google OAuth credentials).",
+    "connect": "Connect Google Calendar",
+    "askOwner": "An owner or admin can connect a calendar.",
+    "account": "Google account",
+    "calendar": "Calendar for bookings",
+    "chooseCalendar": "Choose a calendar…",
+    "primary": "main",
+    "pickToFinish": "Choose a calendar to finish. Until then, the assistant only uses VoiceDesk's own bookings.",
+    "howItWorks": "Busy times in this calendar are blocked; new bookings appear here with the customer's name, phone and reference. Google doesn't email your customers; VoiceDesk sends its own confirmations.",
+    "errorHelp": "The last attempt to reach Google failed. The assistant is still taking bookings and will use your calendar again when Google responds.",
+    "revokedHelp": "Access to your Google Calendar was removed or has expired. Reconnect so the assistant can see your diary again; until then it only uses VoiceDesk's own bookings.",
+    "reconnect": "Reconnect",
+    "disconnect": "Disconnect",
+    "confirmDisconnect": "Disconnect Google Calendar? The assistant will stop checking it and stop adding bookings to it. Existing events stay in your calendar."
   }
 }

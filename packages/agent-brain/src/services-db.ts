@@ -1,4 +1,12 @@
 import type { EmbeddingProvider } from "@voicedesk/adapters";
+import {
+  markCalendarError,
+  markCalendarHealthy,
+  tenantCalendar,
+  type CalendarFactory,
+  type SecretBox,
+  type TenantCalendar,
+} from "@voicedesk/core";
 import { getCountryConfig } from "@voicedesk/compliance";
 import {
   agentSettings,
@@ -18,12 +26,27 @@ import type { AgentContext } from "./context";
 import { toLang } from "./languages";
 import { getPersona } from "./personas";
 import { getApprovedProfile } from "./profile-store";
+import type { BusyRange } from "./availability";
 import type { AgentServices, Created } from "./services";
 import { makeReference } from "./util";
 
 export interface DbServiceDeps {
   db: Database;
   embeddings: EmbeddingProvider;
+  /** External calendar access (Phase 3). Without it, only VoiceDesk's own bookings count. */
+  calendars?: {
+    box: SecretBox | null;
+    factory: CalendarFactory | null;
+    log?: (message: string, data: Record<string, unknown>) => void;
+  };
+}
+
+const BUSY_CACHE_MS = 60_000;
+const busyCache = new Map<string, { at: number; ranges: BusyRange[] }>();
+
+/** Drops cached external busy times for a business (after it books or cancels). */
+export function invalidateBusyCache(tenantId: string): void {
+  for (const key of busyCache.keys()) if (key.startsWith(`${tenantId}|`)) busyCache.delete(key);
 }
 
 /** Postgres unique violation, possibly wrapped by Drizzle ("Failed query: ..."). */
@@ -49,11 +72,40 @@ async function withReference<T>(
 /** Agent side effects backed by the tenant's database (RLS-scoped). */
 export function createDbAgentServices(
   deps: DbServiceDeps,
-  scope: { tenantId: string; conversationId: string; businessName: string },
+  scope: { tenantId: string; conversationId: string; businessName: string; timezone?: string },
 ): AgentServices {
   const { db } = deps;
   const { tenantId, conversationId, businessName } = scope;
   const tx = <T>(fn: Parameters<typeof withTenant<T>>[2]) => withTenant(db, tenantId, fn);
+  const log = deps.calendars?.log ?? (() => undefined);
+
+  let calendar: Promise<TenantCalendar | null> | undefined;
+  const getCalendar = () =>
+    (calendar ??= deps.calendars
+      ? tenantCalendar(db, deps.calendars.box, deps.calendars.factory, tenantId).catch(
+          (error: unknown) => {
+            log("calendar unavailable", { tenantId, err: String(error) });
+            return null;
+          },
+        )
+      : Promise.resolve(null));
+
+  /** Runs a calendar call; failures never break the conversation, they're shown to the business. */
+  async function withCalendar<T>(
+    what: string,
+    fn: (cal: TenantCalendar) => Promise<T>,
+  ): Promise<T | undefined> {
+    const cal = await getCalendar();
+    if (!cal) return undefined;
+    try {
+      const result = await fn(cal);
+      return result;
+    } catch (error) {
+      log(`calendar ${what} failed`, { tenantId, err: String(error) });
+      await markCalendarError(db, tenantId, cal.connectionId, error).catch(() => undefined);
+      return undefined;
+    }
+  }
 
   return {
     async searchKnowledge(query) {
@@ -61,7 +113,7 @@ export function createDbAgentServices(
     },
 
     async listBusy(from, to) {
-      return tx((t) =>
+      const own = await tx((t) =>
         t
           .select({ startsAt: bookings.startsAt, endsAt: bookings.endsAt })
           .from(bookings)
@@ -74,6 +126,22 @@ export function createDbAgentServices(
             ),
           ),
       );
+      // Busy times from the business's own calendar (cached briefly: several tool calls in a
+      // turn ask about the same day). Bookings we made are also in there; overlap is harmless.
+      const key = `${tenantId}|${from.toISOString()}|${to.toISOString()}`;
+      const cached = busyCache.get(key);
+      let external = cached && Date.now() - cached.at < BUSY_CACHE_MS ? cached.ranges : undefined;
+      if (!external) {
+        const ranges = await withCalendar("free/busy", async (cal) => {
+          const busy = await cal.provider.freeBusy([cal.calendarId], { start: from, end: to });
+          return busy.map((b) => ({ startsAt: b.start, endsAt: b.end }));
+        });
+        if (ranges) {
+          busyCache.set(key, { at: Date.now(), ranges });
+          external = ranges;
+        }
+      }
+      return [...own, ...(external ?? [])];
     },
 
     async createTicket(input) {
@@ -101,7 +169,7 @@ export function createDbAgentServices(
     },
 
     async createBooking(input) {
-      return withReference(businessName, (reference) =>
+      const created = await withReference(businessName, (reference) =>
         tx(async (t): Promise<Created> => {
           const [row] = await t
             .insert(bookings)
@@ -110,6 +178,33 @@ export function createDbAgentServices(
           return { id: row!.id, reference };
         }),
       );
+      // Put it in the business's calendar too. If that fails the booking still stands (it is
+      // in VoiceDesk and blocks the slot); the business sees the error on Integrations.
+      await withCalendar("create event", async (cal) => {
+        const event = await cal.provider.createEvent(cal.calendarId, {
+          title: `${input.service} — ${input.customerName}`,
+          description: [
+            `Booked by the VoiceDesk assistant. Reference ${created.reference}.`,
+            input.customerPhone ? `Phone: ${input.customerPhone}` : null,
+            input.customerEmail ? `Email: ${input.customerEmail}` : null,
+            input.notes ? `Notes: ${input.notes}` : null,
+          ]
+            .filter(Boolean)
+            .join("\n"),
+          start: input.startsAt,
+          end: input.endsAt,
+          timezone: scope.timezone ?? "UTC",
+        });
+        await tx((t) =>
+          t
+            .update(bookings)
+            .set({ calendarConnectionId: cal.connectionId, externalEventId: event.id })
+            .where(eq(bookings.id, created.id)),
+        );
+        await markCalendarHealthy(db, tenantId, cal.connectionId);
+      });
+      invalidateBusyCache(tenantId);
+      return created;
     },
 
     async takeMessage(input) {

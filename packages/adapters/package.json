@@ -12,7 +12,8 @@
     "./from-env": "./src/from-env.ts",
     "./llm/openai-compatible": "./src/llm/openai-compatible.ts",
     "./llm/router": "./src/llm/router.ts",
-    "./speech/elevenlabs": "./src/speech/elevenlabs.ts"
+    "./speech/elevenlabs": "./src/speech/elevenlabs.ts",
+    "./calendar/google": "./src/calendar/google.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
