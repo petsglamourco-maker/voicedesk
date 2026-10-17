@@ -66,6 +66,73 @@ function localNow(ctx: AgentContext): string {
   }).format(ctx.now());
 }
 
+/**
+ * Some models repeat, after a tool call, the sentence they wrote just before it ("Perfect,
+ * nine o'clock. What's your full name?" twice). On a call that would be spoken twice, so the
+ * repeat is held back while streaming and dropped if it matches the previous text.
+ */
+export class RepeatFilter {
+  private buffer = "";
+  private checking: boolean;
+  private dropped = false;
+  private emittedAfterDrop = false;
+
+  constructor(
+    private readonly previous: string,
+    private readonly emit: (delta: string) => void,
+  ) {
+    // Only worth checking for real sentences, not "Okay."
+    this.checking = previous.trim().length >= 12;
+  }
+
+  push(delta: string): void {
+    if (!this.checking) {
+      // Right after a dropped repeat, don't start the new text with a stray space.
+      if (this.dropped && !this.emittedAfterDrop) {
+        delta = delta.trimStart();
+        if (!delta) return;
+        this.emittedAfterDrop = true;
+      }
+      this.emit(delta);
+      return;
+    }
+    this.buffer += delta;
+    const prev = this.previous.trim();
+    const sofar = this.buffer.trimStart();
+    if (prev.startsWith(sofar)) {
+      if (sofar.length >= prev.length) {
+        this.dropped = true;
+        this.checking = false;
+        this.buffer = "";
+      }
+      return; // could still be a repeat: keep holding
+    }
+    this.checking = false;
+    if (sofar.startsWith(prev)) {
+      this.dropped = true;
+      const rest = sofar.slice(prev.length).trimStart();
+      if (rest) this.emittedAfterDrop = true;
+      this.emit(rest);
+    } else {
+      this.emit(this.buffer);
+    }
+    this.buffer = "";
+  }
+
+  /** End of the round: text that only matched the start of the previous one is genuine. */
+  end(): void {
+    if (this.checking && this.buffer) this.emit(this.buffer);
+    this.checking = false;
+    this.buffer = "";
+  }
+
+  /** The round's full text without the dropped repeat (for the saved reply). */
+  strip(text: string): string {
+    if (!this.dropped) return text;
+    return text.trimStart().slice(this.previous.trim().length).trim();
+  }
+}
+
 /** Opens a conversation: fixed greeting with the mandatory AI disclosure. */
 export function startConversation(
   ctx: AgentContext,
@@ -139,6 +206,14 @@ export async function runTurn(
   try {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       let streamedThisRound = false;
+      const emit = (delta: string) => {
+        if (!delta) return;
+        // Separate text from consecutive rounds (e.g. a filler before a tool call).
+        if (!streamedThisRound && texts.length > 0) options.onText?.(" ");
+        streamedThisRound = true;
+        options.onText?.(delta);
+      };
+      const dedupe = new RepeatFilter(texts.at(-1) ?? "", emit);
       const response = await deps.llm.stream(
         {
           tier: "realtime",
@@ -148,16 +223,12 @@ export async function runTurn(
           tools,
           maxTokens: 1024,
         },
-        (delta) => {
-          // Separate text from consecutive rounds (e.g. a filler before a tool call).
-          if (!streamedThisRound && texts.length > 0) options.onText?.(" ");
-          streamedThisRound = true;
-          options.onText?.(delta);
-        },
+        (delta) => dedupe.push(delta),
       );
+      dedupe.end();
       usage.push(response.usage);
       state.history.push({ role: "assistant", content: response.content, raw: response.raw });
-      const text = responseText(response);
+      const text = dedupe.strip(responseText(response));
       if (text) texts.push(text);
 
       if (response.stopReason !== "tool_use") {

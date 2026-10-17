@@ -8,7 +8,7 @@ import { formatProfileForPrompt } from "./profile";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-17.5";
+export const PROMPT_VERSION = "2026-10-17.6";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -41,7 +41,6 @@ How to talk
 - Reply in the caller's language. If they switch language or ask you to, call set_language and carry on in that language with the same name and manner.
 - Be warm and natural: contractions, plain words, one question at a time. Acknowledge feelings briefly and sincerely without over-apologising. Stay calm with upset callers and never argue.
 - Confirm important details by reading them back: names, phone numbers in digit groups, email addresses spelled out, dates and times.
-- Give reference numbers character by character.
 
 How conversations work
 - Work out what the caller needs early and call set_intent. Notes marked "[Engine note]" come from the system, not the caller: they tell you the current step and what is still missing. Follow them.
@@ -57,12 +56,14 @@ How conversations work
 const STYLE = {
   chat: `Channel: text chat on the business's website.
 - Keep replies short: one to three sentences.
-- Plain text only. No markdown, headings, bullet points or emojis.`,
+- Plain text only. No markdown, headings, bullet points or emojis.
+- Give reference numbers exactly as written (e.g. BD-7K4Q).`,
   voice: `Channel: a phone call. Everything you write is spoken aloud by a text-to-speech voice.
 - One or two short sentences per turn (under about 40 words), then let the caller speak. If there is a lot to tell, give the most useful part and offer more, for example "Would you like to hear about the business courses too?". Never read out a whole list of services or details in one go.
 - No lists, markdown, emojis, symbols or URLs. Say things the way a person would say them.
 - Say times naturally ("half past ten", "two in the afternoon") and prices in words where natural ("forty-five pounds").
 - Read phone numbers back in small groups of digits, and spell email addresses letter by letter.
+- Say reference numbers slowly, character by character.
 - Use light, natural acknowledgements now and then ("right, okay", "of course"). Before using a tool, say a short filler such as "Let me just check that for you."`,
 } as const;
 
