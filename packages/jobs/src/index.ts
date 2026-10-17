@@ -4,6 +4,10 @@ import { Redis } from "ioredis";
 
 export const QUEUES = {
   email: "email",
+  /** Crawling, file extraction, chunking and embedding. CPU/network heavy. */
+  knowledge: "knowledge",
+  /** LLM background work: profile generation, conversation summaries. */
+  ai: "ai",
 } as const;
 
 export interface SendEmailJob {
@@ -15,6 +19,15 @@ export interface SendEmailJob {
   /** Logical kind for metrics, e.g. "auth.verify", "auth.invite". */
   kind: string;
 }
+
+export interface ProcessSourceJob {
+  tenantId: string;
+  sourceId: string;
+}
+
+export type AiJob =
+  | { kind: "profile.generate"; tenantId: string; requestedBy: string | null }
+  | { kind: "conversation.summarize"; tenantId: string; conversationId: string };
 
 export const DEFAULT_JOB_OPTIONS: JobsOptions = {
   attempts: 5,
@@ -33,15 +46,60 @@ export interface QueueOptions {
   prefix?: string;
 }
 
+function makeQueue<T>(
+  name: string,
+  connection: Redis,
+  options: QueueOptions,
+  jobOptions: JobsOptions,
+) {
+  return new Queue<T>(name, {
+    connection,
+    defaultJobOptions: jobOptions,
+    ...(options.prefix ? { prefix: options.prefix } : {}),
+  });
+}
+
 export function createEmailQueue(
   connection: Redis,
   options: QueueOptions = {},
 ): Queue<SendEmailJob> {
-  return new Queue<SendEmailJob>(QUEUES.email, {
-    connection,
-    defaultJobOptions: DEFAULT_JOB_OPTIONS,
-    ...(options.prefix ? { prefix: options.prefix } : {}),
+  return makeQueue<SendEmailJob>(QUEUES.email, connection, options, DEFAULT_JOB_OPTIONS);
+}
+
+export function createKnowledgeQueue(
+  connection: Redis,
+  options: QueueOptions = {},
+): Queue<ProcessSourceJob> {
+  // Content problems are recorded on the source, so retries only cover crashes.
+  return makeQueue<ProcessSourceJob>(QUEUES.knowledge, connection, options, {
+    ...DEFAULT_JOB_OPTIONS,
+    attempts: 2,
   });
+}
+
+export function createAiQueue(connection: Redis, options: QueueOptions = {}): Queue<AiJob> {
+  return makeQueue<AiJob>(QUEUES.ai, connection, options, { ...DEFAULT_JOB_OPTIONS, attempts: 3 });
+}
+
+/** Scheduler id for a source's periodic recrawl. */
+export const recrawlSchedulerId = (sourceId: string) => `recrawl:${sourceId}`;
+
+/** Creates, updates or removes the periodic recrawl for a website source. */
+export async function scheduleRecrawl(
+  queue: Queue<ProcessSourceJob>,
+  job: ProcessSourceJob,
+  recrawlDays: number | null | undefined,
+): Promise<void> {
+  const id = recrawlSchedulerId(job.sourceId);
+  if (!recrawlDays) {
+    await queue.removeJobScheduler(id);
+    return;
+  }
+  await queue.upsertJobScheduler(
+    id,
+    { every: recrawlDays * 24 * 3600 * 1000 },
+    { name: "recrawl", data: job },
+  );
 }
 
 export type { Queue, Job } from "bullmq";

@@ -1,15 +1,27 @@
 import { createServer } from "node:http";
+import { dirname } from "node:path";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
+import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
-import { createRedisConnection, QUEUES, type SendEmailJob } from "@voicedesk/jobs";
+import { closeDb, createDb } from "@voicedesk/db";
+import {
+  createRedisConnection,
+  QUEUES,
+  type ProcessSourceJob,
+  type SendEmailJob,
+} from "@voicedesk/jobs";
+import { createSafeFetcher } from "@voicedesk/knowledge";
 import { Worker } from "bullmq";
 import { z } from "zod";
+import { createProcessSourceProcessor } from "./processors/process-source";
 import { createSendEmailProcessor } from "./processors/send-email";
 
-loadRootEnv();
+const envFile = loadRootEnv();
+const repoRoot = envFile ? dirname(envFile) : process.cwd();
 const env = z
   .object({
+    DATABASE_URL: z.string().url(),
     REDIS_URL: z.string().url(),
     SMTP_HOST: z.string().min(1),
     SMTP_PORT: z.coerce.number().int().positive(),
@@ -31,10 +43,31 @@ const email = new SmtpEmailProvider({
   defaultFrom: env.EMAIL_FROM,
 });
 
+const db = createDb(env.DATABASE_URL);
+const storage = storageFromEnv();
+await storage.ensureBucket();
+const embeddings = await embeddingsFromEnv(process.env, repoRoot);
+const knowledgeDeps = {
+  db,
+  embeddings,
+  storage,
+  fetch: createSafeFetcher(),
+  log: {
+    info: (obj: object, msg: string) => log.info(obj, msg),
+    warn: (obj: object, msg: string) => log.warn(obj, msg),
+  },
+};
+
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {
     connection,
     concurrency: 5,
+  }),
+  // One source at a time: crawling is polite and embedding is CPU-bound.
+  new Worker<ProcessSourceJob>(QUEUES.knowledge, createProcessSourceProcessor(knowledgeDeps, log), {
+    connection,
+    concurrency: 1,
+    lockDuration: 10 * 60_000,
   }),
 ];
 
@@ -63,6 +96,7 @@ const shutdown = async () => {
   health.close();
   await Promise.all(workers.map((w) => w.close()));
   connection.disconnect();
+  await closeDb(db);
   process.exit(0);
 };
 process.once("SIGINT", () => void shutdown());

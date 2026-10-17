@@ -12,15 +12,18 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/multipart": "10.1.4",
     "@fastify/rate-limit": "11.2.1",
     "@fastify/swagger": "9.9.2",
     "@fastify/swagger-ui": "6.1.2",
+    "@voicedesk/adapters": "workspace:*",
     "@voicedesk/auth": "workspace:*",
     "@voicedesk/compliance": "workspace:*",
     "@voicedesk/config": "workspace:*",
     "@voicedesk/core": "workspace:*",
     "@voicedesk/db": "workspace:*",
     "@voicedesk/jobs": "workspace:*",
+    "@voicedesk/knowledge": "workspace:*",
     "better-auth": "1.7.10",
     "drizzle-orm": "0.45.4",
     "fastify": "5.12.7",

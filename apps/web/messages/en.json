@@ -35,7 +35,9 @@
     "timezone": "Time zone",
     "language": "Main language",
     "create": "Create business",
-    "countries": { "GB": "United Kingdom" },
+    "countries": {
+      "GB": "United Kingdom"
+    },
     "moreCountriesSoon": "More countries are coming soon."
   },
   "languages": {
@@ -60,11 +62,20 @@
     "language": "Main language",
     "dataRegion": "Data region",
     "status": "Status",
-    "statuses": { "onboarding": "Setting up", "active": "Live", "suspended": "Suspended" },
+    "statuses": {
+      "onboarding": "Setting up",
+      "active": "Live",
+      "suspended": "Suspended"
+    },
     "recentActivity": "Recent activity",
-    "noActivity": "No activity yet."
+    "noActivity": "No activity yet.",
+    "knowledge": "Knowledge"
   },
-  "roles": { "owner": "Owner", "admin": "Admin", "staff": "Staff" },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "staff": "Staff"
+  },
   "members": {
     "title": "Team",
     "subtitle": "People who can sign in to manage this business.",
@@ -104,5 +115,39 @@
     "enterCode": "Enter the 6-digit code from the app to finish",
     "finish": "Finish setup",
     "enabled": "Two-step verification is now on."
+  },
+  "knowledge": {
+    "title": "Knowledge",
+    "subtitle": "What your assistant knows about the business. Add your website, documents and FAQs.",
+    "addTitle": "Add knowledge",
+    "tabs": {
+      "website": "Website",
+      "file": "File",
+      "text": "Text / FAQ"
+    },
+    "websiteUrl": "Website address",
+    "pageLimit": "Max pages",
+    "crawlNotice": "We'll read public pages on this site (respecting robots.txt) and re-check weekly. Only add websites you own or have permission to use.",
+    "file": "File",
+    "fileHint": "PDF, Word (DOCX), CSV or text, up to 20 MB.",
+    "textTitle": "Title",
+    "text": "Text",
+    "add": "Add",
+    "sources": "Sources",
+    "empty": "Nothing added yet. Start with your website.",
+    "stats": "{documents, plural, one {# page} other {# pages}}, {chunks} passages",
+    "status": {
+      "pending": "Queued",
+      "processing": "Reading…",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "refresh": "Refresh",
+    "delete": "Delete",
+    "testTitle": "Test what the assistant finds",
+    "testSubtitle": "Ask a question a customer might ask and see which passages would be used to answer.",
+    "testPlaceholder": "Do you have parking?",
+    "search": "Search",
+    "noHits": "Nothing relevant found."
   }
 }

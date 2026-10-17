@@ -17,7 +17,10 @@ export const PERMISSIONS = [
   "contacts:read",
   "contacts:write",
   "calls:read",
+  "records:read",
+  "knowledge:read",
   "knowledge:write",
+  "agent:test",
   "agent:configure",
   "compliance:manage",
   "billing:manage",
@@ -33,6 +36,9 @@ const STAFF: ReadonlySet<Permission> = new Set([
   "contacts:read",
   "contacts:write",
   "calls:read",
+  "records:read",
+  "knowledge:read",
+  "agent:test",
 ]);
 
 const MATRIX: Record<BusinessRole, ReadonlySet<Permission>> = {

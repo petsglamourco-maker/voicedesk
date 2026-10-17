@@ -1,11 +1,12 @@
+import { dirname } from "node:path";
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import { buildApp } from "./app";
 import { createContainer } from "./container";
 import { parseEnv } from "./env";
 
-loadRootEnv();
+const envFile = loadRootEnv();
 const env = parseEnv();
-const container = createContainer(env);
+const container = await createContainer(env, envFile ? dirname(envFile) : process.cwd());
 const app = await buildApp({ ...container, logLevel: env.LOG_LEVEL });
 
 const shutdown = async (signal: string) => {

@@ -35,16 +35,41 @@ const BLOCK_TAGS = new Set([
   "MAIN",
 ]);
 
+// Minimal structural DOM types, so this module typechecks without the DOM lib (linkedom
+// provides the implementation at runtime).
+interface DomNode {
+  nodeType: number;
+  textContent: string | null;
+  childNodes: ArrayLike<DomNode>;
+}
+interface DomElement extends DomNode {
+  tagName: string;
+  getAttribute(name: string): string | null;
+}
+interface DomQueryable {
+  querySelector(selector: string): DomElement | null;
+  querySelectorAll(selector: string): ArrayLike<DomElement>;
+}
+interface DomDocument extends DomQueryable {
+  body: DomElement | null;
+}
+
+/** linkedom's bundled types don't resolve under our module settings; narrow them once here. */
+function parseDocument(html: string): DomDocument {
+  const parse = parseHTML as unknown as (markup: string) => { document: DomDocument };
+  return parse(html).document;
+}
+
 /** Converts a DOM subtree to readable text, preserving headings and list structure. */
-function domToText(root: Element): string {
+function domToText(root: DomNode): string {
   const out: string[] = [];
-  const walk = (node: Node) => {
+  const walk = (node: DomNode) => {
     if (node.nodeType === 3) {
       out.push(node.textContent ?? "");
       return;
     }
     if (node.nodeType !== 1) return;
-    const el = node as Element;
+    const el = node as DomElement;
     const tag = el.tagName.toUpperCase();
     if (["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE", "SVG", "IFRAME"].includes(tag)) return;
     const heading = /^H([1-6])$/.exec(tag);
@@ -66,7 +91,7 @@ function domToText(root: Element): string {
  * Pulls schema.org JSON-LD (LocalBusiness hours, address, phone...) — often the most
  * reliable facts on small-business sites — as compact text.
  */
-function structuredData(document: Document): string {
+function structuredData(document: DomQueryable): string {
   const blocks: string[] = [];
   for (const script of Array.from(
     document.querySelectorAll('script[type="application/ld+json"]'),
@@ -82,7 +107,7 @@ function structuredData(document: Document): string {
 }
 
 export function extractHtml(html: string, pageUrl: string): ExtractedPage {
-  const { document } = parseHTML(html);
+  const document = parseDocument(html);
   const links = new Set<string>();
   for (const a of Array.from(document.querySelectorAll("a[href]"))) {
     try {
@@ -97,13 +122,13 @@ export function extractHtml(html: string, pageUrl: string): ExtractedPage {
   const jsonLd = structuredData(document);
 
   // Readability mutates the DOM, so run it on a fresh parse.
-  const article = new Readability(parseHTML(html).document, {
+  const article = new Readability(parseDocument(html), {
     charThreshold: 200,
   }).parse();
   let text = "";
   if (article?.content) {
-    const { document: contentDoc } = parseHTML(`<html><body>${article.content}</body></html>`);
-    text = domToText(contentDoc.body);
+    const contentDoc = parseDocument(`<html><body>${article.content}</body></html>`);
+    if (contentDoc.body) text = domToText(contentDoc.body);
   }
   if (text.length < 200) {
     // Short pages (contact, hours) often get dropped by Readability; fall back to the body.
@@ -137,8 +162,8 @@ export async function extractFile(data: Uint8Array, type: SupportedFileType): Pr
     }
     case "docx": {
       const { value } = await mammoth.convertToHtml({ buffer: Buffer.from(data) });
-      const { document } = parseHTML(`<html><body>${value}</body></html>`);
-      return domToText(document.body);
+      const doc = parseDocument(`<html><body>${value}</body></html>`);
+      return doc.body ? domToText(doc.body) : "";
     }
     case "csv": {
       const parsed = Papa.parse<Record<string, string>>(new TextDecoder().decode(data), {

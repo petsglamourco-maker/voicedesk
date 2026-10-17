@@ -13,7 +13,9 @@
     "@voicedesk/adapters": "workspace:*",
     "@voicedesk/compliance": "workspace:*",
     "@voicedesk/config": "workspace:*",
+    "@voicedesk/db": "workspace:*",
     "@voicedesk/jobs": "workspace:*",
+    "@voicedesk/knowledge": "workspace:*",
     "bullmq": "6.3.15",
     "zod": "4.6.7"
   },

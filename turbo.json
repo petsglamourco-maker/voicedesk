@@ -2,6 +2,16 @@
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
   "globalDependencies": [".env"],
+  "globalPassThroughEnv": [
+    "NODE_EXTRA_CA_CERTS",
+    "NODE_USE_SYSTEM_CA",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

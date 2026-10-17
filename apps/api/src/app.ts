@@ -1,9 +1,8 @@
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
-import type { Auth } from "@voicedesk/auth";
+import multipart from "@fastify/multipart";
 import { loggerOptions } from "@voicedesk/compliance/logger";
-import type { Database } from "@voicedesk/db";
 import Fastify, { type FastifyInstance } from "fastify";
 import {
   jsonSchemaTransform,
@@ -11,19 +10,17 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
+import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
 import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
+import { registerKnowledgeRoutes } from "./routes/knowledge";
 import { registerMeRoutes } from "./routes/me";
 import { registerTenantRoutes } from "./routes/tenants";
 
-export interface AppDeps {
-  db: Database;
-  auth: Auth;
-  /** Returns true when Redis (queues) is reachable. */
-  checkRedis: () => Promise<boolean>;
-  logLevel?: string;
-}
+export type AppDeps = Omit<Container, "close"> & { logLevel?: string };
+
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
@@ -60,11 +57,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     transform: jsonSchemaTransform,
   });
   await app.register(swaggerUi, { routePrefix: "/api/docs" });
+  await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } });
 
   registerAuthRoutes(app, deps.auth);
   registerHealthRoutes(app, deps);
   registerMeRoutes(app, deps);
   registerTenantRoutes(app, deps);
+  registerKnowledgeRoutes(app, deps);
 
   return app;
 }

@@ -42,6 +42,13 @@ function normalise(raw: string): string | null {
   }
 }
 
+/** "fetch failed" alone is useless; include the underlying network/TLS cause. */
+function describeError(error: unknown): string {
+  if (!(error instanceof Error)) return "fetch failed";
+  const cause = error.cause instanceof Error ? `: ${error.cause.message}` : "";
+  return `${error.message}${cause}`;
+}
+
 /** Same site = same hostname, ignoring a leading "www.". */
 function sameSite(a: URL, b: URL): boolean {
   const strip = (h: string) => h.toLowerCase().replace(/^www\./, "");
@@ -151,7 +158,7 @@ export async function crawlSite(startUrl: string, options: CrawlOptions): Promis
       await options.onPage?.({ url: res.url, title: page.title, text: page.text });
     } catch (error) {
       result.skipped++;
-      options.onSkip?.(url, error instanceof Error ? error.message : "fetch failed");
+      options.onSkip?.(url, describeError(error));
     }
   }
   return result;
