@@ -1,0 +1,317 @@
+import { MockLlmProvider, ProviderError, type LlmProvider } from "@voicedesk/adapters";
+import { describe, expect, it } from "vitest";
+import { findSlots } from "../src/availability";
+import { ConversationDriver } from "../src/driver";
+import { LANGUAGES } from "../src/languages";
+import { greeting } from "../src/phrases";
+import { InMemoryAgentServices } from "../src/services";
+import { toolDefinitions } from "../src/tools";
+import { makeContext, NOW, PROFILE } from "./fixtures";
+
+const text = (t: string) => MockLlmProvider.text(t);
+const toolUse = (name: string, input: unknown) => MockLlmProvider.toolUse(name, input);
+
+function setup(llm: LlmProvider = new MockLlmProvider(), ctx = makeContext()) {
+  const services = new InMemoryAgentServices([
+    {
+      title: "Parking",
+      content: "There is a pay and display car park on Pratt Street, two minutes away.",
+    },
+  ]);
+  const driver = new ConversationDriver({ llm, services }, ctx);
+  return { driver, services };
+}
+
+describe("greeting and disclosure", () => {
+  it.each(LANGUAGES)("discloses AI identity in %s", (lang) => {
+    const g = greeting(lang, { business: "Bright Dental", name: "Amelia", gender: "female" });
+    expect(g).toContain("Amelia");
+    expect(g).toContain("Bright Dental");
+    expect(g).toMatch(/\bAI\b|inteligencia artificial|\bIA\b|KI-|人工智能|الذكاء الاصطناعي/);
+  });
+
+  it("starts the transcript with the greeting", () => {
+    const { driver } = setup();
+    expect(driver.start({ language: "fr" })).toMatch(/Bonjour.*Amelia.*IA/);
+    expect(driver.state.history[0]).toMatchObject({ role: "user" });
+  });
+});
+
+describe("safeguards", () => {
+  it("answers life-threatening emergencies immediately without the LLM", async () => {
+    const llm = new MockLlmProvider();
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("Please help, my husband is having a heart attack");
+    expect(turn.reply).toContain("999");
+    expect(turn.state.flow).toBe("emergency");
+    expect(llm.requests).toHaveLength(0);
+  });
+
+  it("degrades gracefully when the LLM provider fails", async () => {
+    const failing: LlmProvider = {
+      name: "failing",
+      complete: () => Promise.reject(new ProviderError("x", "down", { retryable: true })),
+      stream: () => Promise.reject(new ProviderError("x", "down", { retryable: true })),
+    };
+    const { driver } = setup(failing);
+    driver.start();
+    const turn = await driver.say("Hello, what are your hours?");
+    expect(turn.reply).toMatch(/technical problem/);
+    expect(turn.events).toContainEqual(expect.objectContaining({ type: "fallback" }));
+  });
+
+  it("rejects invalid tool input and unknown tools", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("set_intent", { intent: "teleport" }),
+      toolUse("delete_everything", {}),
+      text("Sorry, how can I help?"),
+    );
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("hi");
+    const tools = turn.events.filter((e) => e.type === "tool");
+    expect(tools.map((t) => t.type === "tool" && t.ok)).toEqual([false, false]);
+  });
+});
+
+describe("prompt and caching", () => {
+  it("keeps the system prompt and tools identical across turns, with a step note per turn", async () => {
+    const llm = new MockLlmProvider();
+    const { driver } = setup(llm);
+    driver.start();
+    await driver.say("What time do you open?");
+    await driver.say("And on Saturday?");
+    const [a, b] = llm.requests;
+    expect(a!.system).toEqual(b!.system);
+    expect(a!.tools).toEqual(b!.tools);
+    expect(a!.system.join("\n")).toContain(
+      "Check-up: Routine dental examination (price £45, 30 min, bookable)",
+    );
+    expect(a!.system.join("\n")).toMatch(/Never claim or imply that you are human/);
+    const msgs = b!.messages;
+    expect(msgs.at(-1)).toMatchObject({ role: "system" });
+    expect(msgs.at(-1)!.content as string).toMatch(/\[Engine note/);
+    expect(msgs.at(-2)).toMatchObject({ role: "user", content: "And on Saturday?" });
+  });
+
+  it("tells the model when no profile is approved", async () => {
+    const llm = new MockLlmProvider();
+    const { driver } = setup(llm, makeContext({ profile: null }));
+    driver.start();
+    await driver.say("How much is a check-up?");
+    expect(llm.requests[0]!.system.join("\n")).toMatch(/not approved yet/);
+  });
+
+  it("exposes every tool with an object schema", () => {
+    const tools = toolDefinitions();
+    expect(tools.map((t) => t.name)).toContain("create_ticket");
+    for (const t of tools) expect(t.inputSchema).toMatchObject({ type: "object" });
+  });
+});
+
+describe("language", () => {
+  it("switches language from what the caller writes", async () => {
+    const { driver } = setup();
+    driver.start();
+    const turn = await driver.say(
+      "Hola, quiero saber si tienen una cita para el lunes con el dentista",
+    );
+    expect(turn.state.language).toBe("es");
+    expect(turn.events).toContainEqual({ type: "language", language: "es" });
+  });
+
+  it("switches language when the model calls set_language", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("set_language", { language: "zh" }),
+      text("好的。"),
+    );
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("Can we speak Mandarin?");
+    expect(turn.state.language).toBe("zh");
+  });
+});
+
+describe("complaint flow", () => {
+  it("refuses to create a ticket until every required step is done", async () => {
+    const llm = new MockLlmProvider();
+    const { driver, services } = setup(llm);
+    driver.start({ callerPhone: "+447700900123" });
+
+    llm.enqueue(
+      toolUse("set_intent", { intent: "complaint" }),
+      toolUse("update_complaint", {
+        callerName: "Sam Patel",
+        issue: "Filling fell out two days after treatment",
+        sentiment: "frustrated",
+      }),
+      toolUse("create_ticket", { summary: "Filling fell out", callerConfirmedSummary: true }),
+      text("I'm sorry to hear that. When did it first happen?"),
+    );
+    const first = await driver.say("I want to complain, my filling fell out. I'm Sam Patel.");
+    const attempt = first.events.find((e) => e.type === "tool" && e.name === "create_ticket");
+    expect(attempt).toMatchObject({ ok: false });
+    expect(JSON.stringify(attempt)).toContain("phoneConfirmed");
+    expect(services.tickets).toHaveLength(0);
+    // Caller ID was offered as the callback number, but is not yet confirmed.
+    expect(first.state.complaint).toMatchObject({
+      callbackPhone: "+447700900123",
+      phoneConfirmed: false,
+    });
+
+    llm.enqueue(
+      toolUse("update_complaint", {
+        startedWhen: "Saturday",
+        impact: "Pain when eating, high impact",
+        severity: "high",
+        preferredOutcome: "Have it re-done free of charge",
+        phoneConfirmed: true,
+        callbackTime: "Weekday mornings",
+        contactConsent: true,
+      }),
+      text("So the filling from last week fell out on Saturday... Is that right?"),
+    );
+    const second = await driver.say(
+      "Saturday. It hurts to eat. Mornings please, and yes that number is fine, texts are ok.",
+    );
+    expect(second.state.complaint.phoneConfirmed).toBe(true);
+
+    llm.enqueue(
+      toolUse("create_ticket", {
+        summary: "Filling fell out after treatment; pain when eating; wants free re-treatment.",
+        callerConfirmedSummary: true,
+      }),
+      text("Thank you. Your reference is T S, 2 2 2 1."),
+    );
+    const third = await driver.say("Yes that's right");
+    expect(services.tickets).toHaveLength(1);
+    expect(services.tickets[0]).toMatchObject({ priority: "high" });
+    expect(third.events).toContainEqual(expect.objectContaining({ type: "record" }));
+  });
+
+  it("rejects invalid phone numbers", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("update_complaint", { callbackPhone: "12" }),
+      text("Could you repeat that number?"),
+    );
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("my number is 12");
+    expect(turn.events[0]).toMatchObject({ type: "tool", ok: false });
+  });
+});
+
+describe("booking flow", () => {
+  it("finds slots inside opening hours with minimum notice", () => {
+    const result = findSlots({
+      profile: PROFILE,
+      timeZone: "Europe/London",
+      date: "2026-10-19",
+      serviceName: "check-up",
+      busy: [],
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 09:00 local now + 2h notice → first slot 11:00 local = 10:00Z; last start 16:30 local.
+    expect(result.slots[0]!.startsAt).toBe("2026-10-19T10:00:00.000Z");
+    expect(result.slots.at(-1)!.startsAt).toBe("2026-10-19T15:30:00.000Z");
+    expect(result.slots).toHaveLength(3);
+  });
+
+  it("refuses closed days and non-bookable services", () => {
+    const base = { profile: PROFILE, timeZone: "Europe/London", busy: [], now: NOW };
+    expect(findSlots({ ...base, date: "2026-10-25", serviceName: "Check-up" })).toMatchObject({
+      ok: false,
+    });
+    expect(findSlots({ ...base, date: "2026-10-20", serviceName: "Whitening" })).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("books a confirmed slot and prevents double booking", async () => {
+    const llm = new MockLlmProvider();
+    const { driver, services } = setup(llm);
+    driver.start();
+    llm.enqueue(
+      toolUse("check_availability", {
+        service: "Check-up",
+        date: "2026-10-20",
+        timeOfDay: "morning",
+      }),
+      text("I have 9:00, 10:15 or 11:30. Which suits you?"),
+    );
+    const t1 = await driver.say("Can I book a check-up tomorrow morning?");
+    const slots = (
+      t1.events.find((e) => e.type === "tool")! as {
+        result: { slots: Array<{ startsAt: string }> };
+      }
+    ).result.slots;
+    expect(slots.length).toBeGreaterThan(0);
+
+    llm.enqueue(
+      toolUse("update_booking", {
+        startsAt: slots[0]!.startsAt,
+        customerName: "Ana Lopez",
+        phone: "07700 900456",
+        phoneConfirmed: true,
+      }),
+      toolUse("create_booking", { callerConfirmed: true }),
+      text("You're booked in."),
+    );
+    await driver.say("The first one. Ana Lopez, 07700 900456, yes that's right, please book it");
+    expect(services.bookings).toHaveLength(1);
+    expect(services.bookings[0]).toMatchObject({
+      service: "Check-up",
+      customerPhone: "+447700900456",
+    });
+
+    // A second conversation cannot take the same slot.
+    const second = new ConversationDriver({ llm, services }, makeContext());
+    second.start();
+    llm.enqueue(
+      toolUse("update_booking", { service: "Check-up", startsAt: slots[0]!.startsAt }),
+      text("Taken."),
+    );
+    const clash = await second.say("Same slot please");
+    expect(clash.events[0]).toMatchObject({ type: "tool", ok: false });
+  });
+});
+
+describe("message and human flows", () => {
+  it("takes a message once confirmed", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("update_message", {
+        callerName: "Li Wei",
+        callerPhone: "+447700900789",
+        phoneConfirmed: true,
+        reason: "Question about an invoice",
+        urgency: "normal",
+        bestTime: "After 3pm",
+        forStaff: "Practice manager",
+      }),
+      toolUse("take_message", { callerConfirmed: true }),
+      text("I'll pass that on."),
+    );
+    const { driver, services } = setup(llm);
+    driver.start();
+    await driver.say("Please ask the practice manager to call me about an invoice");
+    expect(services.messages[0]).toMatchObject({
+      callerName: "Li Wei",
+      forStaff: "Practice manager",
+    });
+  });
+
+  it("offers a message when no person is available", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("request_human", { reason: "Caller asked for a person" }),
+      text("Nobody's free right now, can I take a message?"),
+    );
+    const { driver, services } = setup(llm);
+    driver.start();
+    const turn = await driver.say("Can I speak to a real person?");
+    expect(services.humanRequests).toHaveLength(1);
+    expect(turn.state.flow).toBe("message");
+  });
+});
