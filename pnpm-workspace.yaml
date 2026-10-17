@@ -10,3 +10,7 @@ allowBuilds:
   # Ship prebuilt platform binaries; install scripts are only source-build fallbacks.
   "@parcel/watcher": false
   "@swc/core": false
+  # Windows/macOS/Linux CPU binaries are bundled; the script only fetches optional CUDA binaries.
+  onnxruntime-node: false
+  # Script only prints a version-scheme warning.
+  protobufjs: false

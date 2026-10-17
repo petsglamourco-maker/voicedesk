@@ -7,7 +7,8 @@ import type {
   TimeRange,
 } from "./calendar/types";
 import type { EmailMessage, EmailProvider } from "./email/types";
-import type { LlmRequest, LlmResponse, LlmProvider } from "./llm/types";
+import type { EmbeddingProvider } from "./embeddings/types";
+import type { LlmContentBlock, LlmProvider, LlmRequest, LlmResponse } from "./llm/types";
 import type {
   SmsMessage,
   SmsProvider,
@@ -132,30 +133,60 @@ export class MockTelephonyProvider implements TelephonyProvider {
   }
 }
 
-/** Returns queued responses in order; falls back to echoing the last user message. */
+export type MockLlmResponder = (request: LlmRequest) => LlmResponse | undefined;
+
+/**
+ * Scriptable LLM. Answers from queued responses first, then from the responder function,
+ * then echoes the last user message. Records every request for assertions.
+ */
 export class MockLlmProvider implements LlmProvider {
   readonly name = "mock-llm";
   readonly requests: LlmRequest[] = [];
   private readonly queue: LlmResponse[] = [];
+
+  constructor(private readonly responder?: MockLlmResponder) {}
 
   enqueue(...responses: LlmResponse[]): this {
     this.queue.push(...responses);
     return this;
   }
 
-  static text(text: string): LlmResponse {
+  static response(content: LlmContentBlock[], stopReason: LlmResponse["stopReason"]): LlmResponse {
     return {
-      content: [{ type: "text", text }],
-      stopReason: "end_turn",
-      usage: { model: "mock", inputTokens: 0, outputTokens: 0 },
+      content,
+      raw: undefined,
+      stopReason,
+      usage: {
+        model: "mock",
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        costUsd: 0,
+      },
     };
   }
 
+  static text(text: string): LlmResponse {
+    return MockLlmProvider.response([{ type: "text", text }], "end_turn");
+  }
+
+  /** A response that calls one tool (optionally with leading text). */
+  static toolUse(name: string, input: unknown, text?: string): LlmResponse {
+    return MockLlmProvider.response(
+      [
+        ...(text ? [{ type: "text" as const, text }] : []),
+        { type: "tool_use", id: `toolu_${randomUUID().slice(0, 8)}`, name, input },
+      ],
+      "tool_use",
+    );
+  }
+
   complete(request: LlmRequest): Promise<LlmResponse> {
-    this.requests.push(request);
-    const next = this.queue.shift();
+    this.requests.push(structuredClone(request));
+    const next = this.queue.shift() ?? this.responder?.(request);
     if (next) return Promise.resolve(next);
-    const last = request.messages.at(-1);
+    const last = [...request.messages].reverse().find((m) => m.role === "user");
     const echo = typeof last?.content === "string" ? last.content : "";
     return Promise.resolve(MockLlmProvider.text(`(mock) ${echo}`));
   }
@@ -164,6 +195,38 @@ export class MockLlmProvider implements LlmProvider {
     const response = await this.complete(request);
     for (const block of response.content) if (block.type === "text") onText(block.text);
     return response;
+  }
+}
+
+/**
+ * Deterministic embeddings for tests: hashed bag of words + character trigrams, so texts
+ * sharing words land close together. Not semantically meaningful across languages.
+ */
+export class MockEmbeddingProvider implements EmbeddingProvider {
+  readonly name = "mock";
+  readonly model = "mock-hash-384";
+  readonly dimensions = 384;
+
+  embed(texts: string[]): Promise<number[][]> {
+    return Promise.resolve(texts.map((t) => this.vector(t)));
+  }
+
+  private vector(text: string): number[] {
+    const v = new Array<number>(this.dimensions).fill(0);
+    const words = text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    const features = words.flatMap((w) => {
+      const padded = `_${w}_`;
+      const grams = [];
+      for (let i = 0; i + 3 <= padded.length; i++) grams.push(padded.slice(i, i + 3));
+      return [w, w, ...grams];
+    });
+    for (const f of features) {
+      let h = 2166136261;
+      for (let i = 0; i < f.length; i++) h = Math.imul(h ^ f.charCodeAt(i), 16777619);
+      v[(h >>> 0) % this.dimensions]! += 1;
+    }
+    const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0)) || 1;
+    return v.map((x) => x / norm);
   }
 }
 
