@@ -60,4 +60,10 @@ test("add knowledge, approve the profile and chat with the assistant", async ({ 
   await expect(page.getByText("No calls yet.")).toBeVisible();
   await expect(page.getByText(/No phone number yet/)).toBeVisible();
   await expect(page.getByTestId("latency-median")).toHaveText("—");
+
+  // Contacts and Integrations pages render.
+  await page.getByRole("link", { name: "Contacts", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Contacts" })).toBeVisible();
+  await page.getByRole("link", { name: "Integrations", exact: true }).click();
+  await expect(page.getByTestId("calendar-integration")).toBeVisible();
 });
