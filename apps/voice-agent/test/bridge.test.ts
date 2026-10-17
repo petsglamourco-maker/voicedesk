@@ -12,7 +12,7 @@ import { asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { engineReplyStream, newCallerText } from "../src/agent";
 import { EngineBridge, median, type TurnTimings } from "../src/bridge";
-import { parseJobMetadata } from "../src/job";
+import { callerFromSip, parseJobMetadata } from "../src/job";
 
 let dbs: TestDbs;
 let tenantId: string;
@@ -201,11 +201,34 @@ describe("helpers", () => {
 
   it("parses dispatch metadata strictly", () => {
     expect(parseJobMetadata('{"tenantId":"t","conversationId":"c"}')).toEqual({
+      kind: "browser",
       tenantId: "t",
       conversationId: "c",
     });
+    expect(parseJobMetadata('{"tenantId":"t","phoneNumberId":"p"}')).toEqual({
+      kind: "phone",
+      tenantId: "t",
+      phoneNumberId: "p",
+    });
     expect(() => parseJobMetadata("")).toThrow();
     expect(() => parseJobMetadata('{"tenantId":1}')).toThrow();
+    expect(() => parseJobMetadata('{"tenantId":"t"}')).toThrow();
+  });
+
+  it("reads the caller's number, or treats it as withheld", () => {
+    expect(callerFromSip({ "sip.phoneNumber": "+447700900123" })).toEqual({
+      callerPhone: "+447700900123",
+      withheld: false,
+    });
+    expect(callerFromSip({ "sip.phoneNumber": "447700900123" }).callerPhone).toBe("+447700900123");
+    const hiddenCases: Record<string, string>[] = [
+      {},
+      { "sip.phoneNumber": "" },
+      { "sip.phoneNumber": "anonymous" },
+    ];
+    for (const hidden of hiddenCases) {
+      expect(callerFromSip(hidden)).toEqual({ callerPhone: null, withheld: true });
+    }
   });
 
   it("computes medians", () => {

@@ -23,6 +23,8 @@ export {
   holdOnPhrase,
   looksLikeLifeThreateningEmergency,
   recordingNotice,
+  silentGoodbyePhrase,
+  stillTherePhrase,
 } from "./phrases";
 export type { AgentContext } from "./context";
 export { buildSystemPrompt, PROMPT_VERSION } from "./prompt";

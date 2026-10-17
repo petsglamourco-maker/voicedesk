@@ -133,6 +133,20 @@ describe("language", () => {
   });
 });
 
+describe("ending", () => {
+  it("records that the agent closed the conversation", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("end_conversation", {}),
+      text("Thanks for calling, goodbye!"),
+    );
+    const { driver } = setup(llm);
+    driver.start();
+    const turn = await driver.say("That's all, thanks. Bye!");
+    expect(turn.state.endRequested).toBe(true);
+    expect(turn.reply).toMatch(/goodbye/i);
+  });
+});
+
 describe("complaint flow", () => {
   it("refuses to create a ticket until the complaint details are captured", async () => {
     const llm = new MockLlmProvider();

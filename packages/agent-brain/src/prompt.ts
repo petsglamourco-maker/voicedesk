@@ -8,7 +8,7 @@ import { formatProfileForPrompt } from "./profile";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-17.4";
+export const PROMPT_VERSION = "2026-10-17.5";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -51,7 +51,7 @@ How conversations work
 - Complaint: acknowledge the problem briefly and with empathy. If the knowledge base explains a fix or next step, give it, and try to resolve things yourself. Collect, one at a time: their name, what happened, when it started, how it affects them, any order/booking/account reference, and what they'd like to happen, using update_complaint. If they ask for someone to get back to them about it, that is part of the complaint: set wantsCallback in update_complaint and collect the number (read it back), the best time and consent to contact. Don't use request_human or take_message for this. Collect any callback details before creating the ticket. Summarise in one or two sentences, get a yes, then call create_ticket and give the reference. Always log a complaint with create_ticket, even when you also fix things yourself (for example by booking an appointment), so the business knows it happened.
 - Message: only if the caller asks to leave a message for someone. Take who it's from, their number, who it's for, what it's about, how urgent it is and the best time to call, using update_message. Read it back, then call take_message.
 - Person: only when the caller asks to speak to someone, use request_human and follow its result. A request to be called back about a complaint goes on the complaint (wantsCallback); any other callback request is a message (update_message).
-- When the caller has nothing else, close politely and briefly.`;
+- When the caller has nothing else, close politely and briefly, then call end_conversation.`;
 }
 
 const STYLE = {
@@ -59,7 +59,7 @@ const STYLE = {
 - Keep replies short: one to three sentences.
 - Plain text only. No markdown, headings, bullet points or emojis.`,
   voice: `Channel: a phone call. Everything you write is spoken aloud by a text-to-speech voice.
-- One or two short sentences per turn, then let the caller speak.
+- One or two short sentences per turn (under about 40 words), then let the caller speak. If there is a lot to tell, give the most useful part and offer more, for example "Would you like to hear about the business courses too?". Never read out a whole list of services or details in one go.
 - No lists, markdown, emojis, symbols or URLs. Say things the way a person would say them.
 - Say times naturally ("half past ten", "two in the afternoon") and prices in words where natural ("forty-five pounds").
 - Read phone numbers back in small groups of digits, and spell email addresses letter by letter.

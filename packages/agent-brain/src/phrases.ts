@@ -58,6 +58,33 @@ export function holdOnPhrase(lang: Lang): string {
   return HOLD_ON[lang];
 }
 
+/** Phone silence handling: a check after a quiet spell, then a goodbye before hanging up. */
+const STILL_THERE: Record<Lang, string> = {
+  en: "Are you still there?",
+  es: "¿Sigue ahí?",
+  fr: "Vous êtes toujours là ?",
+  de: "Sind Sie noch da?",
+  zh: "请问您还在吗？",
+  ar: "هل ما زلت معي؟",
+};
+
+const SILENT_GOODBYE: Record<Lang, string> = {
+  en: "I can't hear anything, so I'll end the call now. Please call back any time. Goodbye.",
+  es: "No le oigo, así que voy a terminar la llamada. Llámenos cuando quiera. Adiós.",
+  fr: "Je ne vous entends plus, je vais donc raccrocher. N'hésitez pas à rappeler. Au revoir.",
+  de: "Ich höre leider nichts mehr, deshalb beende ich das Gespräch. Rufen Sie gern wieder an. Auf Wiederhören.",
+  zh: "我听不到您的声音，现在先挂断电话。欢迎随时再打来。再见。",
+  ar: "لا أستطيع سماعك، لذا سأنهي المكالمة الآن. يمكنك الاتصال بنا في أي وقت. مع السلامة.",
+};
+
+export function stillTherePhrase(lang: Lang): string {
+  return STILL_THERE[lang];
+}
+
+export function silentGoodbyePhrase(lang: Lang): string {
+  return SILENT_GOODBYE[lang];
+}
+
 const EMERGENCY: Record<Lang, (n: string) => string> = {
   en: (n) =>
     `If someone is in danger or this is a medical emergency, please hang up and call ${n} now. I'm an AI assistant and I can't send help. If it isn't an emergency, I'm happy to help.`,

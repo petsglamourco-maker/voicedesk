@@ -76,6 +76,16 @@ function define<S extends z.ZodType>(def: ToolDef<S>): ToolDef<S> {
 }
 
 export const TOOLS = {
+  end_conversation: define({
+    description:
+      "Call once you have said goodbye and the caller has nothing else (they said goodbye or that they're done). On a phone call this hangs up after your goodbye has been spoken. Never call it while a request is unfinished.",
+    input: z.object({}),
+    run: (env) => {
+      env.state.endRequested = true;
+      return { result: { ok: true } };
+    },
+  }),
+
   set_intent: define({
     description:
       "Record what the caller wants. Call as soon as it is clear, and again if it changes.",

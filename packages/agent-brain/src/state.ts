@@ -90,6 +90,8 @@ export interface ConversationState {
   history: LlmMessage[];
   turns: number;
   emergencyShown: boolean;
+  /** The agent closed the conversation (end_conversation); phone calls hang up. */
+  endRequested?: boolean;
 }
 
 export function initialState(language: Lang, callerPhone: string | null = null): ConversationState {

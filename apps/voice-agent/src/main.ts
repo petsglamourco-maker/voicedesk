@@ -10,14 +10,26 @@ import {
 } from "@livekit/agents";
 import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as elevenlabs from "@livekit/agents-plugin-elevenlabs";
-import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
-import { embeddingsFromEnv } from "@voicedesk/adapters/from-env";
 import {
+  AudioStream,
+  RoomEvent,
+  TrackKind,
+  type RemoteParticipant,
+  type RemoteTrack,
+} from "@livekit/rtc-node";
+import type { EmbeddingProvider, LlmProvider, ObjectStorage } from "@voicedesk/adapters";
+import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import {
+  createConversation,
   endConversation,
   loadAgentContext,
   loadConversationState,
+  normalisePhone,
+  silentGoodbyePhrase,
+  stillTherePhrase,
   sttLanguageFor,
   voiceFor,
+  type ConversationState,
 } from "@voicedesk/agent-brain";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
@@ -26,7 +38,17 @@ import { createDb, type Database } from "@voicedesk/db";
 import { createAiQueue, createRedisConnection } from "@voicedesk/jobs";
 import { EngineLlmPlaceholder, EngineVoiceAgent } from "./agent";
 import { EngineBridge, median, type TurnTimings } from "./bridge";
-import { loadGreeting, parseJobMetadata } from "./job";
+import {
+  activePhoneNumber,
+  callerFromSip,
+  loadGreeting,
+  parseJobMetadata,
+  saveRecording,
+  type JobIds,
+} from "./job";
+import { CallRecorder, RECORDING_SAMPLE_RATE } from "./recorder";
+import { SILENCE_SECONDS, SilenceHandler } from "./silence";
+import { TeeAudioOutput } from "./tee-output";
 
 /** Must match VOICE_AGENT_NAME in apps/api (explicit dispatch only). */
 const AGENT_NAME = "voicedesk-agent";
@@ -38,7 +60,14 @@ const repoRoot = envFile ? dirname(envFile) : process.cwd();
 const log = createLogger("voice-agent", process.env.LOG_LEVEL ?? "info");
 
 // Shared per job process: database pool, AI-provider router, embeddings model.
-let shared: { db: Database; llm: LlmProvider; embeddings: Promise<EmbeddingProvider> } | undefined;
+let shared:
+  | {
+      db: Database;
+      llm: LlmProvider;
+      embeddings: Promise<EmbeddingProvider>;
+      storage: () => ObjectStorage;
+    }
+  | undefined;
 function resources() {
   if (!shared) {
     const db = createDb(process.env.DATABASE_URL!);
@@ -49,6 +78,10 @@ function resources() {
         anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
       }),
       embeddings: embeddingsFromEnv(process.env, repoRoot),
+      storage: (() => {
+        let s3: ObjectStorage | undefined;
+        return () => (s3 ??= storageFromEnv());
+      })(),
     };
   }
   return shared;
@@ -56,16 +89,66 @@ function resources() {
 
 export default defineAgent({
   entry: async (ctx: JobContext) => {
-    const ids = parseJobMetadata(ctx.job.metadata);
-    const jobLog = log.child({ conversationId: ids.conversationId });
-    const { db, llm, embeddings } = resources();
-    const stored = await loadConversationState(db, ids.tenantId, ids.conversationId);
-    if (!stored || stored.status !== "active") {
-      jobLog.warn("conversation not found or already ended; not joining");
-      return;
+    const job = parseJobMetadata(ctx.job.metadata);
+    const { db, llm, embeddings, storage } = resources();
+    const agentCtx = await loadAgentContext(db, job.tenantId, "voice");
+    await ctx.connect();
+
+    // Recording starts with the call (only when the business records calls).
+    const recorder = agentCtx.recordCalls ? new CallRecorder() : null;
+    const recordCaller = (track: RemoteTrack, participant: RemoteParticipant) => {
+      if (!recorder || track.kind !== TrackKind.KIND_AUDIO) return;
+      if (participant.identity === ctx.room.localParticipant?.identity) return;
+      void (async () => {
+        for await (const frame of new AudioStream(track, RECORDING_SAMPLE_RATE, 1)) {
+          recorder.addCaller(frame);
+        }
+      })().catch(() => undefined);
+    };
+    ctx.room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) =>
+      recordCaller(track, participant),
+    );
+    for (const participant of ctx.room.remoteParticipants.values()) {
+      for (const pub of participant.trackPublications.values()) {
+        if (pub.track) recordCaller(pub.track, participant);
+      }
     }
-    const agentCtx = await loadAgentContext(db, ids.tenantId, "voice");
-    const { state } = stored;
+
+    let ids: JobIds;
+    let state: ConversationState;
+    let opening: string | null;
+    if (job.kind === "browser") {
+      ids = { tenantId: job.tenantId, conversationId: job.conversationId };
+      const stored = await loadConversationState(db, ids.tenantId, ids.conversationId);
+      if (!stored || stored.status !== "active") {
+        log.warn({ conversationId: ids.conversationId }, "conversation not active; not joining");
+        return;
+      }
+      state = stored.state;
+      opening = await loadGreeting(db, ids);
+    } else {
+      const number = await activePhoneNumber(db, job.tenantId, job.phoneNumberId);
+      if (!number) {
+        log.warn({ phoneNumberId: job.phoneNumberId }, "call to an inactive number; hanging up");
+        await ctx.deleteRoom();
+        return;
+      }
+      const participant = await ctx.waitForParticipant();
+      const caller = callerFromSip(participant.attributes);
+      const created = await createConversation(db, agentCtx, {
+        tenantId: job.tenantId,
+        channel: "voice",
+        callerPhone: caller.callerPhone
+          ? (normalisePhone(caller.callerPhone, agentCtx.countryCode) ?? caller.callerPhone)
+          : null,
+        phoneNumberId: number.id,
+        callerNumberWithheld: caller.withheld,
+      });
+      ids = { tenantId: job.tenantId, conversationId: created.conversationId };
+      state = created.state;
+      opening = created.greeting;
+    }
+    const jobLog = log.child({ conversationId: ids.conversationId, channel: job.kind });
 
     const voiceChoice = voiceFor(agentCtx.persona.id, agentCtx.voiceIds);
     // Keys passed explicitly: the plugins' default env names differ from ours (ELEVEN_API_KEY).
@@ -91,6 +174,8 @@ export default defineAgent({
         .catch(() => undefined);
     };
 
+    // Set when the agent closes the conversation; the call ends once the goodbye is heard.
+    let hangUpAfterSpeech = false;
     const bridge = new EngineBridge(
       { db, llm, embeddings: await embeddings },
       agentCtx,
@@ -102,8 +187,10 @@ export default defineAgent({
           tts.updateOptions({ language });
           jobLog.info({ language }, "switched speech language");
         },
-        onTurn: (result) =>
-          publish({ type: "turn", flow: result.state.flow, records: result.state.records }),
+        onTurn: (result) => {
+          if (result.state.endRequested) hangUpAfterSpeech = true;
+          publish({ type: "turn", flow: result.state.flow, records: result.state.records });
+        },
         onError: (error) => jobLog.error({ err: error }, "voice turn failed"),
       },
     );
@@ -116,6 +203,7 @@ export default defineAgent({
       stt,
       tts,
       llm: new EngineLlmPlaceholder(),
+      userAwayTimeout: SILENCE_SECONDS,
       turnHandling: {
         // Local multilingual end-of-turn model (free, CPU); covers all six languages.
         turnDetection: new inference.TurnDetector({ version: "v1-mini" }),
@@ -156,6 +244,30 @@ export default defineAgent({
         "end-of-turn prediction",
       );
     });
+
+    const hangUp = async (reason: string) => {
+      jobLog.info({ reason }, "hanging up");
+      await ctx.deleteRoom().catch(() => undefined);
+      ctx.shutdown(reason);
+    };
+    // Hang up once the closing goodbye has finished playing.
+    session.on(voice.AgentSessionEventTypes.AgentStateChanged, (e) => {
+      if (hangUpAfterSpeech && e.oldState === "speaking" && e.newState !== "speaking") {
+        hangUpAfterSpeech = false;
+        void hangUp("conversation closed");
+      }
+    });
+    // Silence: ask once, then say goodbye and end the call.
+    const silence = new SilenceHandler({
+      stillThere: () => session.say(stillTherePhrase(bridge.language)).waitForPlayout(),
+      goodbye: async () => {
+        await session.say(silentGoodbyePhrase(bridge.language)).waitForPlayout();
+        await hangUp("caller silent");
+      },
+    });
+    session.on(voice.AgentSessionEventTypes.UserStateChanged, (e) => {
+      void silence.onUserState(e.newState).catch(() => undefined);
+    });
     session.on(voice.AgentSessionEventTypes.Close, () => ctx.shutdown("session closed"));
 
     const agent = new EngineVoiceAgent(bridge, {
@@ -181,6 +293,11 @@ export default defineAgent({
         { turns: latencies.length, medianVoiceToVoiceMs: median(voiceToVoice) },
         "voice call ended",
       );
+      if (recorder && recorder.durationSeconds > 1) {
+        await saveRecording(db, storage(), ids, recorder.toWav()).catch((err: unknown) =>
+          jobLog.error({ err }, "saving the recording failed"),
+        );
+      }
       if (await endConversation(db, ids.tenantId, ids.conversationId)) {
         const redis = createRedisConnection(process.env.REDIS_URL!);
         const queue = createAiQueue(redis);
@@ -190,11 +307,15 @@ export default defineAgent({
       }
     });
 
-    await ctx.connect();
-    await session.start({ agent, room: ctx.room });
-    // The fixed greeting (with the AI disclosure) was stored when the session was created,
-    // so it is spoken word for word, never generated.
-    const opening = await loadGreeting(db, ids);
+    // record: false keeps audio and transcripts out of LiveKit Cloud's session reports.
+    await session.start({ agent, room: ctx.room, record: false });
+    if (recorder && session.output.audio) {
+      session.output.audio = new TeeAudioOutput(session.output.audio, {
+        onFrame: (frame) => recorder.addAgent(frame),
+        onClear: () => recorder.interruptAgent(),
+      });
+    }
+    // The fixed greeting (AI disclosure, plus recording notice) is spoken word for word.
     if (opening) session.say(opening, { allowInterruptions: false });
   },
 });

@@ -278,6 +278,9 @@ importers:
       '@livekit/agents-plugin-livekit':
         specifier: 1.9.3
         version: 1.9.3(@livekit/agents@1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7))
+      '@livekit/rtc-node':
+        specifier: 1.1.0
+        version: 1.1.0
       '@voicedesk/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
