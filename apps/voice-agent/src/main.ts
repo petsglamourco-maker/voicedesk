@@ -144,6 +144,18 @@ export default defineAgent({
         }
       }
     });
+    // End-of-turn decisions (numbers only), for tuning the detector threshold.
+    session.on(voice.AgentSessionEventTypes.EotPrediction, (e) => {
+      jobLog.info(
+        {
+          probability: Math.round(e.probability * 1000) / 1000,
+          threshold: e.threshold,
+          inferenceMs: Math.round(e.inferenceDurationMs),
+          delayMs: Math.round(e.delayMs),
+        },
+        "end-of-turn prediction",
+      );
+    });
     session.on(voice.AgentSessionEventTypes.Close, () => ctx.shutdown("session closed"));
 
     const agent = new EngineVoiceAgent(bridge, {
