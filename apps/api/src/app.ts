@@ -16,6 +16,7 @@ import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
 import { registerKnowledgeRoutes } from "./routes/knowledge";
 import { registerMeRoutes } from "./routes/me";
+import { registerProfileRoutes } from "./routes/profile";
 import { registerTenantRoutes } from "./routes/tenants";
 
 export type AppDeps = Omit<Container, "close"> & { logLevel?: string };
@@ -64,6 +65,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerMeRoutes(app, deps);
   registerTenantRoutes(app, deps);
   registerKnowledgeRoutes(app, deps);
+  registerProfileRoutes(app, deps);
 
   return app;
 }

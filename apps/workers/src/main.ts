@@ -1,19 +1,21 @@
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
-import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, llmFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import { closeDb, createDb } from "@voicedesk/db";
 import {
   createRedisConnection,
   QUEUES,
+  type AiJob,
   type ProcessSourceJob,
   type SendEmailJob,
 } from "@voicedesk/jobs";
 import { createSafeFetcher } from "@voicedesk/knowledge";
 import { Worker } from "bullmq";
 import { z } from "zod";
+import { createAiProcessor } from "./processors/ai";
 import { createProcessSourceProcessor } from "./processors/process-source";
 import { createSendEmailProcessor } from "./processors/send-email";
 
@@ -68,6 +70,11 @@ const workers = [
     connection,
     concurrency: 1,
     lockDuration: 10 * 60_000,
+  }),
+  new Worker<AiJob>(QUEUES.ai, createAiProcessor({ db, llm: await llmFromEnv() }, log), {
+    connection,
+    concurrency: 2,
+    lockDuration: 5 * 60_000,
   }),
 ];
 

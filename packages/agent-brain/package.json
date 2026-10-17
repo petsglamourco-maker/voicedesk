@@ -1,0 +1,26 @@
+{
+  "name": "@voicedesk/agent-brain",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "eval": "tsx evals/run.ts"
+  },
+  "dependencies": {
+    "@voicedesk/adapters": "workspace:*",
+    "@voicedesk/compliance": "workspace:*",
+    "@voicedesk/db": "workspace:*",
+    "@voicedesk/knowledge": "workspace:*",
+    "drizzle-orm": "0.45.4",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@voicedesk/config": "workspace:*",
+    "tsx": "4.23.15"
+  }
+}

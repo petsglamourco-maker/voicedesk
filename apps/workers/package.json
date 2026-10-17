@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@voicedesk/adapters": "workspace:*",
+    "@voicedesk/agent-brain": "workspace:*",
     "@voicedesk/compliance": "workspace:*",
     "@voicedesk/config": "workspace:*",
     "@voicedesk/db": "workspace:*",

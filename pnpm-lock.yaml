@@ -217,6 +217,9 @@ importers:
       '@voicedesk/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@voicedesk/agent-brain':
+        specifier: workspace:*
+        version: link:../../packages/agent-brain
       '@voicedesk/auth':
         specifier: workspace:*
         version: link:../../packages/auth
@@ -309,6 +312,9 @@ importers:
       '@voicedesk/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
+      '@voicedesk/agent-brain':
+        specifier: workspace:*
+        version: link:../../packages/agent-brain
       '@voicedesk/compliance':
         specifier: workspace:*
         version: link:../../packages/compliance
@@ -359,6 +365,34 @@ importers:
       '@voicedesk/config':
         specifier: workspace:*
         version: link:../config
+
+  packages/agent-brain:
+    dependencies:
+      '@voicedesk/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+      '@voicedesk/compliance':
+        specifier: workspace:*
+        version: link:../compliance
+      '@voicedesk/db':
+        specifier: workspace:*
+        version: link:../db
+      '@voicedesk/knowledge':
+        specifier: workspace:*
+        version: link:../knowledge
+      drizzle-orm:
+        specifier: 0.45.4
+        version: 0.45.4(@opentelemetry/api@1.9.1)(@types/pg@8.23.1)(kysely@0.29.6)(pg@8.23.1)
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
+    devDependencies:
+      '@voicedesk/config':
+        specifier: workspace:*
+        version: link:../config
+      tsx:
+        specifier: 4.23.15
+        version: 4.23.15
 
   packages/auth:
     dependencies:
