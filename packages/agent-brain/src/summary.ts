@@ -1,4 +1,4 @@
-import { responseText, type LlmProvider } from "@voicedesk/adapters";
+import { isLlmAvailable, responseText, type LlmProvider } from "@voicedesk/adapters";
 import {
   agentSettings,
   conversationMessages,
@@ -66,7 +66,7 @@ export async function summarizeConversation(
   };
 
   let summary: ConversationSummary;
-  if (deps.llm.name === "mock-llm") {
+  if (!(await isLlmAvailable(deps.llm))) {
     // No AI configured: a basic, factual summary from the engine state.
     summary = {
       ...base,
@@ -75,7 +75,7 @@ export async function summarizeConversation(
       outcome: references.length
         ? references.map((r) => `${r.type} ${r.reference}`).join(", ")
         : "No record created",
-      summary: `${messages.filter((m) => m.role === "caller").length} caller messages. AI summaries need an Anthropic API key.`,
+      summary: `${messages.filter((m) => m.role === "caller").length} caller messages. AI summaries need an AI provider switched on in platform settings.`,
       keyDetails: [],
       actionItems: [],
       sentiment:

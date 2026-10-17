@@ -1,7 +1,7 @@
 import type { EmbeddingProvider, LlmProvider, ObjectStorage } from "@voicedesk/adapters";
-import { embeddingsFromEnv, llmFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
-import { recordAudit } from "@voicedesk/core";
+import { createAppLlm, recordAudit, SecretBox, type ProviderSecrets } from "@voicedesk/core";
 import { closeDb, createDb, withTenant, type Database } from "@voicedesk/db";
 import {
   createAiQueue,
@@ -54,7 +54,9 @@ export interface Container {
   jobs: JobDispatcher;
   /** Loaded lazily: the local model takes a few seconds to load on first use. */
   embeddings: () => Promise<EmbeddingProvider>;
-  llm: LlmProvider;
+  /** Routes to the AI providers switched on in platform settings (ADR 0012). */
+  llm: LlmProvider & { invalidate?: () => void };
+  secrets: ProviderSecrets;
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -72,12 +74,17 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const storage = storageFromEnv();
   await storage.ensureBucket();
   let embeddings: Promise<EmbeddingProvider> | undefined;
+  const secrets: ProviderSecrets = {
+    box: SecretBox.fromEnv(),
+    anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
+  };
 
   return {
     db,
     auth,
     storage,
-    llm: await llmFromEnv(),
+    llm: createAppLlm(db, secrets),
+    secrets,
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {

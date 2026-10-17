@@ -1,9 +1,10 @@
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
-import { embeddingsFromEnv, llmFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
+import { createAppLlm, SecretBox } from "@voicedesk/core";
 import { closeDb, createDb } from "@voicedesk/db";
 import {
   createRedisConnection,
@@ -60,6 +61,13 @@ const knowledgeDeps = {
   },
 };
 
+// Same provider routing as the API: whatever is switched on in platform settings.
+const appLlm = createAppLlm(
+  db,
+  { box: SecretBox.fromEnv(), anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined },
+  { log: (msg, data) => log.warn(data, msg) },
+);
+
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {
     connection,
@@ -71,7 +79,7 @@ const workers = [
     concurrency: 1,
     lockDuration: 10 * 60_000,
   }),
-  new Worker<AiJob>(QUEUES.ai, createAiProcessor({ db, llm: await llmFromEnv() }, log), {
+  new Worker<AiJob>(QUEUES.ai, createAiProcessor({ db, llm: appLlm }, log), {
     connection,
     concurrency: 2,
     lockDuration: 5 * 60_000,

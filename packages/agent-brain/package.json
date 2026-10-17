@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@voicedesk/config": "workspace:*",
+    "@voicedesk/core": "workspace:*",
     "tsx": "4.23.15"
   }
 }

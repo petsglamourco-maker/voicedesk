@@ -40,6 +40,11 @@ export default async function TenantLayout(props: {
             newLabel={t("newBusiness")}
           />
           <div className="ms-auto flex items-center gap-3 text-sm">
+            {me.user.isPlatformOwner ? (
+              <Link href="/platform/ai" className="font-medium text-primary hover:underline">
+                {t("platformAdmin")}
+              </Link>
+            ) : null}
             <span className="text-muted-foreground">{me.user.email}</span>
             <SignOutButton />
           </div>

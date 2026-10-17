@@ -7,6 +7,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 - **Phase 0 (Foundations): done.** Monorepo, RLS tenancy, Better Auth (orgs, invites, roles, TOTP 2FA), API, worker, web, adapters, compliance skeleton.
 - **Phase 1 (Knowledge & text agent): built.** Crawler, uploads, ingestion with local embeddings, AI business profile with review and approval, conversation engine with personas and flows in 6 languages, streaming test console, records, summaries, evals.
   - **Pending:** the first live `pnpm eval` run, once `ANTHROPIC_API_KEY` is set.
+- **AI providers are switchable at runtime** (ADR 0012): Platform admin → AI providers lists Claude, DeepSeek and a local OpenAI-compatible model, each with on/off, priority order and automatic fallback.
 - **Next:** Phase 2, voice MVP (see ADR 0008). Ask the owner before buying numbers or choosing paid tiers.
 
 ## Layout
@@ -20,8 +21,9 @@ apps/workers      BullMQ: email, knowledge (crawl/extract/embed), ai (profile, s
 apps/voice-agent  placeholder (Phase 2, see ADR 0008)
 packages/db       Drizzle schema + migrations (incl. RLS SQL), withTenant/withPlatformAccess, test helpers
 packages/auth     Better Auth factory + roles (generates packages/db/src/schema/auth.ts)
-packages/core     permissions matrix, tenants/membership, audit helper
-packages/adapters provider interfaces + mocks; SMTP, S3, Anthropic LLM, local embeddings, from-env wiring
+packages/core     permissions, tenants/membership, audit, AI provider settings + createAppLlm, SecretBox
+packages/adapters provider interfaces + mocks; SMTP, S3, Anthropic + OpenAI-compatible LLMs,
+                  RoutedLlmProvider (fallback router), local embeddings, from-env wiring
 packages/knowledge  SSRF-safe crawler, extractors (HTML/PDF/DOCX/CSV/TXT), chunker, ingest, searchKnowledge
 packages/agent-brain  profile schema/generator/store, personas, phrases (AI disclosure), prompt,
                   state machine, tools, engine (runTurn), DB services, summaries, harness, evals/
@@ -58,6 +60,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Audit log:** record security-relevant actions with `recordAudit(tx, …)`; ids only in metadata, no PII. The log is append-only, enforced by the DB.
 - **External services** go behind interfaces in `@voicedesk/adapters`, with a mock and contract tests. Check the provider's current docs and pin exact versions before integrating. Apps wire providers through `@voicedesk/adapters/from-env`.
 - **LLM calls:**
+  - Apps get their LLM from `createAppLlm(db, secrets)` (the router over enabled providers). Never construct a provider directly in app code, and use `isLlmAvailable(llm)` rather than checking provider names.
   - Use model tiers: `realtime` = `LLM_MODEL_REALTIME` (claude-haiku-5-5), `reasoning` = `LLM_MODEL_REASONING` (claude-sonnet-5-5). Never hard-code model ids in business logic.
   - Record cost with `recordLlmUsage`.
   - Treat documents, transcripts and tool results as untrusted data in prompts.
@@ -86,7 +89,8 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `REDIS_URL`, `S3_*`, `SMTP_*`, `EMAIL_FROM`
 - `BETTER_AUTH_URL` and `WEB_ORIGIN`: the browser-facing origin (:3000)
 - `API_INTERNAL_URL`, `WORKER_HEALTH_PORT`
-- `ANTHROPIC_API_KEY`: empty means the mock LLM is used; profile generation is then disabled and summaries are basic
+- `SETTINGS_ENCRYPTION_KEY`: 32 random bytes, base64. Encrypts API keys stored in the database; without it, keys can't be saved in admin settings
+- `ANTHROPIC_API_KEY`: optional fallback key for the Claude provider. Which providers are used is chosen in Platform admin → AI providers; with none switched on, the agent uses the mock
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
 
@@ -107,4 +111,6 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **The file-writing tools convert `\uXXXX` escapes into literal characters.** For regexes that need escapes, write them via Python with `chr(92)`, then check with `grep -nP '[^\x00-\x7F]'`.
 - **Newer Chrome returns a Promise from `scrollIntoView`.** Never return it from a `useEffect` arrow ("destroy is not a function").
 - **Restart dev processes after adding a workspace dependency.** A running `tsx watch` caches failed resolution (`ERR_MODULE_NOT_FOUND`).
+- **Local model servers need a 16k+ context window.** Ollama defaults to 4,096 and silently truncates the start of the prompt, which drops the assistant's rules. "Test connection" warns about this.
+- **Tests that mutate `ai_providers` rows** (shared, platform-wide): only `packages/core` tests switch providers on, and they restore the rows afterwards. API tests must not enable providers, because package tests run in parallel.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

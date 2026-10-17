@@ -3,6 +3,7 @@ import { cosineDistance, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb, createDb } from "../src/client";
 import {
+  aiProviders,
   auditLog,
   contacts,
   EMBEDDING_DIMENSIONS,
@@ -269,5 +270,31 @@ describe("phase 1 tables", () => {
       tx.select({ id: knowledgeChunks.id }).from(knowledgeChunks),
     );
     expect(seenByB.length).toBeGreaterThan(0);
+  });
+});
+
+describe("platform AI provider settings", () => {
+  it("are readable but only writable under platform access", async () => {
+    const rows = await dbs.app.select().from(aiProviders);
+    expect(rows.map((r) => r.key).sort()).toEqual(["anthropic", "deepseek", "local"]);
+
+    const updated = await dbs.app
+      .update(aiProviders)
+      .set({ enabled: true })
+      .where(eq(aiProviders.key, "local"))
+      .returning();
+    expect(updated).toHaveLength(0); // RLS hides the row from writes
+
+    const viaPlatform = await withPlatformAccess(
+      dbs.app,
+      { actorUserId: randomUUID(), reason: "test" },
+      (tx) =>
+        tx
+          .update(aiProviders)
+          .set({ notes: "checked" })
+          .where(eq(aiProviders.key, "local"))
+          .returning(),
+    );
+    expect(viaPlatform).toHaveLength(1);
   });
 });

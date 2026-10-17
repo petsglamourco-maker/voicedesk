@@ -321,6 +321,9 @@ importers:
       '@voicedesk/config':
         specifier: workspace:*
         version: link:../../packages/config
+      '@voicedesk/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@voicedesk/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -393,6 +396,9 @@ importers:
       '@voicedesk/config':
         specifier: workspace:*
         version: link:../config
+      '@voicedesk/core':
+        specifier: workspace:*
+        version: link:../core
       tsx:
         specifier: 4.23.15
         version: 4.23.15
@@ -426,6 +432,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@voicedesk/adapters':
+        specifier: workspace:*
+        version: link:../adapters
       '@voicedesk/compliance':
         specifier: workspace:*
         version: link:../compliance

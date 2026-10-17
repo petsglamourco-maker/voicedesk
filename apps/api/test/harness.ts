@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import {
   InMemoryObjectStorage,
   MockEmbeddingProvider,
@@ -7,6 +7,7 @@ import {
 } from "@voicedesk/adapters";
 import type { AuthEmail } from "@voicedesk/auth";
 import { loadRootEnv, requireEnv } from "@voicedesk/config/load-env";
+import { SecretBox, type ProviderSecrets } from "@voicedesk/core";
 import { closeDb, createDb, type Database } from "@voicedesk/db";
 import type { AiJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
@@ -21,6 +22,7 @@ const PASSWORD = "correct-horse-battery";
 
 export interface TestHarness {
   app: FastifyInstance;
+  secrets: ProviderSecrets;
   db: Database;
   outbox: AuthEmail[];
   jobs: { sources: ProcessSourceJob[]; ai: AiJob[]; recrawls: Array<[string, number | null]> };
@@ -63,8 +65,10 @@ export async function createHarness(options: { llm?: LlmProvider } = {}): Promis
       return Promise.resolve();
     },
   };
+  const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
   const app = await buildApp({
     db,
+    secrets,
     auth,
     storage,
     jobs,
@@ -75,6 +79,7 @@ export async function createHarness(options: { llm?: LlmProvider } = {}): Promis
   });
   return {
     app,
+    secrets,
     db,
     outbox,
     jobs: recorded,

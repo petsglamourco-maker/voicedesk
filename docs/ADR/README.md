@@ -15,5 +15,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0009](0009-hybrid-conversation-engine.md) | Hybrid conversation engine (state machine + LLM)     | Accepted |
 | [0010](0010-local-embeddings.md)           | Local multilingual embeddings behind an adapter      | Accepted |
 | [0011](0011-approved-profile-grounding.md) | The approved business profile is the source of truth | Accepted |
+| [0012](0012-switchable-ai-providers.md)    | Switchable AI providers with priority fallback       | Accepted |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.

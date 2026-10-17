@@ -14,6 +14,7 @@
     "@voicedesk/agent-brain": "workspace:*",
     "@voicedesk/compliance": "workspace:*",
     "@voicedesk/config": "workspace:*",
+    "@voicedesk/core": "workspace:*",
     "@voicedesk/db": "workspace:*",
     "@voicedesk/jobs": "workspace:*",
     "@voicedesk/knowledge": "workspace:*",

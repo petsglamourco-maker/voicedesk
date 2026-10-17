@@ -29,6 +29,20 @@
       "when": 1792234232529,
       "tag": "0003_rls_phase1",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792253418909,
+      "tag": "0004_ai_providers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792253420087,
+      "tag": "0005_ai_providers_rls_seed",
+      "breakpoints": true
     }
   ]
 }

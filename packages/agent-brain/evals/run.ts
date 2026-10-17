@@ -1,11 +1,12 @@
-// Runs the golden-conversation evals against real Claude: `pnpm eval [--filter=complaint] [--lang=es] [--limit=N]`
+// Runs the golden-conversation evals against the AI providers switched on in platform settings: `pnpm eval [--filter=complaint] [--lang=es] [--limit=N]`
 // Costs real money (roughly $0.01–0.03 per conversation). Results go to evals/results/.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { LlmProvider } from "@voicedesk/adapters";
-import { llmFromEnv } from "@voicedesk/adapters/from-env";
+import { isLlmAvailable, type LlmProvider } from "@voicedesk/adapters";
 import { loadRootEnv } from "@voicedesk/config/load-env";
+import { createAppLlm, SecretBox } from "@voicedesk/core";
+import { closeDb, createDb } from "@voicedesk/db";
 import { PROMPT_VERSION } from "../src/prompt";
 import { runScenario } from "./harness";
 import { SCENARIOS } from "./scenarios";
@@ -17,11 +18,17 @@ async function main() {
   const args = Object.fromEntries(
     process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=") as [string, string]),
   );
-  const llm = await llmFromEnv();
-  if (llm.name === "mock-llm") {
+  // Uses whichever providers are switched on in Platform admin → AI providers.
+  const db = createDb(process.env.DATABASE_URL!);
+  const llm = createAppLlm(db, {
+    box: SecretBox.fromEnv(),
+    anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
+  });
+  if (!(await isLlmAvailable(llm))) {
     console.error(
-      "Evals need a real model: set ANTHROPIC_API_KEY in .env (and a spend limit in the Console).",
+      "Evals need a real model: switch on an AI provider in Platform admin → AI providers.",
     );
+    await closeDb(db);
     process.exit(1);
   }
   // Wrap the provider to account for every call's cost (agent, simulator and judge).
@@ -83,6 +90,7 @@ async function main() {
     JSON.stringify({ promptVersion: PROMPT_VERSION, totalCostUsd: total, results }, null, 2),
   );
   console.log(`Report: ${file}`);
+  await closeDb(db);
   process.exit(passed === results.length ? 0 : 1);
 }
 

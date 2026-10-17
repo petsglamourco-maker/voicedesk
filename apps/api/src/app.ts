@@ -14,6 +14,7 @@ import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
 import { registerAgentRoutes } from "./routes/agent";
 import { registerConversationRoutes } from "./routes/conversations";
+import { registerPlatformRoutes } from "./routes/platform";
 import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
 import { registerKnowledgeRoutes } from "./routes/knowledge";
@@ -70,6 +71,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerProfileRoutes(app, deps);
   registerAgentRoutes(app, deps);
   registerConversationRoutes(app, deps);
+  registerPlatformRoutes(app, deps);
 
   return app;
 }

@@ -5,6 +5,7 @@ import {
   getProfiles,
   saveDraft,
 } from "@voicedesk/agent-brain";
+import { isLlmAvailable } from "@voicedesk/adapters";
 import { getTenant } from "@voicedesk/core";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -57,7 +58,7 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
       return {
         ...(await getProfiles(deps.db, access.tenantId)),
         template: emptyProfile(tenant.name),
-        aiAvailable: deps.llm.name !== "mock-llm",
+        aiAvailable: await isLlmAvailable(deps.llm),
       };
     },
   );
@@ -72,11 +73,11 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
         request.params.tenantId,
         "knowledge:write",
       );
-      if (deps.llm.name === "mock-llm") {
+      if (!(await isLlmAvailable(deps.llm))) {
         throw new HttpError(
           409,
           "AI_NOT_CONFIGURED",
-          "Add an Anthropic API key to generate profiles",
+          "Switch on an AI provider in Platform admin → AI providers to generate profiles",
         );
       }
       await deps.jobs.enqueueAi({
