@@ -1,8 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { cosineDistance, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { closeDb, createDb } from "../src/client";
-import { auditLog, contacts, tenants } from "../src/schema";
+import {
+  auditLog,
+  contacts,
+  EMBEDDING_DIMENSIONS,
+  knowledgeChunks,
+  knowledgeDocuments,
+  knowledgeSources,
+  tenants,
+  tickets,
+} from "../src/schema";
 import { withPlatformAccess, withTenant } from "../src/tenant-context";
 import { connectTestDbs, createTestTenant, type TestDbs } from "../src/testing";
 
@@ -207,5 +216,58 @@ describe("audit log", () => {
       tx.select().from(auditLog).where(eq(auditLog.tenantId, tenantA)),
     );
     expect(rows).toHaveLength(0);
+  });
+});
+
+describe("phase 1 tables", () => {
+  it("keeps tickets and knowledge chunks inside their tenant", async () => {
+    const embedding = Array.from({ length: EMBEDDING_DIMENSIONS }, (_, i) => (i % 7) / 7);
+    await withTenant(dbs.app, tenantB, async (tx) => {
+      await tx.insert(tickets).values({
+        tenantId: tenantB,
+        reference: `T-${randomUUID().slice(0, 6)}`,
+        details: { issue: "secret" },
+      });
+      const [source] = await tx
+        .insert(knowledgeSources)
+        .values({ tenantId: tenantB, type: "text", title: "B notes", textContent: "secret" })
+        .returning();
+      const [doc] = await tx
+        .insert(knowledgeDocuments)
+        .values({
+          tenantId: tenantB,
+          sourceId: source!.id,
+          url: "text:b",
+          contentHash: "h",
+          text: "secret",
+        })
+        .returning();
+      await tx.insert(knowledgeChunks).values({
+        tenantId: tenantB,
+        sourceId: source!.id,
+        documentId: doc!.id,
+        ordinal: 0,
+        content: "B's private pricing",
+        tokenCount: 4,
+        embedding,
+        embeddingModel: "test",
+      });
+    });
+
+    const seenByA = await withTenant(dbs.app, tenantA, async (tx) => ({
+      tickets: await tx.select().from(tickets),
+      chunks: await tx
+        .select({ id: knowledgeChunks.id })
+        .from(knowledgeChunks)
+        .orderBy(cosineDistance(knowledgeChunks.embedding, embedding))
+        .limit(5),
+    }));
+    expect(seenByA.tickets).toHaveLength(0);
+    expect(seenByA.chunks).toHaveLength(0);
+
+    const seenByB = await withTenant(dbs.app, tenantB, (tx) =>
+      tx.select({ id: knowledgeChunks.id }).from(knowledgeChunks),
+    );
+    expect(seenByB.length).toBeGreaterThan(0);
   });
 });
