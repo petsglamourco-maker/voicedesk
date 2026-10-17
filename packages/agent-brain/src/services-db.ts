@@ -4,6 +4,8 @@ import {
   agentSettings,
   auditLog,
   bookings,
+  contacts,
+  knowledgeGaps,
   staffMessages,
   tenants,
   tickets,
@@ -129,6 +131,45 @@ export function createDbAgentServices(
             .returning({ id: staffMessages.id });
           return { id: row!.id, reference };
         }),
+      );
+    },
+
+    async registerCustomer(input) {
+      const reference = makeReference(businessName);
+      const values = {
+        tenantId,
+        fullName: input.fullName,
+        phoneE164: input.phone,
+        email: input.email,
+        interest: input.interest,
+        source: "assistant",
+        marketingConsent: input.marketingConsent,
+        consentAt: input.marketingConsent ? new Date() : null,
+        reference,
+      };
+      const id = await tx(async (t) => {
+        // A returning caller with the same number updates their contact rather than duplicating it.
+        if (input.phone) {
+          const [existing] = await t
+            .select({ id: contacts.id })
+            .from(contacts)
+            .where(and(eq(contacts.tenantId, tenantId), eq(contacts.phoneE164, input.phone)));
+          if (existing) {
+            await t.update(contacts).set(values).where(eq(contacts.id, existing.id));
+            return existing.id;
+          }
+        }
+        const [row] = await t.insert(contacts).values(values).returning({ id: contacts.id });
+        return row!.id;
+      });
+      return { id, reference };
+    },
+
+    async noteKnowledgeGap(question) {
+      await tx((t) =>
+        t
+          .insert(knowledgeGaps)
+          .values({ tenantId, conversationId, question: question.slice(0, 500) }),
       );
     },
 

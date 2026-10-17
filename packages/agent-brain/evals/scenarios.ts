@@ -6,7 +6,7 @@ import { LANGUAGE_NAMES, LANGUAGES, type Lang } from "../src/languages";
  * to the order the agent asks questions in.
  */
 
-export type Flow = "enquiry" | "complaint" | "booking" | "message";
+export type Flow = "enquiry" | "complaint" | "booking" | "message" | "convert";
 
 export interface Scenario {
   id: string;
@@ -63,6 +63,13 @@ const TEMPLATES: Record<Flow, (lang: Lang) => Omit<Scenario, "id" | "language" |
     callerPhone: null,
     goal: "Book a check-up tomorrow (Tuesday) morning. Accept the first time offered.",
     facts: { name: NAMES[lang], phone: "07700 900456", email: "you'd rather not give one" },
+    expectRecord: "booking",
+  }),
+  convert: (lang) => ({
+    flow: "convert",
+    callerPhone: null,
+    goal: "You've just moved to the area and are looking for a new dentist for yourself and your 6-year-old. Ask what they offer, whether they see children, and whether there's evening availability. Also ask whether they accept a specific insurer called 'Medisure' (you don't know if they do). If the answers sound good, book a check-up for yourself next Tuesday morning. Do NOT ask for a callback or for a human.",
+    facts: { name: NAMES[lang], phone: "07700 900321", email: "you'd rather not give one" },
     expectRecord: "booking",
   }),
   message: (lang) => ({

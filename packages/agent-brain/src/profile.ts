@@ -61,6 +61,22 @@ export const businessProfileSchema = z.strictObject({
     bufferMinutes: z.number().nullable(),
     cancellationPolicy: nullableString,
   }),
+  /** What the assistant needs to turn enquiries into customers without staff involvement. */
+  sales: z.strictObject({
+    /** What a successful conversation ends in. */
+    primaryGoal: z.enum(["booking", "signup", "both"]),
+    /** Who the business serves: ages, eligibility, customer types. */
+    whoWeServe: nullableString,
+    /** Reasons customers choose this business (from its own materials). */
+    sellingPoints: z.array(z.string()),
+    offers: z.array(
+      z.strictObject({ title: z.string(), details: z.string(), validUntil: nullableString }),
+    ),
+    /** How a new customer signs up / enrols / registers, step by step. */
+    newCustomerSteps: nullableString,
+    /** Link where customers sign up or register online. */
+    signupUrl: nullableString,
+  }),
 });
 
 export type BusinessProfile = z.infer<typeof businessProfileSchema>;
@@ -79,7 +95,29 @@ export function emptyProfile(businessName: string): BusinessProfile {
     faqs: [],
     staff: [],
     bookingRules: { minNoticeHours: null, bufferMinutes: null, cancellationPolicy: null },
+    sales: {
+      primaryGoal: "booking",
+      whoWeServe: null,
+      sellingPoints: [],
+      offers: [],
+      newCustomerSteps: null,
+      signupUrl: null,
+    },
   };
+}
+
+/**
+ * Parses a stored profile, filling sections added after it was saved (e.g. `sales`), so
+ * older profiles keep working.
+ */
+export function normalizeProfile(data: unknown): BusinessProfile {
+  const blank = emptyProfile("");
+  const raw = (data ?? {}) as Partial<BusinessProfile>;
+  return businessProfileSchema.parse({
+    ...blank,
+    ...raw,
+    sales: { ...blank.sales, ...(raw.sales ?? {}) },
+  });
 }
 
 /** JSON Schema for structured output (the API rejects unknown keywords like $schema). */
@@ -148,6 +186,25 @@ export function formatProfileForPrompt(p: BusinessProfile): string {
       `Staff: ${p.staff.map((s) => (s.role ? `${s.name} (${s.role})` : s.name)).join(", ")}`,
     );
   }
+  const sales = p.sales;
+  const goal = {
+    booking: "book an appointment",
+    signup: "sign up as a new customer",
+    both: "book an appointment or sign up",
+  }[sales.primaryGoal];
+  lines.push(`Main goal for enquiries: help the customer ${goal}.`);
+  if (sales.whoWeServe) lines.push(`Who we serve: ${sales.whoWeServe}`);
+  if (sales.sellingPoints.length) {
+    lines.push(`Why customers choose us: ${sales.sellingPoints.join("; ")}`);
+  }
+  if (sales.offers.length) {
+    lines.push("Current offers:");
+    for (const o of sales.offers) {
+      lines.push(`- ${o.title}: ${o.details}${o.validUntil ? ` (until ${o.validUntil})` : ""}`);
+    }
+  }
+  if (sales.newCustomerSteps) lines.push(`How new customers sign up: ${sales.newCustomerSteps}`);
+  if (sales.signupUrl) lines.push(`Sign-up link: ${sales.signupUrl}`);
   if (p.faqs.length) {
     lines.push("FAQs:");
     for (const f of p.faqs) lines.push(`- Q: ${f.question} A: ${f.answer}`);

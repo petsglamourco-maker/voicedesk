@@ -1,11 +1,20 @@
 import { LANGUAGES, PERSONA_IDS, PERSONAS } from "@voicedesk/agent-brain";
 import { recordAudit } from "@voicedesk/core";
-import { agentSettings, bookings, staffMessages, tickets, withTenant } from "@voicedesk/db";
-import { desc, eq } from "drizzle-orm";
+import {
+  agentSettings,
+  bookings,
+  contacts,
+  knowledgeGaps,
+  staffMessages,
+  tickets,
+  withTenant,
+} from "@voicedesk/db";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
+import { notFound } from "../lib/errors";
 import { requireTenantAccess } from "./guards";
 
 const params = z.object({ tenantId: z.string() });
@@ -144,7 +153,61 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
           .where(eq(bookings.tenantId, access.tenantId))
           .orderBy(desc(bookings.startsAt))
           .limit(50),
+        signups: await tx
+          .select({
+            id: contacts.id,
+            reference: contacts.reference,
+            fullName: contacts.fullName,
+            phone: contacts.phoneE164,
+            email: contacts.email,
+            interest: contacts.interest,
+            marketingConsent: contacts.marketingConsent,
+            createdAt: contacts.createdAt,
+          })
+          .from(contacts)
+          .where(and(eq(contacts.tenantId, access.tenantId), eq(contacts.source, "assistant")))
+          .orderBy(desc(contacts.updatedAt))
+          .limit(50),
+        knowledgeGaps: await tx
+          .select()
+          .from(knowledgeGaps)
+          .where(and(eq(knowledgeGaps.tenantId, access.tenantId), eq(knowledgeGaps.status, "open")))
+          .orderBy(desc(knowledgeGaps.createdAt))
+          .limit(100),
       }));
+    },
+  );
+
+  r.post(
+    "/api/tenants/:tenantId/knowledge-gaps/:gapId/resolve",
+    {
+      schema: {
+        tags: ["records"],
+        summary: "Mark an unanswered question as dealt with (e.g. after adding an FAQ)",
+        params: params.extend({ gapId: z.string().uuid() }),
+      },
+    },
+    async (request, reply) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "knowledge:write",
+      );
+      const updated = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .update(knowledgeGaps)
+          .set({ status: "resolved", resolvedAt: new Date() })
+          .where(
+            and(
+              eq(knowledgeGaps.id, request.params.gapId),
+              eq(knowledgeGaps.tenantId, access.tenantId),
+            ),
+          )
+          .returning({ id: knowledgeGaps.id }),
+      );
+      if (updated.length === 0) throw notFound();
+      return reply.status(204).send();
     },
   );
 }

@@ -14,7 +14,16 @@ import { recordLlmUsage } from "./usage";
 
 /** Post-conversation summary (brief §3.5), written in the business's admin language. */
 export const conversationSummarySchema = z.strictObject({
-  intent: z.enum(["enquiry", "complaint", "booking", "message", "human", "emergency", "other"]),
+  intent: z.enum([
+    "enquiry",
+    "signup",
+    "complaint",
+    "booking",
+    "message",
+    "human",
+    "emergency",
+    "other",
+  ]),
   outcome: z.string().describe("Short outcome, e.g. 'Booked check-up for Tue 10:30'"),
   summary: z.string().describe("Two to four sentences for the business owner"),
   keyDetails: z.array(z.string()),

@@ -9,6 +9,7 @@ import {
   CardTitle,
   Input,
   Label,
+  Select,
 } from "@voicedesk/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -43,6 +44,14 @@ interface Profile {
     minNoticeHours: number | null;
     bufferMinutes: number | null;
     cancellationPolicy: string | null;
+  };
+  sales: {
+    primaryGoal: "booking" | "signup" | "both";
+    whoWeServe: string | null;
+    sellingPoints: string[];
+    offers: Array<{ title: string; details: string; validUntil: string | null }>;
+    newCustomerSteps: string | null;
+    signupUrl: string | null;
   };
 }
 
@@ -373,6 +382,124 @@ export function ProfileEditor(props: {
               />
             </div>
           ))}
+        </div>
+      </Section>
+
+      <Section
+        title={t("sales")}
+        changed={changed("sales")}
+        changedLabel={t("changed")}
+        disabled={disabled}
+      >
+        <CardDescription>{t("salesHint")}</CardDescription>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <Label htmlFor="primaryGoal">{t("primaryGoal")}</Label>
+            <Select
+              id="primaryGoal"
+              value={profile.sales.primaryGoal}
+              onChange={(e) =>
+                update({
+                  sales: {
+                    ...profile.sales,
+                    primaryGoal: e.target.value as Profile["sales"]["primaryGoal"],
+                  },
+                })
+              }
+            >
+              {(["booking", "signup", "both"] as const).map((g) => (
+                <option key={g} value={g}>
+                  {t(`goals.${g}`)}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="signupUrl">{t("signupUrl")}</Label>
+            <Input
+              id="signupUrl"
+              value={profile.sales.signupUrl ?? ""}
+              onChange={(e) =>
+                update({ sales: { ...profile.sales, signupUrl: orNull(e.target.value) } })
+              }
+            />
+          </div>
+        </div>
+        <div>
+          <Label htmlFor="whoWeServe">{t("whoWeServe")}</Label>
+          <textarea
+            id="whoWeServe"
+            className={textareaClass}
+            rows={2}
+            value={profile.sales.whoWeServe ?? ""}
+            onChange={(e) =>
+              update({ sales: { ...profile.sales, whoWeServe: orNull(e.target.value) } })
+            }
+          />
+        </div>
+        <div>
+          <Label htmlFor="newCustomerSteps">{t("newCustomerSteps")}</Label>
+          <textarea
+            id="newCustomerSteps"
+            className={textareaClass}
+            rows={3}
+            value={profile.sales.newCustomerSteps ?? ""}
+            onChange={(e) =>
+              update({ sales: { ...profile.sales, newCustomerSteps: orNull(e.target.value) } })
+            }
+          />
+        </div>
+        <div>
+          <Label>{t("sellingPoints")}</Label>
+          <ListEditor
+            items={profile.sales.sellingPoints.map((text) => ({ text }))}
+            onChange={(items) =>
+              update({ sales: { ...profile.sales, sellingPoints: items.map((i) => i.text) } })
+            }
+            addLabel={t("addSellingPoint")}
+            removeLabel={t("remove")}
+            blank={{ text: "" }}
+            render={(item, set) => (
+              <Input
+                aria-label={t("sellingPoint")}
+                placeholder={t("sellingPoint")}
+                value={item.text}
+                onChange={(e) => set({ text: e.target.value })}
+              />
+            )}
+          />
+        </div>
+        <div>
+          <Label>{t("offers")}</Label>
+          <ListEditor
+            items={profile.sales.offers}
+            onChange={(offers) => update({ sales: { ...profile.sales, offers } })}
+            addLabel={t("addOffer")}
+            removeLabel={t("remove")}
+            blank={{ title: "", details: "", validUntil: null }}
+            render={(o, set) => (
+              <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_2fr_1fr]">
+                <Input
+                  aria-label={t("offerTitle")}
+                  placeholder={t("offerTitle")}
+                  value={o.title}
+                  onChange={(e) => set({ title: e.target.value })}
+                />
+                <Input
+                  aria-label={t("offerDetails")}
+                  placeholder={t("offerDetails")}
+                  value={o.details}
+                  onChange={(e) => set({ details: e.target.value })}
+                />
+                <Input
+                  aria-label={t("offerUntil")}
+                  placeholder={t("offerUntil")}
+                  value={o.validUntil ?? ""}
+                  onChange={(e) => set({ validUntil: orNull(e.target.value) })}
+                />
+              </div>
+            )}
+          />
         </div>
       </Section>
 

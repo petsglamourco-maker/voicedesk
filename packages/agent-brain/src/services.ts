@@ -28,6 +28,14 @@ export interface BookingInput {
   notes: string | null;
 }
 
+export interface SignupInput {
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  interest: string;
+  marketingConsent: boolean;
+}
+
 export type MessageInput = Pick<MessageSlots, "callerName" | "callerPhone" | "reason" | "urgency"> &
   Partial<Pick<MessageSlots, "forStaff" | "bestTime">>;
 
@@ -45,6 +53,10 @@ export interface AgentServices {
   takeMessage(input: MessageInput): Promise<Created>;
   /** Records a request for a person; `available` says whether live transfer is possible. */
   requestHuman(reason: string): Promise<Created & { available: boolean }>;
+  /** Registers a new customer (lead / sign-up) taken by the assistant. */
+  registerCustomer(input: SignupInput): Promise<Created>;
+  /** Logs a question the assistant couldn't answer, so the business can fill the gap. */
+  noteKnowledgeGap(question: string): Promise<void>;
 }
 
 /** In-memory services for tests, evals and the simulated-call harness. */
@@ -53,6 +65,8 @@ export class InMemoryAgentServices implements AgentServices {
   readonly bookings: Array<BookingInput & Created> = [];
   readonly messages: Array<MessageInput & Created> = [];
   readonly humanRequests: Array<{ reason: string } & Created> = [];
+  readonly signups: Array<SignupInput & Created> = [];
+  readonly knowledgeGaps: string[] = [];
   private counter = 0;
 
   constructor(private readonly knowledge: Array<{ title: string; content: string }> = []) {}
@@ -107,6 +121,17 @@ export class InMemoryAgentServices implements AgentServices {
     const created = this.next("message");
     this.messages.push({ ...input, ...created });
     return Promise.resolve(created);
+  }
+
+  registerCustomer(input: SignupInput): Promise<Created> {
+    const created = this.next("signup");
+    this.signups.push({ ...input, ...created });
+    return Promise.resolve(created);
+  }
+
+  noteKnowledgeGap(question: string): Promise<void> {
+    this.knowledgeGaps.push(question);
+    return Promise.resolve();
   }
 
   requestHuman(reason: string): Promise<Created & { available: boolean }> {

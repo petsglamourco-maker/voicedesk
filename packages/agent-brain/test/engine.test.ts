@@ -134,11 +134,10 @@ describe("language", () => {
 });
 
 describe("complaint flow", () => {
-  it("refuses to create a ticket until every required step is done", async () => {
+  it("refuses to create a ticket until the complaint details are captured", async () => {
     const llm = new MockLlmProvider();
     const { driver, services } = setup(llm);
-    driver.start({ callerPhone: "+447700900123" });
-
+    driver.start();
     llm.enqueue(
       toolUse("set_intent", { intent: "complaint" }),
       toolUse("update_complaint", {
@@ -152,42 +151,56 @@ describe("complaint flow", () => {
     const first = await driver.say("I want to complain, my filling fell out. I'm Sam Patel.");
     const attempt = first.events.find((e) => e.type === "tool" && e.name === "create_ticket");
     expect(attempt).toMatchObject({ ok: false });
-    expect(JSON.stringify(attempt)).toContain("phoneConfirmed");
+    expect(JSON.stringify(attempt)).toContain("startedWhen");
+    // No callback was requested, so no callback details are required.
+    expect(JSON.stringify(attempt)).not.toContain("callbackPhone");
     expect(services.tickets).toHaveLength(0);
-    // Caller ID was offered as the callback number, but is not yet confirmed.
-    expect(first.state.complaint).toMatchObject({
-      callbackPhone: "+447700900123",
-      phoneConfirmed: false,
-    });
 
     llm.enqueue(
       toolUse("update_complaint", {
         startedWhen: "Saturday",
-        impact: "Pain when eating, high impact",
+        impact: "Pain when eating",
         severity: "high",
         preferredOutcome: "Have it re-done free of charge",
-        phoneConfirmed: true,
-        callbackTime: "Weekday mornings",
-        contactConsent: true,
       }),
-      text("So the filling from last week fell out on Saturday... Is that right?"),
-    );
-    const second = await driver.say(
-      "Saturday. It hurts to eat. Mornings please, and yes that number is fine, texts are ok.",
-    );
-    expect(second.state.complaint.phoneConfirmed).toBe(true);
-
-    llm.enqueue(
       toolUse("create_ticket", {
         summary: "Filling fell out after treatment; pain when eating; wants free re-treatment.",
         callerConfirmedSummary: true,
       }),
-      text("Thank you. Your reference is T S, 2 2 2 1."),
+      text("I've logged that for the practice. Your reference is T S, 2 2 2 1."),
     );
-    const third = await driver.say("Yes that's right");
+    const second = await driver.say(
+      "Since Saturday, it hurts to eat, I'd like it redone for free.",
+    );
     expect(services.tickets).toHaveLength(1);
     expect(services.tickets[0]).toMatchObject({ priority: "high" });
-    expect(third.events).toContainEqual(expect.objectContaining({ type: "record" }));
+    expect(second.events).toContainEqual(expect.objectContaining({ type: "record" }));
+  });
+
+  it("collects confirmed callback details only when the customer asks for a callback", async () => {
+    const llm = new MockLlmProvider();
+    const { driver, services } = setup(llm);
+    driver.start({ callerPhone: "+447700900123" });
+    llm.enqueue(
+      toolUse("set_intent", { intent: "complaint" }),
+      toolUse("update_complaint", {
+        callerName: "Sam",
+        issue: "Late appointment",
+        startedWhen: "today",
+        impact: "missed work",
+        severity: "medium",
+        preferredOutcome: "an apology",
+        wantsCallback: true,
+        callbackPhone: "07700 900123",
+      }),
+      toolUse("create_ticket", { summary: "Late appointment", callerConfirmedSummary: true }),
+      text("Is 07700 900 123 the best number?"),
+    );
+    const turn = await driver.say("Please have the manager call me back");
+    const attempt = turn.events.find((e) => e.type === "tool" && e.name === "create_ticket");
+    expect(JSON.stringify(attempt)).toContain("phoneConfirmed");
+    expect(JSON.stringify(attempt)).toContain("callbackTime");
+    expect(services.tickets).toHaveLength(0);
   });
 
   it("rejects invalid phone numbers", async () => {
@@ -323,5 +336,77 @@ describe("language fallback", () => {
     const turn = await driver.say("My friend is not breathing");
     expect(turn.state.language).toBe("en");
     expect(turn.reply).toContain("hang up and call 999");
+  });
+});
+
+describe("sign-ups and knowledge gaps", () => {
+  it("signs up a new customer once details are confirmed", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("set_intent", { intent: "signup" }),
+      toolUse("update_signup", {
+        fullName: "Elis Jones",
+        phone: "07412 344456",
+        phoneConfirmed: true,
+        interest: "Cybersecurity with AI",
+        marketingConsent: false,
+      }),
+      toolUse("register_customer", { callerConfirmed: true }),
+      text("You're signed up, Elis."),
+    );
+    const { driver, services } = setup(llm);
+    driver.start();
+    const turn = await driver.say(
+      "Sign me up for the cybersecurity course. Elis Jones, 07412 344456, no marketing please.",
+    );
+    expect(services.signups[0]).toMatchObject({
+      fullName: "Elis Jones",
+      phone: "+447412344456",
+      interest: "Cybersecurity with AI",
+      marketingConsent: false,
+    });
+    expect(turn.state.records).toContainEqual(expect.objectContaining({ type: "signup" }));
+  });
+
+  it("refuses to register without contact details or a consent answer", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("update_signup", { fullName: "Elis", interest: "Data course" }),
+      toolUse("register_customer", { callerConfirmed: true }),
+      text("What's the best number for you?"),
+    );
+    const { driver, services } = setup(llm);
+    driver.start();
+    const turn = await driver.say("Sign me up");
+    const attempt = turn.events.find((e) => e.type === "tool" && e.name === "register_customer");
+    expect(JSON.stringify(attempt)).toContain("phone or email");
+    expect(JSON.stringify(attempt)).toContain("marketingConsent");
+    expect(services.signups).toHaveLength(0);
+  });
+
+  it("logs unanswered questions without pushing a callback", async () => {
+    const llm = new MockLlmProvider().enqueue(
+      toolUse("search_knowledge", { query: "children dentistry age" }),
+      toolUse("note_unanswered_question", {
+        question: "Do you treat children, and from what age?",
+      }),
+      text("I don't have details on children's treatment, but a check-up is £45."),
+    );
+    const { driver, services } = setup(llm);
+    driver.start();
+    await driver.say("Do you see children?");
+    expect(services.knowledgeGaps).toEqual(["Do you treat children, and from what age?"]);
+    expect(services.messages).toHaveLength(0);
+  });
+
+  it("puts the sales goal and callback-only-on-request rule in the prompt", async () => {
+    const llm = new MockLlmProvider();
+    const { driver } = setup(llm);
+    driver.start();
+    await driver.say("Hi");
+    const system = llm.requests[0]!.system.join("\n");
+    expect(system).toMatch(/only need to get involved when the customer asks/);
+    expect(system).toMatch(/Main goal for enquiries: help the customer book an appointment/);
+    expect(llm.requests[0]!.messages.at(-1)!.content as string).toMatch(
+      /guide them to book an appointment/,
+    );
   });
 });

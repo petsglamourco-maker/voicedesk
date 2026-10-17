@@ -48,6 +48,24 @@ export const PROFILE: BusinessProfile = {
     bufferMinutes: 0,
     cancellationPolicy: "24 hours notice please",
   },
+  sales: {
+    primaryGoal: "booking",
+    whoWeServe: "Adults and children from age 3; NHS and private patients.",
+    sellingPoints: [
+      "Gentle, family-friendly dentists",
+      "Same-week appointments",
+      "Evening appointments on Thursdays",
+    ],
+    offers: [
+      {
+        title: "New patient check-up",
+        details: "£35 instead of £45 for new patients",
+        validUntil: "30 November",
+      },
+    ],
+    newCustomerSteps: "Book a check-up; the new-patient form is completed at the first visit.",
+    signupUrl: null,
+  },
 };
 
 /** Monday 19 October 2026, 09:00 in London (UTC+1). */

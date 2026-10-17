@@ -70,7 +70,7 @@ async function main() {
             .filter(([, ok]) => !ok)
             .map(([k]) => k);
           console.log(
-            `${r.passed ? "PASS" : "FAIL"} ${s.id.padEnd(16)} turns=${r.turns} median=${r.medianLatencyMs}ms empathy=${r.judge.empathy} natural=${r.judge.naturalness} flow=${r.judge.flowAdherence}${c.length ? ` failed=${c.join(",")}` : ""}${r.passed ? "" : ` — ${r.judge.notes}`}`,
+            `${r.passed ? "PASS" : "FAIL"} ${s.id.padEnd(16)} turns=${r.turns} median=${r.medianLatencyMs}ms empathy=${r.judge.empathy} natural=${r.judge.naturalness} flow=${r.judge.flowAdherence} self=${r.judge.selfSufficiency}${c.length ? ` failed=${c.join(",")}` : ""}${r.passed ? "" : ` — ${r.judge.notes}`}`,
           );
         } catch (error) {
           console.log(`ERROR ${s.id}: ${error instanceof Error ? error.message : String(error)}`);

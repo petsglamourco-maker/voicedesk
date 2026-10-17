@@ -191,3 +191,25 @@ export const llmUsage = pgTable(
   },
   (t) => [index("llm_usage_tenant_created_idx").on(t.tenantId, t.createdAt)],
 );
+
+/**
+ * Questions the assistant couldn't answer from the profile or knowledge base. The business
+ * adds the answer (e.g. as an FAQ) so the gap is closed without human callbacks.
+ */
+export const knowledgeGaps = pgTable(
+  "knowledge_gaps",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("open"), // open | resolved
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  },
+  (t) => [index("knowledge_gaps_tenant_status_idx").on(t.tenantId, t.status)],
+);

@@ -125,7 +125,10 @@ export async function runTurn(
   }
 
   state.history.push({ role: "user", content: callerText });
-  state.history.push({ role: "system", content: stepNote(state, localNow(ctx)) });
+  state.history.push({
+    role: "system",
+    content: stepNote(state, localNow(ctx), ctx.profile?.sales.primaryGoal ?? "booking"),
+  });
 
   const system = buildSystemPrompt(ctx);
   const tools = toolDefinitions();

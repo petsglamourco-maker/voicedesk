@@ -148,3 +148,56 @@ describe("test console conversation", () => {
     expect(res.statusCode).toBe(404);
   });
 });
+
+describe("sign-ups and unanswered questions", () => {
+  it("records a sign-up and an unanswered question, and resolves the question", async () => {
+    const start = await h.app.inject({
+      method: "POST",
+      url: `${base()}/conversations`,
+      headers: headers(),
+      payload: { style: "chat" },
+    });
+    const id = start.json<{ id: string }>().id;
+    llm.enqueue(
+      MockLlmProvider.toolUse("note_unanswered_question", {
+        question: "Do you offer evening classes?",
+      }),
+      MockLlmProvider.toolUse("set_intent", { intent: "signup" }),
+      MockLlmProvider.toolUse("update_signup", {
+        fullName: "Elis Jones",
+        email: "elis@example.com",
+        emailConfirmed: true,
+        interest: "Cybersecurity",
+        marketingConsent: true,
+      }),
+      MockLlmProvider.toolUse("register_customer", { callerConfirmed: true }),
+      MockLlmProvider.text("You're signed up."),
+    );
+    await h.app.inject({
+      method: "POST",
+      url: `${base()}/conversations/${id}/messages`,
+      headers: headers(),
+      payload: { text: "Evening classes? Anyway sign me up, elis@example.com" },
+    });
+    const records = (
+      await h.app.inject({ method: "GET", url: `${base()}/records`, headers: headers() })
+    ).json<{
+      signups: Array<{ fullName: string; marketingConsent: boolean; reference: string }>;
+      knowledgeGaps: Array<{ id: string; question: string }>;
+    }>();
+    expect(records.signups[0]).toMatchObject({ fullName: "Elis Jones", marketingConsent: true });
+    const gap = records.knowledgeGaps.find((g) => g.question === "Do you offer evening classes?")!;
+    expect(gap).toBeDefined();
+
+    const resolved = await h.app.inject({
+      method: "POST",
+      url: `${base()}/knowledge-gaps/${gap.id}/resolve`,
+      headers: headers(),
+    });
+    expect(resolved.statusCode).toBe(204);
+    const after = (
+      await h.app.inject({ method: "GET", url: `${base()}/records`, headers: headers() })
+    ).json<{ knowledgeGaps: Array<{ id: string }> }>();
+    expect(after.knowledgeGaps.some((g) => g.id === gap.id)).toBe(false);
+  });
+});

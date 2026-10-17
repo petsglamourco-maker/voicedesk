@@ -28,6 +28,7 @@ function stateView(state: ConversationState) {
     complaint: state.complaint,
     booking: state.booking,
     message: state.message,
+    signup: state.signup ?? {},
     records: state.records,
     turns: state.turns,
   };

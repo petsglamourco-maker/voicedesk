@@ -1,6 +1,6 @@
 import { auditLog, businessProfiles, withTenant, type Database } from "@voicedesk/db";
 import { and, desc, eq, max } from "drizzle-orm";
-import { businessProfileSchema, type BusinessProfile } from "./profile";
+import { businessProfileSchema, normalizeProfile, type BusinessProfile } from "./profile";
 
 export interface ProfileVersion {
   version: number;
@@ -15,7 +15,7 @@ function toVersion(row: typeof businessProfiles.$inferSelect): ProfileVersion {
   return {
     version: row.version,
     status: row.status,
-    data: businessProfileSchema.parse(row.data),
+    data: normalizeProfile(row.data),
     generatedBy: row.generatedBy,
     createdAt: row.createdAt,
     approvedAt: row.approvedAt,

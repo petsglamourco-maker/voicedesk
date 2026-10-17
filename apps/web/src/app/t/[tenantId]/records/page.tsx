@@ -3,10 +3,22 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
+import { KnowledgeGaps, type Gap } from "./knowledge-gaps";
 
 export const metadata: Metadata = { title: "Records" };
 
 interface Records {
+  signups: Array<{
+    id: string;
+    reference: string | null;
+    fullName: string | null;
+    phone: string | null;
+    email: string | null;
+    interest: string | null;
+    marketingConsent: boolean;
+    createdAt: string;
+  }>;
+  knowledgeGaps: Gap[];
   tickets: Array<{
     id: string;
     reference: string;
@@ -59,6 +71,40 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
         <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
+
+      <Card>
+        <CardTitle>{t("signups")}</CardTitle>
+        {records.signups.length === 0 ? (
+          empty
+        ) : (
+          <ul className="mt-3 divide-y divide-border" data-testid="signups">
+            {records.signups.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-2 py-3 text-sm">
+                {c.reference ? <span className="font-mono font-medium">{c.reference}</span> : null}
+                <span className="font-medium">{c.fullName}</span>
+                <span className="text-muted-foreground">
+                  {[c.phone, c.email].filter(Boolean).join(" · ")}
+                </span>
+                {c.interest ? <Badge>{c.interest}</Badge> : null}
+                <span className="text-xs text-muted-foreground">
+                  {c.marketingConsent ? t("marketingYes") : t("marketingNo")}
+                </span>
+                <span className="ms-auto text-xs text-muted-foreground">{when(c.createdAt)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card>
+        <CardTitle>{t("gaps")}</CardTitle>
+        <p className="mt-1 text-sm text-muted-foreground">{t("gapsHint")}</p>
+        <KnowledgeGaps
+          tenantId={tenantId}
+          gaps={records.knowledgeGaps}
+          canEdit={detail.permissions.includes("knowledge:write")}
+        />
+      </Card>
 
       <Card>
         <CardTitle>{t("tickets")}</CardTitle>

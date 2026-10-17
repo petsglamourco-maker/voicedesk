@@ -19,6 +19,7 @@ function scripted() {
           empathy: 5,
           naturalness: 4,
           flowAdherence: 5,
+          selfSufficiency: 5,
           neverClaimedHuman: true,
           noInventedFacts: true,
           correctLanguage: true,
@@ -32,7 +33,7 @@ function scripted() {
 
 describe("eval harness", () => {
   it("defines every flow in all six languages", () => {
-    expect(SCENARIOS).toHaveLength(24);
+    expect(SCENARIOS).toHaveLength(30);
     expect(new Set(SCENARIOS.map((s) => s.style))).toEqual(new Set(["chat", "voice"]));
   });
 
@@ -46,6 +47,7 @@ describe("eval harness", () => {
       mention: true,
       noInventedPrices: true,
       noMarkdown: true,
+      noUnrequestedHandoff: true,
     });
     expect(result.passed).toBe(true);
   });

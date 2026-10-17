@@ -222,7 +222,26 @@
     "addStaff": "Add person",
     "staffName": "Name",
     "staffRole": "Role",
-    "remove": "Remove"
+    "remove": "Remove",
+    "sales": "Sales: turning enquiries into customers",
+    "salesHint": "This is what lets the assistant complete conversations on its own: recommending the right service and getting people booked or signed up.",
+    "primaryGoal": "What should a successful conversation end in?",
+    "goals": {
+      "booking": "A booking",
+      "signup": "A sign-up",
+      "both": "A booking or a sign-up"
+    },
+    "whoWeServe": "Who you serve (ages, eligibility, customer types)",
+    "sellingPoints": "Why customers choose you",
+    "addSellingPoint": "Add reason",
+    "sellingPoint": "Reason",
+    "offers": "Current offers",
+    "addOffer": "Add offer",
+    "offerTitle": "Offer",
+    "offerDetails": "Details",
+    "offerUntil": "Valid until (optional)",
+    "newCustomerSteps": "How a new customer signs up / enrols",
+    "signupUrl": "Sign-up link (optional)"
   },
   "agent": {
     "title": "Assistant",
@@ -267,20 +286,29 @@
       "ticket": "Ticket",
       "booking": "Booking",
       "message": "Message",
-      "human_request": "Callback request"
+      "human_request": "Callback request",
+      "signup": "Sign-up"
     },
     "summary": "Summary",
     "summarising": "Writing the summary…"
   },
   "records": {
     "title": "Records",
-    "subtitle": "Complaints, messages and bookings your assistant has captured.",
+    "subtitle": "Customers, bookings, complaints and messages your assistant has handled.",
     "tickets": "Complaints and issues",
     "messages": "Messages for the team",
     "bookings": "Bookings",
     "empty": "Nothing yet.",
     "callback": "Call back on {phone} · {time}",
-    "for": "For {name}:"
+    "for": "For {name}:",
+    "signups": "New customers signed up",
+    "marketingYes": "Agreed to news and offers",
+    "marketingNo": "No marketing",
+    "gaps": "Questions the assistant couldn't answer",
+    "gapsHint": "Add the answer to your business profile (FAQs) or knowledge, so the assistant can answer it next time without involving anyone.",
+    "noGaps": "None. The assistant has answered everything it was asked.",
+    "addAnswer": "Add the answer",
+    "markDone": "Mark as done"
   },
   "platform": {
     "badge": "Platform admin",

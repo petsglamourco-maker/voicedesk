@@ -9,6 +9,7 @@ import {
   missingBookingSlots,
   missingComplaintSlots,
   missingMessageSlots,
+  missingSignupSlots,
   priorityFor,
   type ConversationState,
   type CreatedRecord,
@@ -87,6 +88,7 @@ export const TOOLS = {
         if (intent === "complaint") env.state.complaint.callbackPhone ??= id;
         if (intent === "booking") env.state.booking.phone ??= id;
         if (intent === "message") env.state.message.callerPhone ??= id;
+        if (intent === "signup") env.state.signup.phone ??= id;
       }
       return {
         result: {
@@ -152,6 +154,10 @@ export const TOOLS = {
         .boolean()
         .optional()
         .describe("Agreed to be contacted by SMS/email about this issue"),
+      wantsCallback: z
+        .boolean()
+        .optional()
+        .describe("true only if the customer asked to be called back"),
     }),
     run: (env, input) => {
       const c = env.state.complaint;
@@ -434,6 +440,98 @@ export const TOOLS = {
       const record: CreatedRecord = { type: "message", ...created };
       env.state.records.push(record);
       return { result: { reference: created.reference }, record };
+    },
+  }),
+
+  update_signup: define({
+    description:
+      "Save details for signing up a new customer as they give them. Returns what is still missing.",
+    input: z.object({
+      fullName: opt,
+      phone: phoneField,
+      phoneConfirmed: confirmed,
+      email: opt,
+      emailConfirmed: confirmed,
+      interest: opt.describe("The service or programme they want"),
+      marketingConsent: z
+        .boolean()
+        .optional()
+        .describe("They agreed to receive news and offers (ask; a no is fine)"),
+    }),
+    run: (env, input) => {
+      const s = env.state.signup;
+      const { phone: rawPhone, phoneConfirmed, ...rest } = input;
+      const phone = applyPhone(env, rawPhone, phoneConfirmed, {
+        phone: s.phone,
+        confirmed: s.phoneConfirmed,
+      });
+      if (phone.invalid) {
+        return error("That phone number doesn't look valid. Ask the caller to repeat it.");
+      }
+      if (rest.email !== undefined && rest.email !== s.email && rest.emailConfirmed === undefined) {
+        rest.emailConfirmed = false;
+      }
+      Object.assign(s, Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)));
+      if (phone.phone) {
+        s.phone = phone.phone;
+        s.phoneConfirmed = phone.confirmed ?? false;
+      }
+      env.state.flow = "signup";
+      const missing = missingSignupSlots(s);
+      return {
+        result: {
+          saved: true,
+          missing,
+          ...(phone.readBack ? { phoneReadBack: phone.readBack } : {}),
+        },
+      };
+    },
+  }),
+
+  register_customer: define({
+    description:
+      "Sign up the new customer once their details are captured and they've confirmed them.",
+    input: z.object({ callerConfirmed: z.boolean() }),
+    run: async (env, { callerConfirmed }) => {
+      const s = env.state.signup;
+      if (env.state.records.some((r) => r.type === "signup")) return error("Already signed up");
+      const missing = missingSignupSlots(s);
+      if (missing.length) return error("Not ready: details missing", { missing });
+      if (!callerConfirmed)
+        return error("Read the details back and get the caller's confirmation first");
+      const created = await env.services.registerCustomer({
+        fullName: s.fullName!,
+        phone: s.phone ?? null,
+        email: s.email ?? null,
+        interest: s.interest!,
+        marketingConsent: s.marketingConsent ?? false,
+      });
+      const record: CreatedRecord = { type: "signup", ...created };
+      env.state.records.push(record);
+      const sales = env.ctx.profile?.sales;
+      return {
+        result: {
+          reference: created.reference,
+          ...(sales?.newCustomerSteps ? { nextSteps: sales.newCustomerSteps } : {}),
+          ...(sales?.signupUrl ? { signupUrl: sales.signupUrl } : {}),
+        },
+        record,
+      };
+    },
+  }),
+
+  note_unanswered_question: define({
+    description:
+      "Log a customer question you couldn't answer from the profile or search_knowledge, so the business can add the answer. Then keep helping the customer.",
+    input: z.object({ question: z.string().describe("The question, in English, short") }),
+    run: async (env, { question }) => {
+      await env.services.noteKnowledgeGap(question);
+      return {
+        result: {
+          logged: true,
+          next: "Say briefly that you don't have that detail, share anything related you do know, and carry on helping. Don't offer a callback unless they ask.",
+        },
+      };
     },
   }),
 

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   customType,
   index,
   inet,
@@ -59,6 +60,15 @@ export const contacts = pgTable(
     fullName: text("full_name"),
     email: citext("email"),
     phoneE164: text("phone_e164"),
+    /** Where the contact came from, e.g. "assistant" for sign-ups taken by the AI. */
+    source: text("source"),
+    /** What they're interested in (service / programme). */
+    interest: text("interest"),
+    /** Consent to marketing messages (PECR); service messages don't need it. */
+    marketingConsent: boolean("marketing_consent").notNull().default(false),
+    consentAt: timestamp("consent_at", { withTimezone: true }),
+    /** Reference given to the customer when the assistant signed them up. */
+    reference: text("reference"),
     ...timestamps,
   },
   (t) => [
