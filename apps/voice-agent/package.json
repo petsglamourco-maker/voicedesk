@@ -14,7 +14,6 @@
     "@livekit/agents-plugin-deepgram": "1.9.3",
     "@livekit/agents-plugin-elevenlabs": "1.9.3",
     "@livekit/agents-plugin-livekit": "1.9.3",
-    "@livekit/agents-plugin-silero": "1.9.3",
     "@voicedesk/adapters": "workspace:*",
     "@voicedesk/agent-brain": "workspace:*",
     "@voicedesk/compliance": "workspace:*",

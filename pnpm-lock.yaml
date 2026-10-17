@@ -278,9 +278,6 @@ importers:
       '@livekit/agents-plugin-livekit':
         specifier: 1.9.3
         version: 1.9.3(@livekit/agents@1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7))
-      '@livekit/agents-plugin-silero':
-        specifier: 1.9.3
-        version: 1.9.3(@livekit/agents@1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7))(@livekit/rtc-node@1.1.0)
       '@voicedesk/adapters':
         specifier: workspace:*
         version: link:../../packages/adapters
@@ -1819,12 +1816,6 @@ packages:
     resolution: {integrity: sha512-dMdzYAi8ItcFYIr2hyEnV0C427bF0iWP42wmWds2O1CGgYcsSTG/4CXqRhuYWsvWTCfhO0OH1jflpGz7CoXkqA==}
     peerDependencies:
       '@livekit/agents': 1.9.3
-
-  '@livekit/agents-plugin-silero@1.9.3':
-    resolution: {integrity: sha512-KuQPQQBBhUJXRx/3BFx7RQkCou8nM4fcW9sr1AHF5YMQTAv2TKBROBllLQyODHbJFnSyZlpB5RSJxF/9qx8+Hw==}
-    peerDependencies:
-      '@livekit/agents': 1.9.3
-      '@livekit/rtc-node': ^1.1.0
 
   '@livekit/agents@1.9.3':
     resolution: {integrity: sha512-AWwRVjf6NUB9L4X3PP+VUL8pX5NSTS7D6HrZMaZobcbNZrOkdOO6hOmpMxQYL7z/Xx0Iq2EJV4pgnFQ/+aNlxA==}
@@ -5866,16 +5857,6 @@ snapshots:
       '@huggingface/transformers': 4.2.0
       '@livekit/agents': 1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7)
       onnxruntime-node: 1.24.3
-
-  '@livekit/agents-plugin-silero@1.9.3(@livekit/agents@1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7))(@livekit/rtc-node@1.1.0)':
-    dependencies:
-      '@livekit/agents': 1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7)
-      '@livekit/rtc-node': 1.1.0
-      onnxruntime-node: 1.24.3
-      ws: 8.22.0
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   '@livekit/agents@1.9.3(@aws-sdk/credential-provider-node@3.972.86)(@livekit/rtc-node@1.1.0)(@smithy/signature-v4@5.7.4)(@types/node@26.6.5)(typescript@6.0.3)(zod@4.6.7)':
     dependencies:

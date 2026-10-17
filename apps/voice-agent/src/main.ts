@@ -7,11 +7,9 @@ import {
   ServerOptions,
   voice,
   type JobContext,
-  type JobProcess,
 } from "@livekit/agents";
 import * as deepgram from "@livekit/agents-plugin-deepgram";
 import * as elevenlabs from "@livekit/agents-plugin-elevenlabs";
-import * as silero from "@livekit/agents-plugin-silero";
 import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
 import { embeddingsFromEnv } from "@voicedesk/adapters/from-env";
 import {
@@ -57,9 +55,6 @@ function resources() {
 }
 
 export default defineAgent({
-  prewarm: async (proc: JobProcess) => {
-    proc.userData.vad = await silero.VAD.load();
-  },
   entry: async (ctx: JobContext) => {
     const ids = parseJobMetadata(ctx.job.metadata);
     const jobLog = log.child({ conversationId: ids.conversationId });
@@ -73,7 +68,9 @@ export default defineAgent({
     const { state } = stored;
 
     const voiceChoice = voiceFor(agentCtx.persona.id, agentCtx.voiceIds);
+    // Keys passed explicitly: the plugins' default env names differ from ours (ELEVEN_API_KEY).
     const stt = new deepgram.STT({
+      apiKey: process.env.DEEPGRAM_API_KEY,
       model: "nova-3",
       language: sttLanguageFor(state.language),
       smartFormat: true,
@@ -81,6 +78,7 @@ export default defineAgent({
       redact: "pci",
     });
     const tts = new elevenlabs.TTS({
+      apiKey: process.env.ELEVENLABS_API_KEY,
       voiceId: voiceChoice.voiceId,
       model: voiceChoice.model,
       language: state.language,
@@ -111,7 +109,10 @@ export default defineAgent({
     );
 
     const session = new voice.AgentSession({
-      vad: ctx.proc.userData.vad as silero.VAD,
+      // Silero VAD inside LiveKit's native local-inference binary. The onnxruntime-node
+      // Silero plugin is avoided: on Windows its runtime (1.24) clashes with the one the
+      // embeddings model needs (1.30) when both load in one process.
+      vad: new inference.VAD(),
       stt,
       tts,
       llm: new EngineLlmPlaceholder(),
