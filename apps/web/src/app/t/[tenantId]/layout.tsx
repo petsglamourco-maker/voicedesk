@@ -27,6 +27,7 @@ export default async function TenantLayout(props: {
     { href: `/t/${tenantId}/website-chat`, label: t("websiteChat") },
     { href: `/t/${tenantId}/whatsapp`, label: t("whatsapp") },
     { href: `/t/${tenantId}/email`, label: t("email") },
+    { href: `/t/${tenantId}/forms`, label: t("forms") },
     { href: `/t/${tenantId}/console`, label: t("console") },
     { href: `/t/${tenantId}/calls`, label: t("calls") },
     { href: `/t/${tenantId}/contacts`, label: t("contacts") },

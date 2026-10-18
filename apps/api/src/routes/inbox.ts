@@ -14,6 +14,7 @@ import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
 import { live } from "../lib/live";
 import { requireTenantAccess } from "./guards";
+import { canEmailReply } from "./mailbox";
 
 const params = z.object({ tenantId: z.string() });
 const threadParams = params.extend({ threadId: z.string().uuid() });
@@ -168,6 +169,7 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
             name: contact?.fullName ?? thread.displayName,
             externalId: thread.channel === "web_chat" ? null : thread.externalId,
             subject: thread.subject,
+            canEmailReply: canEmailReply(thread),
           },
           contact: contact
             ? {

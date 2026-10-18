@@ -3,6 +3,7 @@ import type { MailboxClient, MailboxCredentials } from "@voicedesk/adapters/emai
 import type { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 import {
   handleInboundMessage,
+  processFormSubmission,
   processInboundEmail,
   type DbServiceDeps,
 } from "@voicedesk/agent-brain";
@@ -45,6 +46,7 @@ export function createChannelProcessor(deps: ChannelDeps, log: Logger) {
   return async (job: Job<ChannelJob>) => {
     const data = job.data;
     if (data.kind === "email.poll") return pollMailbox(deps, log, data);
+    if (data.kind === "form.submitted") return triageForm(deps, log, data);
     const result = await handleInboundMessage(
       {
         db: deps.db,
@@ -161,4 +163,32 @@ async function pollMailbox(
   } finally {
     polling.delete(row.id);
   }
+}
+
+/** Triages a form submission: records, a draft reply, and a live update for the inbox. */
+async function triageForm(
+  deps: ChannelDeps,
+  log: Logger,
+  data: Extract<ChannelJob, { kind: "form.submitted" }>,
+) {
+  const result = await processFormSubmission(
+    {
+      db: deps.db,
+      llm: deps.llm,
+      embeddings: deps.embeddings,
+      calendars: deps.calendars,
+      notify: deps.notify ? (e) => deps.notify!({ ...e, tenantId: data.tenantId }) : undefined,
+    },
+    data.tenantId,
+    data.form,
+  );
+  await deps.publishLive({
+    tenantId: data.tenantId,
+    threadId: result.threadId,
+    type: "message",
+    role: "caller",
+    text: data.form.message.slice(0, 200),
+  });
+  log.info({ tenantId: data.tenantId, source: data.form.source }, "form submission triaged");
+  return { threadId: result.threadId };
 }

@@ -64,10 +64,35 @@ async function tenantMailboxClient(deps: AppDeps, tenantId: string): Promise<Mai
 export function emailSender(deps: AppDeps): ChannelSender {
   return {
     send: async ({ tenantId, threadId, text, authorName }) => {
+      await requireEmailThread(deps, tenantId, threadId);
       const client = await tenantMailboxClient(deps, tenantId);
       await sendStaffEmail(deps.db, tenantId, threadId, client, text, authorName);
     },
   };
+}
+
+/** The thread must have someone to email (an email thread, or a form with an address). */
+async function requireEmailThread(deps: AppDeps, tenantId: string, threadId: string) {
+  const [thread] = await withTenant(deps.db, tenantId, (tx) =>
+    tx
+      .select()
+      .from(channelThreads)
+      .where(and(eq(channelThreads.id, threadId), eq(channelThreads.tenantId, tenantId))),
+  );
+  if (!thread) throw notFound();
+  if (!canEmailReply(thread)) {
+    throw new HttpError(
+      409,
+      "NO_EMAIL_ADDRESS",
+      "This customer didn't leave an email address (or didn't agree to be contacted)",
+    );
+  }
+  return thread;
+}
+
+/** Whether replies on this thread can go out by email. */
+export function canEmailReply(thread: { channel: string; meta: unknown }): boolean {
+  return Boolean((thread.meta as { replyTo?: string } | null)?.replyTo);
 }
 
 function readableError(error: unknown): string {
@@ -218,21 +243,7 @@ export function registerMailboxRoutes(app: FastifyInstance, deps: AppDeps): void
         request.params.tenantId,
         "inbox:reply",
       );
-      const [thread] = await withTenant(deps.db, access.tenantId, (tx) =>
-        tx
-          .select()
-          .from(channelThreads)
-          .where(
-            and(
-              eq(channelThreads.id, request.params.threadId),
-              eq(channelThreads.tenantId, access.tenantId),
-            ),
-          ),
-      );
-      if (!thread) throw notFound();
-      if (thread.channel !== "email") {
-        throw new HttpError(409, "NOT_EMAIL", "Only email threads have drafts");
-      }
+      const thread = await requireEmailThread(deps, access.tenantId, request.params.threadId);
       const client = await tenantMailboxClient(deps, access.tenantId);
       await sendAssistantEmail(deps.db, access.tenantId, thread.id, client, request.body.text);
       await withTenant(deps.db, access.tenantId, (tx) =>

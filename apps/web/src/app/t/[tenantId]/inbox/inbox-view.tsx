@@ -24,7 +24,7 @@ interface ThreadSummary {
 }
 
 interface ThreadDetail {
-  thread: ThreadSummary & { channel: string };
+  thread: ThreadSummary & { channel: string; canEmailReply?: boolean };
   contact: {
     id: string;
     fullName: string | null;
@@ -349,7 +349,12 @@ export function InboxView(props: {
                       ) : (
                         m.text
                       )}
-                      {m.draft && props.canReply ? (
+                      {m.draft && !detail.thread.canEmailReply ? (
+                        <span className="mt-2 block text-xs text-muted-foreground">
+                          {t("noEmail")}
+                        </span>
+                      ) : null}
+                      {m.draft && props.canReply && detail.thread.canEmailReply ? (
                         <span className="mt-2 flex gap-2">
                           <Button
                             size="sm"

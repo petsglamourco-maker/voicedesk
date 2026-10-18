@@ -81,7 +81,8 @@
     "websiteChat": "Website chat",
     "inbox": "Inbox",
     "whatsapp": "WhatsApp",
-    "email": "Email"
+    "email": "Email",
+    "forms": "Forms"
   },
   "roles": {
     "owner": "Owner",
@@ -639,7 +640,8 @@
     "editDraft": "Edit",
     "cancelEdit": "Cancel",
     "discarded": "Draft not sent",
-    "email": "Email"
+    "email": "Email",
+    "noEmail": "This customer didn't leave an email address. Call them back instead."
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -708,5 +710,50 @@
     "checking": "Checking login…",
     "save": "Save and connect",
     "connected": "Mailbox connected. New emails will appear in the Inbox."
+  },
+  "forms": {
+    "title": "Forms",
+    "subtitle": "Enquiries from your website forms land in the Inbox. The assistant reads each one, creates the right record (booking request, message or ticket) and drafts a reply for you to approve.",
+    "saved": "Saved.",
+    "status": "Form capture",
+    "on": "On",
+    "off": "Off",
+    "statusHint": "While it's off, the hosted form and the webhook don't accept submissions.",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "hosted": "Hosted enquiry form",
+    "hostedHint": "A ready-made contact form. Link to it from your website, social profiles or emails.",
+    "formTitle": "Form heading",
+    "intro": "Introduction (optional)",
+    "save": "Save",
+    "webhook": "Connect a form you already have",
+    "webhookHint": "Point your form tool's webhook (Typeform, Jotform, Webflow, Tally, WordPress…) at this address. JSON and normal form posts both work.",
+    "tunnelHint": "While VoiceDesk runs on your computer, use the public address that pnpm tunnel prints. Keep the secret private: anyone with it can send enquiries.",
+    "showSecret": "Show secret",
+    "hideSecret": "Hide secret",
+    "regenerate": "New address and secret",
+    "confirmRegenerate": "Create a new form address and webhook secret? The old link and webhook stop working straight away.",
+    "mapping": "Field names",
+    "mappingHint": "Leave empty to detect them automatically (fields called name, email, phone, message…). If your form has a consent box, enter its field name: without the tick, no reply is emailed.",
+    "automatic": "Detect automatically",
+    "fields": {
+      "name": "Name field",
+      "email": "Email field",
+      "phone": "Phone field",
+      "message": "Message field",
+      "consent": "Consent field"
+    }
+  },
+  "hostedForm": {
+    "name": "Your name",
+    "email": "Email",
+    "phone": "Phone",
+    "message": "How can we help?",
+    "needContact": "Please give an email address or a phone number so we can reply.",
+    "consent": "I agree that {business} may contact me about this enquiry.",
+    "marketing": "I'd also like news and offers from {business} (optional).",
+    "aiNote": "Your enquiry is read by an AI assistant and the team.",
+    "send": "Send enquiry",
+    "thanks": "Thank you. {business} has your enquiry and will reply soon."
   }
 }

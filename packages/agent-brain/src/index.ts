@@ -104,3 +104,4 @@ export {
   type EmailOutcome,
   type EmailThreadMeta,
 } from "./email";
+export { processFormSubmission, type FormSubmission } from "./forms";

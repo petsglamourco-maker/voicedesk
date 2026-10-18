@@ -27,7 +27,23 @@ export type ChannelJob =
       text: string;
     }
   /** Checks a connected mailbox for new mail (repeatable, every minute per mailbox). */
-  | { kind: "email.poll"; tenantId: string; mailboxId: string };
+  | { kind: "email.poll"; tenantId: string; mailboxId: string }
+  /** A website/enquiry form submission to triage (same shape as agent-brain FormSubmission). */
+  | {
+      kind: "form.submitted";
+      tenantId: string;
+      form: {
+        submissionId: string;
+        name: string | null;
+        email: string | null;
+        phone: string | null;
+        message: string;
+        extra: Record<string, string>;
+        contactConsent: boolean;
+        marketingConsent: boolean;
+        source: "hosted" | "webhook";
+      };
+    };
 
 /** BullMQ job id for an inbound message: providers can deliver the same webhook twice. */
 export const channelJobId = (job: Extract<ChannelJob, { kind: "whatsapp.inbound" }>) =>
