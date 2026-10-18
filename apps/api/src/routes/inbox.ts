@@ -188,11 +188,18 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
           messages: messages
             .filter((m) => m.role !== "event")
             .map((m) => {
-              const meta = (m.metadata ?? {}) as { human?: boolean; authorName?: string };
+              const meta = (m.metadata ?? {}) as {
+                human?: boolean;
+                authorName?: string;
+                draft?: boolean;
+                discardedAt?: string;
+              };
               return {
                 role: m.role,
                 text: m.content,
                 human: meta.human === true,
+                draft: meta.draft === true,
+                discarded: typeof meta.discardedAt === "string",
                 authorName: meta.authorName ?? null,
                 createdAt: m.createdAt,
               };

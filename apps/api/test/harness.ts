@@ -31,6 +31,7 @@ export interface TestHarness {
     recrawls: Array<[string, number | null]>;
     notifications: NotificationJob[];
     channels: ChannelJob[];
+    mailboxes: Array<[string, boolean]>;
   };
   llm: MockLlmProvider;
   storage: InMemoryObjectStorage;
@@ -42,7 +43,7 @@ export interface TestHarness {
  * run inline, so tests can assert on processed results without a worker.
  */
 export async function createHarness(
-  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp"> & {
+  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient"> & {
     llm?: LlmProvider;
   } = {},
 ): Promise<TestHarness> {
@@ -67,6 +68,7 @@ export async function createHarness(
     recrawls: [],
     notifications: [],
     channels: [],
+    mailboxes: [],
   };
   const jobs: JobDispatcher = {
     processSource: async (job) => {
@@ -89,6 +91,10 @@ export async function createHarness(
       recorded.channels.push(job);
       return Promise.resolve();
     },
+    scheduleMailbox: (tenantId, mailboxId, on) => {
+      recorded.mailboxes.push([mailboxId, on]);
+      return Promise.resolve();
+    },
   };
   const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
   const app = await buildApp({
@@ -104,6 +110,7 @@ export async function createHarness(
     sip: options.sip ?? null,
     calendars: options.calendars,
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
+    mailboxClient: options.mailboxClient,
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",

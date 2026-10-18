@@ -371,6 +371,8 @@ export const channelThreads = pgTable(
     subject: text("subject"),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
     lastPreview: text("last_preview"),
+    /** Channel details, e.g. email threading headers (lastMessageId, references). */
+    meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default({}),
     ...timestamps,
   },
   (t) => [
@@ -381,4 +383,38 @@ export const channelThreads = pgTable(
     ),
     index("channel_threads_tenant_last_idx").on(t.tenantId, t.lastMessageAt),
   ],
+);
+
+/**
+ * A business's connected support mailbox (Phase 4, ADR 0017): IMAP to read, SMTP to reply.
+ * The app password is encrypted with SecretBox (context `mailboxes:<tenantId>`).
+ */
+export const mailboxes = pgTable(
+  "mailboxes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    emailAddress: text("email_address").notNull(),
+    username: text("username").notNull(),
+    passwordEncrypted: text("password_encrypted").notNull(),
+    imapHost: text("imap_host").notNull(),
+    imapPort: integer("imap_port").notNull(),
+    imapSecure: boolean("imap_secure").notNull().default(true),
+    smtpHost: text("smtp_host").notNull(),
+    smtpPort: integer("smtp_port").notNull(),
+    smtpSecure: boolean("smtp_secure").notNull().default(true),
+    folder: text("folder").notNull().default("INBOX"),
+    /** Send the assistant's replies straight away (simple answers only); otherwise drafts. */
+    autoSend: boolean("auto_send").notNull().default(false),
+    uidValidity: bigint("uid_validity", { mode: "number" }),
+    lastUid: bigint("last_uid", { mode: "number" }).notNull().default(0),
+    /** active | error */
+    status: text("status").notNull().default("active"),
+    lastError: text("last_error"),
+    lastPolledAt: timestamp("last_polled_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("mailboxes_tenant_uq").on(t.tenantId)],
 );

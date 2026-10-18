@@ -8,7 +8,7 @@ import { formatProfileForPrompt } from "./profile";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-18.5";
+export const PROMPT_VERSION = "2026-10-18.6";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -55,6 +55,11 @@ How conversations work
 }
 
 const STYLE = {
+  email: `Channel: email. You are writing a reply email that the business may review before it is sent.
+- Answer everything the customer asked, completely, in short plain-text paragraphs. Open with a brief greeting using their name if known.
+- Plain text only: no markdown or HTML. Put list items on separate lines if needed.
+- Don't ask for details the customer already gave. If you need something to complete a request (for example a phone number for a booking), ask for it clearly in the reply.
+- Give reference numbers exactly as written. Don't sign off with your name; a signature is added automatically.`,
   chat: `Channel: text chat on the business's website.
 - Keep replies short: one to three sentences.
 - Plain text only. No markdown, headings, bullet points or emojis.

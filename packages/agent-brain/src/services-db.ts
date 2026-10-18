@@ -472,7 +472,7 @@ export function createDbAgentServices(
 export async function loadAgentContext(
   db: Database,
   tenantId: string,
-  style: "chat" | "voice",
+  style: "chat" | "voice" | "email",
   now: () => Date = () => new Date(),
 ): Promise<AgentContext> {
   const { tenant, settings } = await withTenant(db, tenantId, async (t) => ({

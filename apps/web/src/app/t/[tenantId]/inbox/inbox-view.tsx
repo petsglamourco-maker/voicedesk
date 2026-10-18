@@ -41,6 +41,9 @@ interface ThreadDetail {
     role: string;
     text: string;
     human: boolean;
+    /** An assistant email reply waiting for approval. */
+    draft?: boolean;
+    discarded?: boolean;
     authorName: string | null;
     createdAt: string;
   }>;
@@ -70,6 +73,8 @@ export function InboxView(props: {
   const [detail, setDetail] = useState<ThreadDetail | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The draft being edited before sending. */
+  const [draftEdit, setDraftEdit] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   const loadList = useCallback(async () => {
@@ -151,6 +156,24 @@ export function InboxView(props: {
     try {
       await api(`${base}/${selected}/reply`, { method: "POST", body: JSON.stringify({ text }) });
       form.reset();
+      await loadThread(selected);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : common("errorGeneric"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendDraft(text: string) {
+    if (!selected) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api(`${base}/${selected}/send-draft`, {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      });
+      setDraftEdit(null);
       await loadThread(selected);
     } catch (e) {
       setError(e instanceof Error ? e.message : common("errorGeneric"));
@@ -300,8 +323,12 @@ export function InboxView(props: {
                           ? "border border-border bg-muted"
                           : m.human
                             ? "bg-primary text-primary-foreground"
-                            : "border border-primary/30 bg-primary/5",
+                            : m.draft
+                              ? "border border-dashed border-warning/60 bg-warning/5"
+                              : "border border-primary/30 bg-primary/5",
+                        m.discarded && "opacity-50",
                       )}
+                      data-testid={m.draft ? "inbox-draft" : undefined}
                     >
                       <span className="mb-0.5 block text-[11px] opacity-70">
                         {m.role === "caller"
@@ -310,8 +337,37 @@ export function InboxView(props: {
                             ? (m.authorName ?? t("team"))
                             : t("assistant")}{" "}
                         · {format.dateTime(new Date(m.createdAt), { timeStyle: "short" })}
+                        {m.draft ? ` · ${t("draft")}` : m.discarded ? ` · ${t("discarded")}` : null}
                       </span>
-                      {m.text}
+                      {m.draft && draftEdit !== null ? (
+                        <textarea
+                          aria-label={t("editDraft")}
+                          className="h-40 w-full min-w-[320px] rounded border border-border bg-background p-2 text-sm"
+                          value={draftEdit}
+                          onChange={(e) => setDraftEdit(e.target.value)}
+                        />
+                      ) : (
+                        m.text
+                      )}
+                      {m.draft && props.canReply ? (
+                        <span className="mt-2 flex gap-2">
+                          <Button
+                            size="sm"
+                            disabled={busy || draftEdit?.trim() === ""}
+                            onClick={() => void sendDraft(draftEdit ?? m.text)}
+                          >
+                            {t("approveSend")}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => setDraftEdit(draftEdit === null ? m.text : null)}
+                          >
+                            {draftEdit === null ? t("editDraft") : t("cancelEdit")}
+                          </Button>
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}

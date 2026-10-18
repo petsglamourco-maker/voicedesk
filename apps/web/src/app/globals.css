@@ -14,6 +14,7 @@
   --color-ring: #3b3fd8;
   --color-danger: #b42318;
   --color-success: #067647;
+  --color-warning: #b54708;
   --font-sans:
     ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", "Noto Sans SC",
     sans-serif;
@@ -32,6 +33,7 @@
     --color-ring: #8b8ef5;
     --color-danger: #f97066;
     --color-success: #47cd89;
+    --color-warning: #fdb022;
   }
 }
 

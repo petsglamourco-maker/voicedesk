@@ -80,7 +80,8 @@
     "contacts": "Contacts",
     "websiteChat": "Website chat",
     "inbox": "Inbox",
-    "whatsapp": "WhatsApp"
+    "whatsapp": "WhatsApp",
+    "email": "Email"
   },
   "roles": {
     "owner": "Owner",
@@ -632,7 +633,13 @@
     "replyLabel": "Reply",
     "replyPlaceholder": "Write a reply…",
     "replyTakesOver": "Write a reply (this takes over from the assistant)…",
-    "send": "Send"
+    "send": "Send",
+    "draft": "Draft reply, waiting for approval",
+    "approveSend": "Approve and send",
+    "editDraft": "Edit",
+    "cancelEdit": "Cancel",
+    "discarded": "Draft not sent",
+    "email": "Email"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -657,5 +664,49 @@
     "empty": "No WhatsApp numbers connected.",
     "remove": "Disconnect",
     "confirmRemove": "Disconnect this WhatsApp number? Messages to it will no longer be answered."
+  },
+  "email": {
+    "title": "Email",
+    "subtitle": "Connect your support mailbox. The assistant reads new emails, drafts a reply in your business's voice and puts it in the Inbox. You approve it, or let simple answers go out on their own.",
+    "noEncryptionKey": "Mailbox passwords are stored encrypted, so SETTINGS_ENCRYPTION_KEY must be set in .env first.",
+    "statusActive": "Connected",
+    "statusError": "Problem",
+    "lastChecked": "Last checked {when}. New mail is checked every minute.",
+    "notCheckedYet": "Not checked yet. New mail is checked every minute.",
+    "modeAuto": "Simple answers are sent straight away. Complaints, cancellations and anything the assistant isn't sure about wait for you in the Inbox.",
+    "modeReview": "Every reply waits in the Inbox for you to approve.",
+    "test": "Test connection",
+    "testOk": "Logged in to the mailbox successfully.",
+    "disconnect": "Disconnect",
+    "confirmDisconnect": "Disconnect this mailbox? The stored password is deleted and new emails won't be answered.",
+    "disconnected": "Mailbox disconnected.",
+    "connect": "Connect a mailbox",
+    "change": "Change mailbox settings",
+    "connectHint": "Only emails that arrive after you connect are answered; older mail is left alone. Newsletters and automatic emails are ignored.",
+    "provider": "Email provider",
+    "presets": {
+      "gmail": "Gmail / Google Workspace",
+      "zoho": "Zoho Mail (EU)",
+      "icloud": "iCloud Mail",
+      "yahoo": "Yahoo Mail",
+      "custom": "Other (enter server details)"
+    },
+    "address": "Email address customers write to",
+    "username": "Login username",
+    "usernameHint": "Usually the email address",
+    "password": "App password",
+    "passwordKeep": "Leave empty to keep the saved one",
+    "appPasswordHint": "Use an app password, not your normal password. In Gmail: turn on 2-Step Verification, then Google Account → Security → App passwords. Microsoft 365 mailboxes aren't supported yet.",
+    "imapHost": "Incoming (IMAP) server",
+    "smtpHost": "Outgoing (SMTP) server",
+    "port": "Port",
+    "security": "Security",
+    "folder": "Folder to watch",
+    "replies": "Replies",
+    "modeReviewOption": "I approve every reply (recommended to start)",
+    "modeAutoOption": "Send simple answers automatically; I approve the rest",
+    "checking": "Checking login…",
+    "save": "Save and connect",
+    "connected": "Mailbox connected. New emails will appear in the Inbox."
   }
 }

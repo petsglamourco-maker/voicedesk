@@ -91,6 +91,20 @@ export function transferFailedPhrase(lang: Lang): string {
   return TRANSFER_FAILED[lang];
 }
 
+/** Email signature: who wrote it and that it's an AI assistant (disclosure on every email). */
+const AI_SIGNATURE: Record<Lang, (name: string, business: string) => string> = {
+  en: (n, b) => `${n}\nAI assistant, ${b}`,
+  es: (n, b) => `${n}\nAsistente de IA, ${b}`,
+  fr: (n, b) => `${n}\nAssistante IA, ${b}`,
+  de: (n, b) => `${n}\nKI-Assistenz, ${b}`,
+  zh: (n, b) => `${n}\n${b} 人工智能助理`,
+  ar: (n, b) => `${n}\nمساعد الذكاء الاصطناعي، ${b}`,
+};
+
+export function aiSignature(lang: Lang, name: string, business: string): string {
+  return AI_SIGNATURE[lang](name, business);
+}
+
 export function stillTherePhrase(lang: Lang): string {
   return STILL_THERE[lang];
 }

@@ -5,3 +5,4 @@ export * from "./ai-providers";
 export { maskSecret, SecretBox } from "./secret-box";
 export * from "./calendars";
 export * from "./csv";
+export * from "./mailboxes";

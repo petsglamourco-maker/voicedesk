@@ -19,6 +19,7 @@ export {
 } from "./personas";
 export {
   emergencyMessage,
+  aiSignature,
   greeting,
   holdOnPhrase,
   looksLikeLifeThreateningEmergency,
@@ -93,3 +94,13 @@ export {
   type ThreadIdentity,
   type ThreadRow,
 } from "./channels";
+export {
+  emailThreadKey,
+  processInboundEmail,
+  replySubject,
+  sendAssistantEmail,
+  sendStaffEmail,
+  isPendingDraft,
+  type EmailOutcome,
+  type EmailThreadMeta,
+} from "./email";

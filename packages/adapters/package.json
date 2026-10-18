@@ -16,7 +16,8 @@
     "./calendar/google": "./src/calendar/google.ts",
     "./messaging/sms": "./src/messaging/sms.ts",
     "./calendar/microsoft": "./src/calendar/microsoft.ts",
-    "./messaging/whatsapp-cloud": "./src/messaging/whatsapp-cloud.ts"
+    "./messaging/whatsapp-cloud": "./src/messaging/whatsapp-cloud.ts",
+    "./email/mailbox": "./src/email/mailbox.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -27,10 +28,13 @@
     "@aws-sdk/client-s3": "3.1152.0",
     "@aws-sdk/s3-request-presigner": "3.1152.0",
     "@huggingface/transformers": "4.3.1",
+    "imapflow": "2.5.2",
+    "mailparser": "3.9.40",
     "nodemailer": "10.1.1",
     "openai": "7.34.0"
   },
   "devDependencies": {
+    "@types/mailparser": "3.9.0",
     "@types/nodemailer": "8.0.2",
     "@voicedesk/config": "workspace:*"
   }

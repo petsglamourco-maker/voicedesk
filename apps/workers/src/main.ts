@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { dirname } from "node:path";
+import { ImapMailbox } from "@voicedesk/adapters/email/mailbox";
 import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
 import { embeddingsFromEnv, smsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
@@ -116,6 +117,8 @@ const workers = [
         publishLive: async (event) => {
           await connection.publish(LIVE_CHANNEL, JSON.stringify(event));
         },
+        box,
+        mailboxClient: (creds) => new ImapMailbox(creds),
       },
       log,
     ),

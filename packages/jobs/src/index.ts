@@ -15,20 +15,46 @@ export const QUEUES = {
 } as const;
 
 /** Inbound customer messages on asynchronous channels (webhooks enqueue, workers answer). */
-export type ChannelJob = {
-  kind: "whatsapp.inbound";
-  tenantId: string;
-  phoneNumberId: string;
-  /** Customer's number (E.164). */
-  from: string;
-  profileName: string | null;
-  messageId: string;
-  text: string;
-};
+export type ChannelJob =
+  | {
+      kind: "whatsapp.inbound";
+      tenantId: string;
+      phoneNumberId: string;
+      /** Customer's number (E.164). */
+      from: string;
+      profileName: string | null;
+      messageId: string;
+      text: string;
+    }
+  /** Checks a connected mailbox for new mail (repeatable, every minute per mailbox). */
+  | { kind: "email.poll"; tenantId: string; mailboxId: string };
 
 /** BullMQ job id for an inbound message: providers can deliver the same webhook twice. */
-export const channelJobId = (job: ChannelJob) =>
+export const channelJobId = (job: Extract<ChannelJob, { kind: "whatsapp.inbound" }>) =>
   `wa-${job.messageId.replace(/[^A-Za-z0-9_-]/g, "")}`;
+
+/** Scheduler id for a mailbox's poll. */
+export const mailboxSchedulerId = (mailboxId: string) => `mailbox-${mailboxId}`;
+
+export const MAILBOX_POLL_MS = 60_000;
+
+/** Starts (or stops, with `null`) polling a business's mailbox. */
+export async function scheduleMailboxPoll(
+  queue: Queue<ChannelJob>,
+  mailbox: { tenantId: string; mailboxId: string } | null,
+  mailboxId: string,
+): Promise<void> {
+  const id = mailboxSchedulerId(mailboxId);
+  if (!mailbox) {
+    await queue.removeJobScheduler(id);
+    return;
+  }
+  await queue.upsertJobScheduler(
+    id,
+    { every: MAILBOX_POLL_MS },
+    { name: "email.poll", data: { kind: "email.poll", ...mailbox }, opts: { attempts: 1 } },
+  );
+}
 
 /** Redis pub/sub channel carrying live inbox/widget events from workers to the API. */
 export const LIVE_CHANNEL = "voicedesk:live";

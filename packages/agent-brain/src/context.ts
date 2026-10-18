@@ -13,8 +13,8 @@ export interface AgentContext {
   personaName: string;
   /** Approved profile, or null when nothing is approved yet. */
   profile: BusinessProfile | null;
-  /** "voice": spoken-style rules; "chat": short written replies. */
-  style: "chat" | "voice";
+  /** "voice": spoken-style rules; "chat": short written replies; "email": full written replies. */
+  style: "chat" | "voice" | "email";
   /** Local emergency number to direct callers to (999 in the UK). */
   emergencyNumber: string;
   /** Calls are recorded, so voice greetings add a recording notice. */

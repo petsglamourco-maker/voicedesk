@@ -31,6 +31,7 @@ import { registerPublicChatRoutes } from "./routes/public-chat";
 import { registerWidgetSettingsRoutes } from "./routes/widget-settings";
 import { registerInboxRoutes, type ChannelSender } from "./routes/inbox";
 import { registerWhatsAppRoutes, whatsAppSender } from "./routes/whatsapp";
+import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 
 export type AppDeps = Omit<Container, "close"> & {
@@ -49,6 +50,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     channelSenders: {
       // Website chat: the visitor's open widget receives the reply live (SSE).
       web_chat: { send: () => Promise.resolve() },
+      email: emailSender(deps),
       ...(deps.whatsapp?.accessToken
         ? {
             whatsapp: whatsAppSender(deps, async (phoneNumberId, to, text) => {
@@ -116,6 +118,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerWidgetSettingsRoutes(app, deps);
   registerInboxRoutes(app, deps);
   registerWhatsAppRoutes(app, deps);
+  registerMailboxRoutes(app, deps);
 
   return app;
 }

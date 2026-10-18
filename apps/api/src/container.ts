@@ -4,6 +4,11 @@ import type {
   ObjectStorage,
   TextToSpeechProvider,
 } from "@voicedesk/adapters";
+import {
+  ImapMailbox,
+  type MailboxClient,
+  type MailboxCredentials,
+} from "@voicedesk/adapters/email/mailbox";
 import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
 import {
@@ -25,6 +30,7 @@ import {
   createKnowledgeQueue,
   createRedisConnection,
   scheduleRecrawl,
+  scheduleMailboxPoll,
   type AiJob,
   type NotificationJob,
   type ChannelJob,
@@ -71,6 +77,8 @@ export interface JobDispatcher {
   notify(job: NotificationJob): Promise<void>;
   /** Inbound WhatsApp/email messages for the workers to answer (deduplicated by message). */
   dispatchChannel(job: ChannelJob): Promise<void>;
+  /** Starts polling a connected mailbox every minute, or stops it (`on: false`). */
+  scheduleMailbox(tenantId: string, mailboxId: string, on: boolean): Promise<void>;
 }
 
 export interface Container {
@@ -93,6 +101,8 @@ export interface Container {
   calendars?: CalendarIntegrations;
   /** WhatsApp Cloud API credentials (platform-level). */
   whatsapp?: WhatsAppSettings;
+  /** Connects to a business's mailbox (tests pass a fake). */
+  mailboxClient?: (creds: MailboxCredentials) => MailboxClient;
   /** Signs OAuth `state` values (the Better Auth secret). */
   oauthStateSecret: string;
   checkRedis: () => Promise<boolean>;
@@ -131,6 +141,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     sip: sipGatewayFromEnv(),
     calendars: calendarsFromEnv(),
     whatsapp: whatsAppSettingsFromEnv(),
+    mailboxClient: (creds) => new ImapMailbox(creds),
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
@@ -145,8 +156,14 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
         await notificationQueue.add(job.kind, job);
       },
       dispatchChannel: async (job) => {
-        await channelQueue.add(job.kind, job, { jobId: channelJobId(job) });
+        await channelQueue.add(
+          job.kind,
+          job,
+          job.kind === "whatsapp.inbound" ? { jobId: channelJobId(job) } : {},
+        );
       },
+      scheduleMailbox: (tenantId, mailboxId, on) =>
+        scheduleMailboxPoll(channelQueue, on ? { tenantId, mailboxId } : null, mailboxId),
     },
     checkRedis: async () => (await redis.ping()) === "PONG",
     close: async () => {

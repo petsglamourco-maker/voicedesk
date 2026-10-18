@@ -8,7 +8,7 @@ import {
 } from "@voicedesk/db";
 import { and, eq, sql } from "drizzle-orm";
 import type { AgentContext } from "./context";
-import { runTurn } from "./engine";
+import { runTurn, type TurnEvent } from "./engine";
 import { createConversation, persistTurn } from "./persistence";
 import { createDbAgentServices, loadAgentContext, type DbServiceDeps } from "./services-db";
 import type { ConversationState } from "./state";
@@ -64,6 +64,8 @@ export interface ThreadIdentity {
   phone?: string | null;
   displayName?: string | null;
   subject?: string | null;
+  /** Channel details stored on the thread (e.g. email threading headers). */
+  meta?: Record<string, unknown>;
 }
 
 export interface OpenThread {
@@ -147,6 +149,7 @@ export async function openThread(
         contactId,
         displayName: who.displayName ?? null,
         subject: who.subject ?? null,
+        meta: who.meta ?? {},
         lastMessageAt: now,
         lastPreview: created.greeting.slice(0, 200),
       })
@@ -157,6 +160,7 @@ export async function openThread(
           ...(contactId ? { contactId } : {}),
           ...(who.displayName ? { displayName: who.displayName } : {}),
           ...(who.subject ? { subject: who.subject } : {}),
+          ...(who.meta ? { meta: who.meta } : {}),
           lastMessageAt: now,
           // A new conversation goes back to the assistant.
           mode: "ai",
@@ -207,6 +211,8 @@ export interface ChannelTurnResult {
   greeting: string | null;
   /** The assistant's reply, or null when a person is handling the thread. */
   reply: string | null;
+  /** What the assistant did this turn (tool calls, records). */
+  events: TurnEvent[];
 }
 
 /**
@@ -217,11 +223,29 @@ export async function handleInboundMessage(
   deps: ChannelTurnDeps,
   who: ThreadIdentity,
   text: string,
-  options: { onText?: (delta: string) => void; now?: Date } = {},
+  options: {
+    onText?: (delta: string) => void;
+    now?: Date;
+    /** Email without auto-send: the reply is kept as a draft for a person to approve. */
+    draft?: boolean;
+  } = {},
 ): Promise<ChannelTurnResult> {
-  const ctx = await loadAgentContext(deps.db, who.tenantId, "chat");
+  const ctx = await loadAgentContext(
+    deps.db,
+    who.tenantId,
+    who.channel === "email" ? "email" : "chat",
+  );
   const open = await openThread(deps.db, ctx, who, options.now);
   const { thread, conversationId } = open;
+  if (who.meta && open.greeting === null) {
+    // Existing thread: keep the latest threading details (e.g. the newest email's Message-ID).
+    await withTenant(deps.db, who.tenantId, (tx) =>
+      tx
+        .update(channelThreads)
+        .set({ meta: { ...thread.meta, ...who.meta } })
+        .where(eq(channelThreads.id, thread.id)),
+    );
+  }
   if (thread.mode === "human") {
     await withTenant(deps.db, who.tenantId, (tx) =>
       tx.insert(conversationMessages).values({
@@ -239,6 +263,7 @@ export async function handleInboundMessage(
       mode: "human",
       greeting: open.greeting,
       reply: null,
+      events: [],
     };
   }
   const services = createDbAgentServices(deps, {
@@ -257,16 +282,22 @@ export async function handleInboundMessage(
     previous: open.state,
     callerText: text,
     result,
-    extraMetadata: { channel: who.channel },
+    extraMetadata: { channel: who.channel, ...(options.draft ? { draft: true } : {}) },
   });
   if (!saved) throw new Error("conversation was updated by another message at the same time");
   await touchThread(deps.db, who.tenantId, thread.id, result.reply, true);
+  if (options.draft) {
+    await withTenant(deps.db, who.tenantId, (tx) =>
+      tx.update(channelThreads).set({ needsHuman: true }).where(eq(channelThreads.id, thread.id)),
+    );
+  }
   return {
     threadId: thread.id,
     conversationId,
     mode: "ai",
     greeting: open.greeting,
     reply: result.reply,
+    events: result.events,
   };
 }
 
