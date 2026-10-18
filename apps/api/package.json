@@ -9,7 +9,8 @@
     "seed": "tsx src/seed.ts",
     "openapi": "tsx src/openapi.ts",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "number:add": "tsx src/number-add.ts"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.4",

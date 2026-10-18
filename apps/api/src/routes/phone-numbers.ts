@@ -5,6 +5,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { registerPhoneNumber } from "../lib/phone-numbers";
 import type { SipGateway } from "../lib/sip";
 import { requireTenantAccess } from "./guards";
 import { requirePlatformOwner } from "./platform";
@@ -86,52 +87,14 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
     async (request, reply) => {
       const session = await requirePlatformOwner(deps, request);
       const sip = requireSip(deps);
-      const actor = access(session.user.id, "register phone number");
-      const row = await withPlatformAccess(deps.db, actor, async (tx) => {
-        const [tenant] = await tx
-          .select({ id: tenants.id })
-          .from(tenants)
-          .where(eq(tenants.id, request.body.tenantId));
-        if (!tenant) throw notFound();
-        const [existing] = await tx
-          .select({ id: phoneNumbers.id })
-          .from(phoneNumbers)
-          .where(eq(phoneNumbers.e164, request.body.e164));
-        if (existing)
-          throw new HttpError(409, "NUMBER_EXISTS", "This number is already registered");
-        const [inserted] = await tx
-          .insert(phoneNumbers)
-          .values({
-            tenantId: request.body.tenantId,
-            e164: request.body.e164,
-            label: request.body.label ?? null,
-          })
-          .returning();
-        return inserted!;
-      });
       try {
-        const route = await sip.createRoute({
-          e164: row.e164,
-          metadata: { tenantId: row.tenantId, phoneNumberId: row.id },
-        });
-        const [routed] = await withPlatformAccess(deps.db, actor, (tx) =>
-          tx
-            .update(phoneNumbers)
-            .set({ livekitTrunkId: route.trunkId, livekitDispatchRuleId: route.dispatchRuleId })
-            .where(eq(phoneNumbers.id, row.id))
-            .returning(),
-        );
-        return reply.status(201).send(toView(routed!));
+        const row = await registerPhoneNumber({ db: deps.db, sip }, session.user.id, request.body);
+        return reply.status(201).send(toView(row));
       } catch (error) {
-        request.log.error({ err: error }, "creating SIP route failed");
-        await withPlatformAccess(deps.db, actor, (tx) =>
-          tx.delete(phoneNumbers).where(eq(phoneNumbers.id, row.id)),
-        );
-        throw new HttpError(
-          502,
-          "SIP_ROUTE_FAILED",
-          "LiveKit could not set up routing for this number",
-        );
+        if (error instanceof HttpError && error.code === "SIP_ROUTE_FAILED") {
+          request.log.error({ err: error.cause }, "creating SIP route failed");
+        }
+        throw error;
       }
     },
   );
