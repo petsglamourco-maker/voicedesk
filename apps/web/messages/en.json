@@ -77,7 +77,8 @@
     "platformAdmin": "Platform admin",
     "calls": "Calls",
     "integrations": "Integrations",
-    "contacts": "Contacts"
+    "contacts": "Contacts",
+    "websiteChat": "Website chat"
   },
   "roles": {
     "owner": "Owner",
@@ -577,5 +578,33 @@
     "urgentPlaceholder": "e.g. burst pipe, no heating, gas smell",
     "onCall": "Out-of-hours number for urgent situations",
     "note": "Leave the number empty to always take a message instead. Life-threatening emergencies are always told to call 999. Transferred calls are charged by your phone provider."
+  },
+  "websiteChat": {
+    "title": "Website chat",
+    "subtitle": "Put your assistant on your website. Visitors chat with it like on the phone: it answers questions, books, takes messages and signs people up.",
+    "saved": "Saved.",
+    "status": "Chat on your website",
+    "on": "On",
+    "off": "Off",
+    "statusHint": "While it's off, the chat button doesn't appear even if the snippet is on your site.",
+    "turnOn": "Turn on",
+    "turnOff": "Turn off",
+    "where": "Where it can appear",
+    "whereHint": "Only these websites can show your chat (one per line). This stops other sites copying your snippet.",
+    "websites": "Your websites",
+    "chatTitle": "Chat title",
+    "color": "Colour",
+    "position": "Button position",
+    "right": "Bottom right",
+    "left": "Bottom left",
+    "save": "Save",
+    "snippetTitle": "Add it to your website",
+    "snippetHint": "Paste this just before </body> on every page (or in your website builder's \"custom code\" setting).",
+    "copy": "Copy",
+    "copied": "Copied",
+    "regenerate": "New key",
+    "confirmRegenerate": "Create a new key? The current snippet stops working until you replace it on your website.",
+    "preview": "Preview",
+    "previewOff": "Turn the chat on to preview it here."
   }
 }

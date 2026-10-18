@@ -7,7 +7,7 @@ import { parseEnv } from "./env";
 const envFile = loadRootEnv();
 const env = parseEnv();
 const container = await createContainer(env, envFile ? dirname(envFile) : process.cwd());
-const app = await buildApp({ ...container, logLevel: env.LOG_LEVEL });
+const app = await buildApp({ ...container, logLevel: env.LOG_LEVEL, webOrigin: env.WEB_ORIGIN });
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, "shutting down");

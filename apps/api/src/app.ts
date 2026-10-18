@@ -26,8 +26,14 @@ import { registerPhoneNumberRoutes } from "./routes/phone-numbers";
 import { registerCallRoutes } from "./routes/calls";
 import { registerIntegrationRoutes } from "./routes/integrations";
 import { registerContactRoutes } from "./routes/contacts";
+import { registerPublicChatRoutes } from "./routes/public-chat";
+import { registerWidgetSettingsRoutes } from "./routes/widget-settings";
 
-export type AppDeps = Omit<Container, "close"> & { logLevel?: string };
+export type AppDeps = Omit<Container, "close"> & {
+  logLevel?: string;
+  /** Browser-facing origin (website chat previews, links). */
+  webOrigin?: string;
+};
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
@@ -82,6 +88,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerCallRoutes(app, deps);
   registerIntegrationRoutes(app, deps);
   registerContactRoutes(app, deps);
+  registerPublicChatRoutes(app, deps);
+  registerWidgetSettingsRoutes(app, deps);
 
   return app;
 }
