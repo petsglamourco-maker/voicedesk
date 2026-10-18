@@ -106,7 +106,7 @@ export async function openThread(
   const fresh =
     existing.conversation &&
     existing.conversation.status === "active" &&
-    now.getTime() - existing.thread!.lastMessageAt.getTime() < THREAD_IDLE_MS;
+    now.getTime() - existing.thread.lastMessageAt.getTime() < THREAD_IDLE_MS;
   if (existing.thread && fresh) {
     return {
       thread: existing.thread,
@@ -120,7 +120,7 @@ export async function openThread(
     await withTenant(db, tenantId, (tx) =>
       tx
         .update(conversations)
-        .set({ status: "ended", endedAt: existing.thread!.lastMessageAt })
+        .set({ status: "ended", endedAt: existing.thread.lastMessageAt })
         .where(eq(conversations.id, existing.conversation!.id)),
     );
   }
