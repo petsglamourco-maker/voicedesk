@@ -46,7 +46,7 @@ const run = (submission: FormSubmission) =>
 
 describe("form triage", () => {
   it("creates a thread and contact, and keeps the reply as a draft", async () => {
-    const submission = form();
+    const submission = form({ marketingConsent: true });
     const { threadId } = await run(submission);
     const [thread] = await withTenant(dbs.app, tenantId, (tx) =>
       tx.select().from(channelThreads).where(eq(channelThreads.id, threadId)),
@@ -60,7 +60,11 @@ describe("form triage", () => {
     const [contact] = await withTenant(dbs.app, tenantId, (tx) =>
       tx.select().from(contacts).where(eq(contacts.id, thread!.contactId!)),
     );
-    expect(contact).toMatchObject({ email: submission.email, phoneE164: "+447700900456" });
+    expect(contact).toMatchObject({
+      email: submission.email,
+      phoneE164: "+447700900456",
+      marketingConsent: true,
+    });
   });
 
   it("doesn't offer an email reply without consent", async () => {

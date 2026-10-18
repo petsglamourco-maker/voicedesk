@@ -1,4 +1,4 @@
-// Development only: lets WhatsApp (Meta) deliver webhooks to this computer.
+// Development only: lets WhatsApp (Meta) and form tools deliver webhooks to this computer.
 //
 // Starts a local gateway that forwards ONLY /api/webhooks/* to the API and refuses everything
 // else, then opens a free Cloudflare quick tunnel (temporary https address, no account) to the
@@ -42,7 +42,8 @@ gateway.listen(GATEWAY_PORT, "127.0.0.1", () => {
     const match = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(chunk.toString());
     if (match) {
       console.log("\nPublic webhook address (changes each time you run this):");
-      console.log(`  WhatsApp callback URL: ${match[0]}/api/webhooks/whatsapp\n`);
+      console.log(`  WhatsApp callback URL: ${match[0]}/api/webhooks/whatsapp`);
+      console.log(`  Form webhooks: ${match[0]} + the path shown on the Forms page\n`);
     }
   };
   tunnel.stdout.on("data", announce);

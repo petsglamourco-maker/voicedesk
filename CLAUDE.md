@@ -19,7 +19,14 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
     - Phone transfers (ADR 0015): `request_human` on phone calls → `transferTarget` (hours, on-call number for urgent situations) → SIP REFER after the sentence is spoken, with a context text to the person answering. Falls back to a message if the transfer fails.
     - Outlook / Microsoft 365 calendars (Graph, rotating refresh tokens saved encrypted); one calendar per business.
   - **Phase 3 is built.** Live tests need Google or Microsoft OAuth credentials, and the Twilio number for transfers.
-- **Next:** Phase 4 (omnichannel: WhatsApp, website chat widget, form capture, unified inbox, human takeover, email triage).
+- **Phase 4 (omnichannel): built** (ADRs 0016, 0017). Live tests need a Meta app (WhatsApp) and a mailbox app password (email).
+  - **Website chat widget:** `/api/public/widget.js` loads an iframe; allowed websites per business.
+  - **Unified inbox:** live over SSE, with take over / hand back.
+  - **WhatsApp:** Cloud API with a signed webhook; links and QR code.
+  - **Email triage:** connected IMAP/SMTP mailbox polled every minute; drafts wait for approval, optional auto-send for simple answers.
+  - **Form capture:** hosted `/f/<key>` form plus a webhook for existing forms.
+  - **Dev tunnel:** `pnpm tunnel` exposes only `/api/webhooks/*`.
+- **Next:** Phases 5–7 (each needs plan approval). The live Twilio test is pending the owner's upgrade.
 
 ## Layout
 

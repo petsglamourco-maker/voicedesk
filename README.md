@@ -112,6 +112,22 @@ A business can keep its existing number by forwarding calls to the VoiceDesk num
 
 The quick-tunnel address changes each time `pnpm tunnel` starts, so update it in Meta when it does. Temporary access tokens expire after about a day; create a System User token for longer use.
 
+## Answer a support mailbox (free)
+
+1. For Gmail: turn on **2-Step Verification**, then go to **Google Account → Security → App passwords** and create one. Zoho, iCloud and Yahoo work the same way. Microsoft 365 isn't supported yet.
+2. VoiceDesk → **Email**: choose the provider, enter the address and app password, then **Save and connect**. It logs in first to check the details.
+3. Send an email to that address from another account. Within a minute it appears in **Inbox** with a draft reply. **Approve and send** (or edit first). The reply threads in the customer's mail app.
+4. Once you trust it, switch on "send simple answers automatically". Complaints, cancellations and anything the assistant isn't sure about still wait for you.
+
+Only mail that arrives after you connect is answered. Newsletters and automatic emails are ignored.
+
+## Website forms (free)
+
+- **Hosted form:** VoiceDesk → **Forms** → **Turn on**, then share the link (`/f/<key>`).
+- **A form you already have** (Typeform, Jotform, Webflow, Tally…): set its webhook to your public address + the path shown on the Forms page. Locally, run `pnpm tunnel` and use the address it prints. Field names are detected automatically, or you can map them.
+
+Each enquiry appears in **Inbox** with the assistant's triage and a draft reply. The reply is sent by email when the person gave an address.
+
 ## Checks
 
 ```bash

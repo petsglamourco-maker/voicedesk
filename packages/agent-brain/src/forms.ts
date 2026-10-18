@@ -67,7 +67,12 @@ export async function processFormSubmission(
     { draft: true },
   );
   if (email || phone) {
-    await linkFormContact(deps.db, tenantId, result, { email, phone, name: form.name });
+    await linkFormContact(deps.db, tenantId, result, {
+      email,
+      phone,
+      name: form.name,
+      marketing: form.marketingConsent,
+    });
   }
   return { threadId: result.threadId, conversationId: result.conversationId };
 }
@@ -80,7 +85,7 @@ async function linkFormContact(
   db: ChannelTurnDeps["db"],
   tenantId: string,
   ids: { threadId: string; conversationId: string },
-  who: { email: string | null; phone: string | null; name: string | null },
+  who: { email: string | null; phone: string | null; name: string | null; marketing: boolean },
 ): Promise<void> {
   await withTenant(db, tenantId, async (tx) => {
     const [conv] = await tx
@@ -109,6 +114,7 @@ async function linkFormContact(
             email: who.email,
             phoneE164: who.phone,
             fullName: who.name,
+            marketingConsent: who.marketing,
             source: "web_form",
           })
           .returning({ id: contacts.id })
@@ -126,6 +132,10 @@ async function linkFormContact(
         .update(contacts)
         .set({ phoneE164: who.phone })
         .where(and(eq(contacts.id, contactId), isNull(contacts.phoneE164)));
+    }
+    // A ticked marketing box opts in; an unticked one never withdraws earlier consent here.
+    if (who.marketing) {
+      await tx.update(contacts).set({ marketingConsent: true }).where(eq(contacts.id, contactId));
     }
     await tx
       .update(conversations)
