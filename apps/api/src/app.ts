@@ -10,6 +10,7 @@ import {
   validatorCompiler,
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
+import type { TextChannel } from "@voicedesk/agent-brain";
 import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
 import { registerAgentRoutes } from "./routes/agent";
@@ -28,9 +29,12 @@ import { registerIntegrationRoutes } from "./routes/integrations";
 import { registerContactRoutes } from "./routes/contacts";
 import { registerPublicChatRoutes } from "./routes/public-chat";
 import { registerWidgetSettingsRoutes } from "./routes/widget-settings";
+import { registerInboxRoutes, type ChannelSender } from "./routes/inbox";
 
 export type AppDeps = Omit<Container, "close"> & {
   logLevel?: string;
+  /** How staff replies reach the customer, per channel (website chat is built in). */
+  channelSenders?: Partial<Record<TextChannel, ChannelSender>>;
   /** Browser-facing origin (website chat previews, links). */
   webOrigin?: string;
 };
@@ -38,6 +42,14 @@ export type AppDeps = Omit<Container, "close"> & {
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
+  deps = {
+    ...deps,
+    channelSenders: {
+      // Website chat: the visitor's open widget receives the reply live (SSE).
+      web_chat: { send: () => Promise.resolve() },
+      ...deps.channelSenders,
+    },
+  };
   const app = Fastify({
     logger: {
       ...loggerOptions("api", deps.logLevel),
@@ -90,6 +102,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerContactRoutes(app, deps);
   registerPublicChatRoutes(app, deps);
   registerWidgetSettingsRoutes(app, deps);
+  registerInboxRoutes(app, deps);
 
   return app;
 }

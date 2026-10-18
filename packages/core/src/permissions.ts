@@ -19,6 +19,8 @@ export const PERMISSIONS = [
   "calls:read",
   "records:read",
   "records:write",
+  "inbox:read",
+  "inbox:reply",
   "knowledge:read",
   "knowledge:write",
   "agent:test",
@@ -39,6 +41,8 @@ const STAFF: ReadonlySet<Permission> = new Set([
   "calls:read",
   "records:read",
   "records:write",
+  "inbox:read",
+  "inbox:reply",
   "knowledge:read",
   "agent:test",
 ]);

@@ -78,7 +78,8 @@
     "calls": "Calls",
     "integrations": "Integrations",
     "contacts": "Contacts",
-    "websiteChat": "Website chat"
+    "websiteChat": "Website chat",
+    "inbox": "Inbox"
   },
   "roles": {
     "owner": "Owner",
@@ -606,5 +607,30 @@
     "confirmRegenerate": "Create a new key? The current snippet stops working until you replace it on your website.",
     "preview": "Preview",
     "previewOff": "Turn the chat on to preview it here."
+  },
+  "inbox": {
+    "title": "Inbox",
+    "subtitle": "Every customer conversation from your website chat, WhatsApp, email and forms. The assistant answers; you can step in at any time.",
+    "all": "All",
+    "unread": "Unread",
+    "needsHuman": "Wants a person",
+    "mine": "Mine",
+    "empty": "No conversations here yet.",
+    "visitor": "Website visitor",
+    "wantsPerson": "Wants a person",
+    "human": "With a person",
+    "pick": "Choose a conversation.",
+    "contact": "Contact",
+    "youHaveIt": "A person is replying",
+    "handBack": "Hand back to assistant",
+    "assistantReplying": "Assistant replying",
+    "takeOver": "Take over",
+    "customer": "Customer",
+    "team": "Team",
+    "assistant": "Assistant",
+    "replyLabel": "Reply",
+    "replyPlaceholder": "Write a reply…",
+    "replyTakesOver": "Write a reply (this takes over from the assistant)…",
+    "send": "Send"
   }
 }
