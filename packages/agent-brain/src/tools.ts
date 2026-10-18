@@ -776,6 +776,15 @@ export const TOOLS = {
         reference: created.reference,
       };
       env.state.records.push(record);
+      if (created.handoff) {
+        return {
+          result: {
+            available: true,
+            next: "Tell the customer a member of the team has been asked to reply here and will pick this up shortly. Offer to help with anything else meanwhile, or to take a message.",
+          },
+          record,
+        };
+      }
       if (created.available) {
         if (created.transferTo) env.state.transfer = { to: created.transferTo };
         return {

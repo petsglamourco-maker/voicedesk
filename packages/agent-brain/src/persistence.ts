@@ -17,7 +17,7 @@ export async function createConversation(
   ctx: AgentContext,
   params: {
     tenantId: string;
-    channel: "test_console" | "voice";
+    channel: "test_console" | "voice" | "web_chat" | "whatsapp" | "email" | "web_form";
     language?: Lang;
     callerPhone?: string | null;
     createdBy?: string | null;

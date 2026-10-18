@@ -12,6 +12,7 @@ import {
   agentSettings,
   auditLog,
   bookings,
+  channelThreads,
   contacts,
   conversations,
   knowledgeGaps,
@@ -52,7 +53,7 @@ export interface DbServiceDeps {
 /** What the agent did that someone should hear about (see NotificationJob in @voicedesk/jobs). */
 export type AgentNotification =
   | { kind: "booking.changed"; bookingId: string; change: "created" | "moved" | "cancelled" }
-  | { kind: "staff.alert"; record: "ticket" | "message"; id: string }
+  | { kind: "staff.alert"; record: "ticket" | "message" | "handoff"; id: string }
   | { kind: "transfer.context"; conversationId: string; to: string; reason: string };
 
 const BUSY_CACHE_MS = 60_000;
@@ -93,6 +94,8 @@ export function createDbAgentServices(
     timezone?: string;
     /** Phone calls only: the caller can be put through to a person (SIP transfer). */
     canTransfer?: boolean;
+    /** Inbox channels (web chat, WhatsApp, email): a person can pick up this thread. */
+    handoffThreadId?: string;
   },
 ): AgentServices {
   const { db } = deps;
@@ -448,6 +451,17 @@ export function createDbAgentServices(
           reason: reason.slice(0, 200),
         });
         return { id: conversationId, reference, available: true, transferTo };
+      }
+      if (scope.handoffThreadId) {
+        const threadId = scope.handoffThreadId;
+        await tx((t) =>
+          t
+            .update(channelThreads)
+            .set({ needsHuman: true, updatedAt: new Date() })
+            .where(eq(channelThreads.id, threadId)),
+        );
+        await notify({ kind: "staff.alert", record: "handoff", id: threadId });
+        return { id: conversationId, reference, available: true, handoff: true };
       }
       return { id: conversationId, reference, available: false };
     },

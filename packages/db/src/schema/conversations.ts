@@ -85,6 +85,7 @@ export const conversationChannel = pgEnum("conversation_channel", [
   "whatsapp",
   "sms",
   "email",
+  "web_form",
 ]);
 export const conversationStatus = pgEnum("conversation_status", ["active", "ended"]);
 
@@ -314,4 +315,70 @@ export const knowledgeGaps = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },
   (t) => [index("knowledge_gaps_tenant_status_idx").on(t.tenantId, t.status)],
+);
+
+/**
+ * Public entry points (Phase 4): website chat widget keys, form keys, WhatsApp phone-number ids.
+ * Resolved without a signed-in user through app_resolve_public_endpoint() (SQL), which only
+ * returns the matching row.
+ */
+export const publicEndpoints = pgTable(
+  "public_endpoints",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** "widget" | "form" | "whatsapp" */
+    kind: text("kind").notNull(),
+    /** Public key (widget/form) or the WhatsApp phone-number id. */
+    key: text("key").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    config: jsonb("config").$type<Record<string, unknown>>().notNull().default({}),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("public_endpoints_kind_key_uq").on(t.kind, t.key),
+    index("public_endpoints_tenant_idx").on(t.tenantId),
+  ],
+);
+
+/**
+ * One customer's conversation stream on a channel (Phase 4, unified inbox): the outside
+ * identity (widget visitor, WhatsApp number, email thread), its current conversation, and
+ * whether the assistant or a person is answering.
+ */
+export const channelThreads = pgTable(
+  "channel_threads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    channel: conversationChannel("channel").notNull(),
+    externalId: text("external_id").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    /** "ai": the assistant replies; "human": a person has taken over. */
+    mode: text("mode").notNull().default("ai"),
+    assigneeUserId: uuid("assignee_user_id"),
+    /** The customer asked for a person and nobody has picked it up yet. */
+    needsHuman: boolean("needs_human").notNull().default(false),
+    unread: integer("unread").notNull().default(0),
+    displayName: text("display_name"),
+    subject: text("subject"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
+    lastPreview: text("last_preview"),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex("channel_threads_tenant_channel_external_uq").on(
+      t.tenantId,
+      t.channel,
+      t.externalId,
+    ),
+    index("channel_threads_tenant_last_idx").on(t.tenantId, t.lastMessageAt),
+  ],
 );

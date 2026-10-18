@@ -47,7 +47,7 @@ export type NotificationJob =
       startsAt: string;
       language?: string;
     }
-  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message"; id: string }
+  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message" | "handoff"; id: string }
   | {
       kind: "transfer.context";
       tenantId: string;

@@ -1,6 +1,7 @@
 import {
   agentSettings,
   bookings,
+  channelThreads,
   conversations,
   member,
   phoneNumbers,
@@ -338,6 +339,7 @@ const ALERT: Record<
     open: string;
     transfer: string;
     withheld: string;
+    handoff: string;
   }
 > = {
   en: {
@@ -347,6 +349,7 @@ const ALERT: Record<
     open: "Open",
     transfer: "Putting a caller through to you now",
     withheld: "number withheld",
+    handoff: "A customer is asking for a person",
   },
   es: {
     ticket: "Incidencia urgente",
@@ -355,6 +358,7 @@ const ALERT: Record<
     open: "Ver",
     transfer: "Le paso una llamada ahora",
     withheld: "número oculto",
+    handoff: "Un cliente pide hablar con una persona",
   },
   fr: {
     ticket: "Problème urgent",
@@ -363,6 +367,7 @@ const ALERT: Record<
     open: "Voir",
     transfer: "Je vous transfère un appel",
     withheld: "numéro masqué",
+    handoff: "Un client demande à parler à quelqu'un",
   },
   de: {
     ticket: "Dringendes Anliegen",
@@ -371,6 +376,7 @@ const ALERT: Record<
     open: "Öffnen",
     transfer: "Ich stelle Ihnen jetzt einen Anruf durch",
     withheld: "Nummer unterdrückt",
+    handoff: "Ein Kunde möchte mit einer Person sprechen",
   },
   zh: {
     ticket: "紧急问题",
@@ -379,6 +385,7 @@ const ALERT: Record<
     open: "查看",
     transfer: "正在为您转接一通来电",
     withheld: "隐藏号码",
+    handoff: "有客户要求人工服务",
   },
   ar: {
     ticket: "مشكلة عاجلة",
@@ -387,6 +394,7 @@ const ALERT: Record<
     open: "فتح",
     transfer: "أحوّل إليك مكالمة الآن",
     withheld: "رقم محجوب",
+    handoff: "عميل يطلب التحدث إلى شخص",
   },
 };
 
@@ -420,13 +428,21 @@ export async function planTransferContext(
  */
 export async function planStaffAlert(
   db: Database,
-  job: { tenantId: string; record: "ticket" | "message"; id: string },
+  job: { tenantId: string; record: "ticket" | "message" | "handoff"; id: string },
   webOrigin: string,
 ): Promise<NotificationPlan> {
   const business = await loadBusiness(db, job.tenantId);
   const l = ALERT[business.adminLanguage];
   let line = null as string | null;
   await withTenant(db, job.tenantId, async (tx) => {
+    if (job.record === "handoff") {
+      const [th] = await tx.select().from(channelThreads).where(eq(channelThreads.id, job.id));
+      if (!th) return;
+      line = [l.handoff, th.channel, th.displayName ?? th.externalId, th.lastPreview ?? ""]
+        .filter(Boolean)
+        .join(" · ");
+      return;
+    }
     if (job.record === "ticket") {
       const [t] = await tx.select().from(tickets).where(eq(tickets.id, job.id));
       if (!t) return;
@@ -453,7 +469,10 @@ export async function planStaffAlert(
     }
   });
   if (!line) return { messages: [] };
-  const link = `${webOrigin}/t/${job.tenantId}/records`;
+  const link =
+    job.record === "handoff"
+      ? `${webOrigin}/t/${job.tenantId}/inbox/${job.id}`
+      : `${webOrigin}/t/${job.tenantId}/records`;
   const recipients = await db
     .select({ email: user.email })
     .from(member)

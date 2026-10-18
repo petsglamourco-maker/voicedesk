@@ -120,6 +120,20 @@
       "when": 1792275799152,
       "tag": "0016_transfer_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792343621058,
+      "tag": "0017_channels",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792343622236,
+      "tag": "0018_channels_rls",
+      "breakpoints": true
     }
   ]
 }

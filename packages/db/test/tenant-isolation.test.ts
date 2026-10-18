@@ -11,6 +11,7 @@ import {
   knowledgeDocuments,
   knowledgeSources,
   phoneNumbers,
+  publicEndpoints,
   tenants,
   tickets,
 } from "../src/schema";
@@ -330,5 +331,33 @@ describe("phone numbers", () => {
         .returning(),
     );
     expect(changed).toHaveLength(0);
+  });
+});
+
+describe("public endpoint resolver", () => {
+  it("returns only the matching endpoint and doesn't leave platform access on", async () => {
+    const key = `pk_${randomUUID().replace(/-/g, "")}`;
+    await withTenant(dbs.app, tenantB, (tx) =>
+      tx
+        .insert(publicEndpoints)
+        .values({ tenantId: tenantB, kind: "widget", key, config: { a: 1 } }),
+    );
+    const result = await dbs.app.transaction(async (tx) => {
+      const rows = await tx.execute(
+        sql`select * from app_resolve_public_endpoint(${"widget"}, ${key})`,
+      );
+      const after = await tx.execute(sql`select app_platform_access() as on`);
+      const leak = await tx.select().from(contacts);
+      return { rows, after, leak };
+    });
+    const rows = result.rows.rows as Array<{ tenant_id: string; enabled: boolean }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.tenant_id).toBe(tenantB);
+    expect((result.after.rows as Array<{ on: boolean }>)[0]?.on).toBe(false);
+    expect(result.leak).toHaveLength(0);
+    const none = await dbs.app.execute(
+      sql`select * from app_resolve_public_endpoint(${"form"}, ${key})`,
+    );
+    expect(none.rows).toHaveLength(0);
   });
 });

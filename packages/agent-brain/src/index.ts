@@ -79,3 +79,17 @@ export {
   type OutgoingMessage,
 } from "./notifications";
 export { isOpenNow, transferTarget, type TransferSettings } from "./transfer";
+export {
+  handleInboundMessage,
+  openThread,
+  recordHumanReply,
+  resolvePublicEndpoint,
+  setThreadMode,
+  THREAD_IDLE_MS,
+  type ChannelTurnDeps,
+  type ChannelTurnResult,
+  type PublicEndpoint,
+  type TextChannel,
+  type ThreadIdentity,
+  type ThreadRow,
+} from "./channels";
