@@ -30,8 +30,13 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
     LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET,
   );
-  // Twilio origination can't authenticate to LiveKit, so optionally restrict the source to
-  // Twilio's published signalling ranges (comma-separated CIDRs).
+  // Twilio TwiML <Dial><Sip> sends a username and password; trunks then reject anything
+  // without them. (Elastic SIP Trunking origination can't authenticate; use the address
+  // allow-list for that instead.)
+  const auth =
+    env.SIP_AUTH_USERNAME && env.SIP_AUTH_PASSWORD
+      ? { authUsername: env.SIP_AUTH_USERNAME, authPassword: env.SIP_AUTH_PASSWORD }
+      : {};
   const allowedAddresses = (env.SIP_ALLOWED_ADDRESSES ?? "")
     .split(",")
     .map((s) => s.trim())
@@ -41,6 +46,7 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
     async createRoute({ e164, metadata }) {
       const trunk = await sip.createSipInboundTrunk(`voicedesk ${e164}`, [e164], {
         ...(allowedAddresses.length ? { allowedAddresses } : {}),
+        ...auth,
         metadata: JSON.stringify(metadata),
       });
       try {

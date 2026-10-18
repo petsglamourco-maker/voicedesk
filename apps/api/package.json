@@ -10,7 +10,8 @@
     "openapi": "tsx src/openapi.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "number:add": "tsx src/number-add.ts"
+    "number:add": "tsx src/number-add.ts",
+    "number:sync": "tsx src/number-sync.ts"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.4",

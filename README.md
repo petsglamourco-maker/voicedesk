@@ -82,6 +82,19 @@ A business connects one calendar at a time (Google or Microsoft).
 3. In VoiceDesk: **Platform admin → Phone numbers** → add the number in international format (`+44…`) and pick the business. This creates the LiveKit routing.
 4. Call the number. The call appears under **Calls** (transcript, summary, response time, and the recording if _Record calls_ is on). Owners and admins get a summary email within a minute (locally in Mailpit).
 
+**Simpler alternative (no SIP trunk), used for the first live number:** put a username and long random password in `.env` as `SIP_AUTH_USERNAME` / `SIP_AUTH_PASSWORD`, run `pnpm --filter @voicedesk/api number:sync`, then in Twilio create a TwiML Bin (Develop → TwiML Bins) containing:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Dial>
+    <Sip username="YOUR_SIP_AUTH_USERNAME" password="YOUR_SIP_AUTH_PASSWORD">sip:+44XXXXXXXXXX@YOUR-LIVEKIT-SIP-HOST;transport=tcp</Sip>
+  </Dial>
+</Response>
+```
+
+Then set the number's voice configuration to that TwiML Bin (Phone Numbers → your number → Voice configuration → "A call comes in" → TwiML Bin). Transfers (SIP REFER) need the SIP-trunk method.
+
 A business can keep its existing number by forwarding calls to the VoiceDesk number. The Calls page shows the UK forwarding codes.
 
 **Putting callers through to a person:** in Twilio, open the trunk's **General** settings and enable **Call Transfer (SIP REFER)**, allowing transfers to the PSTN. Then set a transfer number under **Assistant → Putting callers through**. Twilio bills the transferred leg per minute.
