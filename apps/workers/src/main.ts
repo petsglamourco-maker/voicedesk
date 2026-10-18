@@ -4,13 +4,16 @@ import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
 import { embeddingsFromEnv, smsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
-import { createAppLlm, SecretBox } from "@voicedesk/core";
+import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
+import { calendarsFromEnv, createAppLlm, SecretBox } from "@voicedesk/core";
 import { closeDb, createDb } from "@voicedesk/db";
 import {
   createEmailQueue,
   createNotificationQueue,
   createRedisConnection,
+  LIVE_CHANNEL,
   QUEUES,
+  type ChannelJob,
   reminderJobId,
   type NotificationJob,
   type AiJob,
@@ -21,6 +24,7 @@ import { createSafeFetcher } from "@voicedesk/knowledge";
 import { Worker } from "bullmq";
 import { z } from "zod";
 import { createAiProcessor } from "./processors/ai";
+import { createChannelProcessor } from "./processors/channels";
 import { createNotificationProcessor } from "./processors/notifications";
 import { createProcessSourceProcessor } from "./processors/process-source";
 import { createSendEmailProcessor } from "./processors/send-email";
@@ -77,6 +81,13 @@ const appLlm = createAppLlm(
 
 const emailQueue = createEmailQueue(connection);
 const notificationQueue = createNotificationQueue(connection);
+const box = SecretBox.fromEnv();
+const whatsapp = process.env.WHATSAPP_ACCESS_TOKEN
+  ? new WhatsAppCloudProvider({
+      accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+      graphVersion: process.env.WHATSAPP_GRAPH_VERSION || undefined,
+    })
+  : null;
 const sms = await smsFromEnv(email);
 
 const workers = [
@@ -90,6 +101,26 @@ const workers = [
     concurrency: 1,
     lockDuration: 10 * 60_000,
   }),
+  new Worker<ChannelJob>(
+    QUEUES.channels,
+    createChannelProcessor(
+      {
+        db,
+        llm: appLlm,
+        embeddings,
+        calendars: { box, factory: calendarsFromEnv().factory },
+        notify: async (job) => {
+          await notificationQueue.add(job.kind, job);
+        },
+        whatsapp,
+        publishLive: async (event) => {
+          await connection.publish(LIVE_CHANNEL, JSON.stringify(event));
+        },
+      },
+      log,
+    ),
+    { connection, concurrency: 4 },
+  ),
   new Worker<NotificationJob>(
     QUEUES.notifications,
     createNotificationProcessor(

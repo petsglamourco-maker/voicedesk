@@ -10,7 +10,28 @@ export const QUEUES = {
   ai: "ai",
   /** Customer confirmations and reminders (SMS/email) and staff alerts (Phase 3). */
   notifications: "notifications",
+  /** Inbound WhatsApp / email messages answered by the assistant (Phase 4). */
+  channels: "channels",
 } as const;
+
+/** Inbound customer messages on asynchronous channels (webhooks enqueue, workers answer). */
+export type ChannelJob = {
+  kind: "whatsapp.inbound";
+  tenantId: string;
+  phoneNumberId: string;
+  /** Customer's number (E.164). */
+  from: string;
+  profileName: string | null;
+  messageId: string;
+  text: string;
+};
+
+/** BullMQ job id for an inbound message: providers can deliver the same webhook twice. */
+export const channelJobId = (job: ChannelJob) =>
+  `wa-${job.messageId.replace(/[^A-Za-z0-9_-]/g, "")}`;
+
+/** Redis pub/sub channel carrying live inbox/widget events from workers to the API. */
+export const LIVE_CHANNEL = "voicedesk:live";
 
 export interface SendEmailJob {
   to: string;
@@ -117,6 +138,16 @@ export function createNotificationQueue(
   options: QueueOptions = {},
 ): Queue<NotificationJob> {
   return makeQueue<NotificationJob>(QUEUES.notifications, connection, options, DEFAULT_JOB_OPTIONS);
+}
+
+export function createChannelQueue(
+  connection: Redis,
+  options: QueueOptions = {},
+): Queue<ChannelJob> {
+  return makeQueue<ChannelJob>(QUEUES.channels, connection, options, {
+    ...DEFAULT_JOB_OPTIONS,
+    attempts: 3,
+  });
 }
 
 export function createAiQueue(connection: Redis, options: QueueOptions = {}): Queue<AiJob> {

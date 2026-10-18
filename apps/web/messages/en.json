@@ -79,7 +79,8 @@
     "integrations": "Integrations",
     "contacts": "Contacts",
     "websiteChat": "Website chat",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "whatsapp": "WhatsApp"
   },
   "roles": {
     "owner": "Owner",
@@ -632,5 +633,29 @@
     "replyPlaceholder": "Write a reply…",
     "replyTakesOver": "Write a reply (this takes over from the assistant)…",
     "send": "Send"
+  },
+  "whatsapp": {
+    "title": "WhatsApp",
+    "subtitle": "Customers message your business on WhatsApp; the assistant answers in the same way as on the phone and website, and you can take over from the Inbox.",
+    "notConnected": "No WhatsApp number yet",
+    "notConnectedHint": "Your VoiceDesk administrator connects a WhatsApp Business number for you. Once it's connected, the click-to-chat link and QR code appear here.",
+    "yourNumber": "Your WhatsApp number",
+    "link": "Click-to-chat link",
+    "linkHint": "Put this link on your website, emails and social profiles. It opens a WhatsApp chat with your business.",
+    "windowNote": "WhatsApp rule: you can reply freely within 24 hours of the customer's last message. After that, they need to message you first.",
+    "qr": "QR code",
+    "qrHint": "Print it on flyers, menus or your shop window. Scanning it opens a chat with you."
+  },
+  "whatsappAdmin": {
+    "title": "WhatsApp numbers",
+    "hint": "Connect a WhatsApp Business number from your Meta app (WhatsApp → API setup shows its Phone number ID) to a business.",
+    "notConfigured": "WhatsApp isn't configured on this server (WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN in .env).",
+    "number": "WhatsApp number",
+    "phoneNumberId": "Phone number ID",
+    "business": "Business",
+    "add": "Connect",
+    "empty": "No WhatsApp numbers connected.",
+    "remove": "Disconnect",
+    "confirmRemove": "Disconnect this WhatsApp number? Messages to it will no longer be answered."
   }
 }

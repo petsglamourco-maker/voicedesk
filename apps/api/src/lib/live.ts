@@ -35,3 +35,30 @@ class LiveHub {
 }
 
 export const live = new LiveHub();
+
+/**
+ * Forwards live events published by the workers (Redis pub/sub) into this process, e.g. a
+ * WhatsApp message the worker just answered. Returns a function that stops listening.
+ */
+export async function bridgeLiveFromRedis(
+  subscriber: {
+    subscribe(channel: string): Promise<unknown>;
+    on(event: "message", fn: (channel: string, message: string) => void): unknown;
+    quit(): Promise<unknown>;
+  },
+  channel: string,
+): Promise<() => Promise<void>> {
+  subscriber.on("message", (from, message) => {
+    if (from !== channel) return;
+    try {
+      const event = JSON.parse(message) as LiveEvent;
+      if (event.tenantId && event.threadId) live.publish(event);
+    } catch {
+      // ignore malformed events
+    }
+  });
+  await subscriber.subscribe(channel);
+  return async () => {
+    await subscriber.quit();
+  };
+}

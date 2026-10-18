@@ -9,7 +9,7 @@ import type { AuthEmail } from "@voicedesk/auth";
 import { loadRootEnv, requireEnv } from "@voicedesk/config/load-env";
 import { SecretBox, type ProviderSecrets } from "@voicedesk/core";
 import { closeDb, createDb, type Database } from "@voicedesk/db";
-import type { AiJob, NotificationJob, ProcessSourceJob } from "@voicedesk/jobs";
+import type { AiJob, ChannelJob, NotificationJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
@@ -30,6 +30,7 @@ export interface TestHarness {
     ai: AiJob[];
     recrawls: Array<[string, number | null]>;
     notifications: NotificationJob[];
+    channels: ChannelJob[];
   };
   llm: MockLlmProvider;
   storage: InMemoryObjectStorage;
@@ -41,7 +42,9 @@ export interface TestHarness {
  * run inline, so tests can assert on processed results without a worker.
  */
 export async function createHarness(
-  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars"> & { llm?: LlmProvider } = {},
+  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp"> & {
+    llm?: LlmProvider;
+  } = {},
 ): Promise<TestHarness> {
   loadRootEnv();
   const env = parseEnv({
@@ -58,7 +61,13 @@ export async function createHarness(
   const storage = new InMemoryObjectStorage();
   const embeddings = new MockEmbeddingProvider();
   const llm = new MockLlmProvider();
-  const recorded: TestHarness["jobs"] = { sources: [], ai: [], recrawls: [], notifications: [] };
+  const recorded: TestHarness["jobs"] = {
+    sources: [],
+    ai: [],
+    recrawls: [],
+    notifications: [],
+    channels: [],
+  };
   const jobs: JobDispatcher = {
     processSource: async (job) => {
       recorded.sources.push(job);
@@ -76,6 +85,10 @@ export async function createHarness(
       recorded.notifications.push(job);
       return Promise.resolve();
     },
+    dispatchChannel: (job) => {
+      recorded.channels.push(job);
+      return Promise.resolve();
+    },
   };
   const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
   const app = await buildApp({
@@ -90,6 +103,7 @@ export async function createHarness(
     tts: options.tts ?? null,
     sip: options.sip ?? null,
     calendars: options.calendars,
+    whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",

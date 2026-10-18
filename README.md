@@ -99,6 +99,19 @@ A business can keep its existing number by forwarding calls to the VoiceDesk num
 
 **Putting callers through to a person:** in Twilio, open the trunk's **General** settings and enable **Call Transfer (SIP REFER)**, allowing transfers to the PSTN. Then set a transfer number under **Assistant → Putting callers through**. Twilio bills the transferred leg per minute.
 
+## WhatsApp (free test number)
+
+1. Go to [Meta for Developers](https://developers.facebook.com) → **My Apps → Create app** → type **Business**, then add the **WhatsApp** product. Meta gives you a free **test number**.
+2. **WhatsApp → API setup**: add your own mobile under "To" as a test recipient, and note the **Phone number ID** and the temporary **access token**.
+3. **App settings → Basic**: copy the **App secret**.
+4. In `.env` (never in chat): `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, and a long random `WHATSAPP_VERIFY_TOKEN` you make up. Restart `pnpm dev`.
+5. Install the tunnel tool once: `winget install --id Cloudflare.cloudflared`. Then run `pnpm tunnel` and copy the "WhatsApp callback URL" it prints. Only the webhook path is reachable through it.
+6. Meta app → **WhatsApp → Configuration → Webhook**: paste the callback URL and your verify token, **Verify and save**, then subscribe to the **messages** field.
+7. VoiceDesk **Platform admin → Phone numbers → WhatsApp numbers**: add the test number with its Phone number ID and pick the business.
+8. Message the test number from your phone. The assistant replies, and the conversation appears in **Inbox**.
+
+The quick-tunnel address changes each time `pnpm tunnel` starts, so update it in Meta when it does. Temporary access tokens expire after about a day; create a System User token for longer use.
+
 ## Checks
 
 ```bash

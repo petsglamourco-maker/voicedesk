@@ -19,14 +19,20 @@ import {
   createAiQueue,
   createEmailQueue,
   createNotificationQueue,
+  createChannelQueue,
+  channelJobId,
+  LIVE_CHANNEL,
   createKnowledgeQueue,
   createRedisConnection,
   scheduleRecrawl,
   type AiJob,
   type NotificationJob,
+  type ChannelJob,
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
 import type { Env } from "./env";
+import { whatsAppSettingsFromEnv, type WhatsAppSettings } from "./routes/whatsapp";
+import { bridgeLiveFromRedis } from "./lib/live";
 import { sipGatewayFromEnv, type SipGateway } from "./lib/sip";
 import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
 
@@ -63,6 +69,8 @@ export interface JobDispatcher {
   enqueueAi(job: AiJob): Promise<void>;
   /** Customer confirmations, reminders and staff alerts (apps/workers notifications queue). */
   notify(job: NotificationJob): Promise<void>;
+  /** Inbound WhatsApp/email messages for the workers to answer (deduplicated by message). */
+  dispatchChannel(job: ChannelJob): Promise<void>;
 }
 
 export interface Container {
@@ -83,6 +91,8 @@ export interface Container {
   sip?: SipGateway | null;
   /** Calendar integrations (Phase 3): Google OAuth client and provider factory. */
   calendars?: CalendarIntegrations;
+  /** WhatsApp Cloud API credentials (platform-level). */
+  whatsapp?: WhatsAppSettings;
   /** Signs OAuth `state` values (the Better Auth secret). */
   oauthStateSecret: string;
   checkRedis: () => Promise<boolean>;
@@ -97,6 +107,8 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const knowledgeQueue = createKnowledgeQueue(redis);
   const aiQueue = createAiQueue(redis);
   const notificationQueue = createNotificationQueue(redis);
+  const channelQueue = createChannelQueue(redis);
+  const stopLiveBridge = await bridgeLiveFromRedis(redis.duplicate(), LIVE_CHANNEL);
   const auth = createAppAuth(env, db, async (email) => {
     await emailQueue.add(email.kind, email);
   });
@@ -118,6 +130,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     tts: await ttsFromEnv(),
     sip: sipGatewayFromEnv(),
     calendars: calendarsFromEnv(),
+    whatsapp: whatsAppSettingsFromEnv(),
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
@@ -131,6 +144,9 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
       notify: async (job) => {
         await notificationQueue.add(job.kind, job);
       },
+      dispatchChannel: async (job) => {
+        await channelQueue.add(job.kind, job, { jobId: channelJobId(job) });
+      },
     },
     checkRedis: async () => (await redis.ping()) === "PONG",
     close: async () => {
@@ -139,6 +155,8 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
         knowledgeQueue.close(),
         aiQueue.close(),
         notificationQueue.close(),
+        channelQueue.close(),
+        stopLiveBridge(),
       ]);
       redis.disconnect();
       await closeDb(db);
