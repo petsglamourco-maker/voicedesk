@@ -16,6 +16,12 @@ interface CallsResponse {
     turns: number;
     medianMs: number | null;
     p90Ms: number | null;
+    byCarrier: Array<{
+      carrier: string;
+      calls: number;
+      medianMs: number | null;
+      p90Ms: number | null;
+    }>;
   };
 }
 
@@ -105,6 +111,24 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
           <p className="mt-3 text-xs text-muted-foreground">
             {t("latencyHint", { calls: data.latency.calls, turns: data.latency.turns })}
           </p>
+          {data.latency.byCarrier.length > 0 ? (
+            <div className="mt-3 border-t border-border pt-3" data-testid="latency-by-carrier">
+              <p className="text-xs text-muted-foreground">{t("carrierCompare")}</p>
+              <ul className="mt-1 space-y-1 text-sm">
+                {data.latency.byCarrier.map((c) => (
+                  <li key={c.carrier} className="flex items-center gap-2">
+                    <span className="w-16 capitalize">{c.carrier}</span>
+                    <Badge className={latencyTone(c.medianMs)}>
+                      {c.medianMs === null ? "—" : `${c.medianMs} ms`}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {t("carrierCalls", { count: c.calls })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </Card>
       </div>
 
@@ -137,6 +161,7 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
                         })}
                       </Link>
                       {c.test ? <Badge className="ms-2">{t("test")}</Badge> : null}
+                      {c.carrier ? <Badge className="ms-2 capitalize">{c.carrier}</Badge> : null}
                       {c.status === "active" ? (
                         <Badge className="ms-2 border-success/40 text-success">{t("live")}</Badge>
                       ) : null}

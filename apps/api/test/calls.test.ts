@@ -1,5 +1,5 @@
 import { createConversation, loadAgentContext } from "@voicedesk/agent-brain";
-import { conversations, withTenant } from "@voicedesk/db";
+import { conversations, phoneNumbers, user, withPlatformAccess, withTenant } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { maskPhone, percentile } from "../src/routes/calls";
@@ -19,6 +19,21 @@ beforeAll(async () => {
     callerPhone: "+447700900123",
   });
   callId = created.conversationId;
+  // The call came in on a Telnyx number.
+  const [me] = await h.db.select({ id: user.id }).from(user).where(eq(user.email, owner.email));
+  const [number] = await withPlatformAccess(
+    h.db,
+    { actorUserId: me!.id, reason: "test number" },
+    (tx) =>
+      tx
+        .insert(phoneNumbers)
+        .values({
+          tenantId: owner.tenantId,
+          e164: `+4420${Math.floor(10_000_000 + Math.random() * 89_999_999)}`,
+          provider: "telnyx",
+        })
+        .returning(),
+  );
   const key = `tenants/${owner.tenantId}/recordings/${callId}.wav`;
   await h.storage.put({ key, body: new Uint8Array([82, 73, 70, 70]), contentType: "audio/wav" });
   await withTenant(h.db, owner.tenantId, (tx) =>
@@ -28,6 +43,7 @@ beforeAll(async () => {
         status: "ended",
         endedAt: new Date(Date.now() + 65_000),
         recordingKey: key,
+        phoneNumberId: number!.id,
         voiceMetrics: {
           turns: [{ totalMs: 900 }, { totalMs: 1100 }, { totalMs: 2000 }, {}],
           medianMs: 1100,
@@ -51,7 +67,12 @@ interface CallList {
     hasRecording: boolean;
     test: boolean;
   }>;
-  latency: { medianMs: number; p90Ms: number; turns: number };
+  latency: {
+    medianMs: number;
+    p90Ms: number;
+    turns: number;
+    byCarrier: Array<{ carrier: string; calls: number; medianMs: number }>;
+  };
 }
 
 describe("call log", () => {
@@ -72,6 +93,10 @@ describe("call log", () => {
     });
     expect(body.calls[0]!.durationSeconds).toBeGreaterThanOrEqual(64);
     expect(body.latency).toMatchObject({ turns: 3, medianMs: 1100, p90Ms: 2000 });
+    expect(body.calls[0]).toMatchObject({ carrier: "telnyx" });
+    expect(body.latency.byCarrier).toEqual([
+      { carrier: "telnyx", calls: 1, medianMs: 1100, p90Ms: 2000 },
+    ]);
   });
 
   it("shows the transcript and plays the recording", async () => {

@@ -27,7 +27,11 @@ export function percentile(values: number[], p: number): number | null {
 
 type ConversationRow = typeof conversations.$inferSelect;
 
-function callView(row: ConversationRow, e164: string | null, showPhone: boolean) {
+function callView(
+  row: ConversationRow,
+  number: { e164: string | null; carrier: string | null },
+  showPhone: boolean,
+) {
   const state = row.state as unknown as ConversationState;
   const summary = (row.summary ?? null) as { intent?: string; outcome?: string } | null;
   return {
@@ -41,7 +45,9 @@ function callView(row: ConversationRow, e164: string | null, showPhone: boolean)
       : null,
     language: row.language,
     flow: state.flow,
-    calledNumber: e164,
+    calledNumber: number.e164,
+    /** Phone calls: which carrier delivered it (twilio / telnyx); null for browser tests. */
+    carrier: number.e164 ? (number.carrier ?? "twilio") : null,
     callerPhone: maskPhone(state.callerPhone ?? null, showPhone),
     callerWithheld: row.callerNumberWithheld,
     records: state.records ?? [],
@@ -76,15 +82,16 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
       const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
       return withTenant(deps.db, access.tenantId, async (tx) => {
         const rows = await tx
-          .select({ call: conversations, e164: phoneNumbers.e164 })
+          .select({ call: conversations, e164: phoneNumbers.e164, carrier: phoneNumbers.provider })
           .from(conversations)
           .leftJoin(phoneNumbers, eq(conversations.phoneNumberId, phoneNumbers.id))
           .where(and(eq(conversations.tenantId, access.tenantId), eq(conversations.style, "voice")))
           .orderBy(desc(conversations.startedAt))
           .limit(100);
         const recent = await tx
-          .select({ metrics: conversations.voiceMetrics })
+          .select({ metrics: conversations.voiceMetrics, carrier: phoneNumbers.provider })
           .from(conversations)
+          .leftJoin(phoneNumbers, eq(conversations.phoneNumberId, phoneNumbers.id))
           .where(
             and(
               eq(conversations.tenantId, access.tenantId),
@@ -92,19 +99,33 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
               gte(conversations.startedAt, since),
             ),
           );
-        const totals = recent.flatMap((c) =>
+        const turnTotals = (c: (typeof recent)[number]) =>
           (c.metrics?.turns ?? [])
             .map((t) => t.totalMs)
-            .filter((v): v is number => typeof v === "number"),
-        );
+            .filter((v): v is number => typeof v === "number");
+        const totals = recent.flatMap(turnTotals);
+        // Phone calls per carrier, to compare Twilio and Telnyx side by side.
+        const byCarrier = [...new Set(recent.flatMap((c) => (c.carrier ? [c.carrier] : [])))]
+          .sort()
+          .map((carrier) => {
+            const calls = recent.filter((c) => c.carrier === carrier);
+            const values = calls.flatMap(turnTotals);
+            return {
+              carrier,
+              calls: calls.length,
+              medianMs: percentile(values, 50),
+              p90Ms: percentile(values, 90),
+            };
+          });
         return {
-          calls: rows.map((x) => callView(x.call, x.e164, showPhone)),
+          calls: rows.map((x) => callView(x.call, x, showPhone)),
           latency: {
             days: 7,
             calls: recent.length,
             turns: totals.length,
             medianMs: percentile(totals, 50),
             p90Ms: percentile(totals, 90),
+            byCarrier,
           },
         };
       });
@@ -130,7 +151,7 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
       const showPhone = can(access.role, "contacts:read");
       return withTenant(deps.db, access.tenantId, async (tx) => {
         const [found] = await tx
-          .select({ call: conversations, e164: phoneNumbers.e164 })
+          .select({ call: conversations, e164: phoneNumbers.e164, carrier: phoneNumbers.provider })
           .from(conversations)
           .leftJoin(phoneNumbers, eq(conversations.phoneNumberId, phoneNumbers.id))
           .where(
@@ -152,7 +173,7 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
           .where(eq(conversationMessages.conversationId, found.call.id))
           .orderBy(asc(conversationMessages.id));
         return {
-          ...callView(found.call, found.e164, showPhone),
+          ...callView(found.call, found, showPhone),
           summary: found.call.summary,
           latency: found.call.voiceMetrics,
           messages,

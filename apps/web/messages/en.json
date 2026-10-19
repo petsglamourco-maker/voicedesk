@@ -447,14 +447,16 @@
     "colTurnEnd": "Turn end",
     "colReply": "Reply",
     "colVoice": "Voice",
-    "colTotal": "Total"
+    "colTotal": "Total",
+    "carrierCompare": "By carrier (phone calls, 7 days)",
+    "carrierCalls": "{count, plural, one {# call} other {# calls}}"
   },
   "phoneNumbers": {
     "title": "Phone numbers",
-    "subtitle": "Numbers bought in Twilio and the business each one rings. Calls are answered by that business's assistant.",
+    "subtitle": "Numbers bought in Twilio or Telnyx and the business each one rings. Calls are answered by that business's assistant.",
     "notConfigured": "LiveKit isn't configured (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET in .env), so numbers can't be routed.",
     "addTitle": "Add a number",
-    "addHint": "Buy the number in Twilio first and attach it to your Elastic SIP trunk (see the setup steps below). Adding it here creates the LiveKit routing.",
+    "addHint": "Buy the number at the carrier first and point its calls at LiveKit (see the setup steps below). Adding it here creates the LiveKit routing.",
     "number": "Number (international format)",
     "business": "Business",
     "label": "Label",
@@ -467,12 +469,17 @@
     "disable": "Switch off",
     "enable": "Switch on",
     "remove": "Remove",
-    "confirmRemove": "Remove this number? Calls to it will stop being answered. Release it in Twilio separately if you no longer need it.",
-    "setupTitle": "One-time Twilio setup",
-    "setup1": "In Twilio: Elastic SIP Trunking → Trunks → create a trunk.",
-    "setup2": "Origination → add the URI sip:<your LiveKit SIP host>;transport=tcp (LiveKit Cloud → Project settings → SIP URI).",
-    "setup3": "Phone Numbers → buy a UK number (needs an address bundle) and attach it to the trunk.",
-    "setup4": "Add the number here and assign it to a business, then call it."
+    "confirmRemove": "Remove this number? Calls to it will stop being answered. Release it at the carrier separately if you no longer need it.",
+    "carrier": "Carrier",
+    "twilioSetupTitle": "Twilio setup",
+    "twilioSetup1": "Set SIP_AUTH_USERNAME and SIP_AUTH_PASSWORD in .env (Twilio sends them with each call; LiveKit rejects calls without them).",
+    "twilioSetup2": "Twilio → TwiML Bins: create a bin that dials sip:<the number>@<your LiveKit SIP host>;transport=tcp with that username and password (see the README).",
+    "twilioSetup3": "Phone Numbers → your number → Voice: \"A call comes in\" → TwiML Bin → choose the bin.",
+    "telnyxSetupTitle": "Telnyx setup",
+    "telnyxSetup1": "Telnyx → Voice → SIP Trunking: create an FQDN connection to your LiveKit SIP host, port 5060, TCP, number format +E.164, inbound region Europe.",
+    "telnyxSetup2": "Numbers: buy a UK number (Telnyx checks ID and a UK address first, about 3 days) and assign it to that connection.",
+    "telnyxSetup3": "Choose Telnyx as the carrier when adding it here. Its route only accepts calls from Telnyx's servers.",
+    "setupLast": "Add the number here, assign it to a business, then call it."
   },
   "integrations": {
     "title": "Integrations",

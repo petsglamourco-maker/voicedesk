@@ -5,8 +5,8 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
-import { registerPhoneNumber } from "../lib/phone-numbers";
-import type { SipGateway } from "../lib/sip";
+import { carrierOf, registerPhoneNumber } from "../lib/phone-numbers";
+import { PHONE_CARRIERS, type SipGateway } from "../lib/sip";
 import { requireTenantAccess } from "./guards";
 import { requirePlatformOwner } from "./platform";
 
@@ -20,6 +20,7 @@ const numberView = z.object({
   tenantId: z.string(),
   e164: z.string(),
   label: z.string().nullable(),
+  carrier: z.enum(PHONE_CARRIERS),
   status: z.string(),
   routed: z.boolean(),
   createdAt: z.date(),
@@ -31,6 +32,7 @@ const toView = (row: NumberRow) => ({
   tenantId: row.tenantId,
   e164: row.e164,
   label: row.label,
+  carrier: carrierOf(row),
   status: row.status,
   routed: Boolean(row.livekitTrunkId && row.livekitDispatchRuleId),
   createdAt: row.createdAt,
@@ -75,11 +77,12 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
     {
       schema: {
         tags,
-        summary: "Register a number bought in Twilio and route its calls to a business",
+        summary: "Register a number bought in Twilio or Telnyx and route its calls to a business",
         body: z.object({
           e164,
           tenantId: z.string().uuid(),
           label: z.string().trim().max(60).optional(),
+          carrier: z.enum(PHONE_CARRIERS).default("twilio"),
         }),
         response: { 201: numberView },
       },
@@ -139,6 +142,7 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
         if (status === "active") {
           const created = await sip.createRoute({
             e164: current.e164,
+            carrier: carrierOf(current),
             metadata: { tenantId, phoneNumberId: current.id },
           });
           route = {
@@ -169,7 +173,7 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
     {
       schema: {
         tags,
-        summary: "Stop routing a number and remove it (release it in Twilio separately)",
+        summary: "Stop routing a number and remove it (release it at the carrier separately)",
         params: z.object({ id: z.string().uuid() }),
       },
     },

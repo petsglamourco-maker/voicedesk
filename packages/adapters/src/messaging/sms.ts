@@ -70,3 +70,76 @@ export class TwilioSmsProvider implements SmsProvider {
     return { id: body.sid };
   }
 }
+
+/**
+ * Telnyx Messaging API v2 over REST. Off unless SMS_PROVIDER includes telnyx (costs money).
+ * An alphanumeric sender (e.g. "BrightDent") needs a messaging profile id.
+ */
+export class TelnyxSmsProvider implements SmsProvider {
+  readonly name = "telnyx-sms";
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(
+    private readonly options: {
+      apiKey: string;
+      messagingProfileId?: string;
+      baseUrl?: string;
+      fetch?: typeof fetch;
+    },
+  ) {
+    this.fetchImpl = options.fetch ?? fetch;
+  }
+
+  async send(message: SmsMessage): Promise<{ id: string }> {
+    const base = this.options.baseUrl ?? "https://api.telnyx.com";
+    const res = await this.fetchImpl(`${base}/v2/messages`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${this.options.apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        to: message.to,
+        from: message.from,
+        text: message.body,
+        ...(this.options.messagingProfileId
+          ? { messaging_profile_id: this.options.messagingProfileId }
+          : {}),
+      }),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).slice(0, 300);
+      throw new ProviderError(this.name, `HTTP ${res.status}: ${detail}`, {
+        retryable: res.status === 429 || res.status >= 500,
+      });
+    }
+    const body = (await res.json()) as { data: { id: string } };
+    return { id: body.data.id };
+  }
+}
+
+/**
+ * Tries each provider in order (e.g. Telnyx, then Twilio). A failure that left the first
+ * provider unsure can mean a duplicate text, never a lost one.
+ */
+export class FallbackSmsProvider implements SmsProvider {
+  readonly name: string;
+
+  constructor(private readonly providers: SmsProvider[]) {
+    if (providers.length === 0) throw new Error("FallbackSmsProvider needs a provider");
+    this.name = providers.map((p) => p.name).join(">");
+  }
+
+  async send(message: SmsMessage): Promise<{ id: string }> {
+    let lastError: unknown;
+    for (const provider of this.providers) {
+      try {
+        return await provider.send(message);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+}

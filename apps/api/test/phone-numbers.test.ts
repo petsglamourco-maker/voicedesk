@@ -1,7 +1,14 @@
 import { user } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { PhoneJobMetadata, SipGateway, SipRoute } from "../src/lib/sip";
+import {
+  sipGatewayFromEnv,
+  TELNYX_SIGNALLING_IPS,
+  type PhoneCarrier,
+  type PhoneJobMetadata,
+  type SipGateway,
+  type SipRoute,
+} from "../src/lib/sip";
 import {
   createHarness,
   createOwnerWithTenant,
@@ -10,7 +17,7 @@ import {
   type TestHarness,
 } from "./harness";
 
-const created: Array<{ e164: string; metadata: PhoneJobMetadata }> = [];
+const created: Array<{ e164: string; carrier: PhoneCarrier; metadata: PhoneJobMetadata }> = [];
 const deleted: Array<Partial<SipRoute>> = [];
 let failNext = false;
 const sip: SipGateway = {
@@ -56,16 +63,33 @@ afterAll(() => h.close());
 
 const as = (who: { cookie: string }) => ({ cookie: who.cookie, origin: ORIGIN });
 
-async function register(tenantId: string, e164 = unique()) {
+async function register(tenantId: string, e164 = unique(), carrier?: PhoneCarrier) {
   return h.app.inject({
     method: "POST",
     url: "/api/platform/phone-numbers",
     headers: as(platform),
-    payload: { e164, tenantId, label: "Main line" },
+    payload: { e164, tenantId, label: "Main line", ...(carrier ? { carrier } : {}) },
   });
 }
 
 describe("phone numbers (platform admin)", () => {
+  it("routes Telnyx numbers as Telnyx, also when the route is rebuilt", async () => {
+    const res = await register(bizA.tenantId, unique(), "telnyx");
+    const view = res.json<NumberView & { carrier: string }>();
+    expect(view.carrier).toBe("telnyx");
+    expect(created.at(-1)!.carrier).toBe("telnyx");
+    await h.app.inject({
+      method: "PATCH",
+      url: `/api/platform/phone-numbers/${view.id}`,
+      headers: as(platform),
+      payload: { tenantId: bizB.tenantId },
+    });
+    expect(created.at(-1)).toMatchObject({
+      carrier: "telnyx",
+      metadata: { tenantId: bizB.tenantId },
+    });
+  });
+
   it("registers a number and routes it to the business", async () => {
     const res = await register(bizA.tenantId);
     expect(res.statusCode).toBe(201);
@@ -74,6 +98,7 @@ describe("phone numbers (platform admin)", () => {
     expect(view.e164).toMatch(/^\+4420\d{8}$/);
     expect(created.at(-1)).toEqual({
       e164: view.e164,
+      carrier: "twilio",
       metadata: { tenantId: bizA.tenantId, phoneNumberId: view.id },
     });
 
@@ -154,5 +179,42 @@ describe("phone numbers (platform admin)", () => {
       payload: { e164: unique(), tenantId: bizA.tenantId },
     });
     expect(post.statusCode).toBe(404);
+  });
+});
+
+describe("LiveKit trunk security per carrier", () => {
+  it("Twilio trunks need the SIP login; Telnyx trunks only accept Telnyx's servers", async () => {
+    const trunks: Array<Record<string, unknown>> = [];
+    const { SipClient } = await import("livekit-server-sdk");
+    const proto = SipClient.prototype as unknown as Record<string, unknown>;
+    const original = { trunk: proto.createSipInboundTrunk, rule: proto.createSipDispatchRule };
+    proto.createSipInboundTrunk = (
+      _name: string,
+      _numbers: string[],
+      opts: Record<string, unknown>,
+    ) => {
+      trunks.push(opts);
+      return Promise.resolve({ sipTrunkId: "ST_x" });
+    };
+    proto.createSipDispatchRule = () => Promise.resolve({ sipDispatchRuleId: "SDR_x" });
+    try {
+      const gw = sipGatewayFromEnv({
+        LIVEKIT_URL: "wss://example.livekit.cloud",
+        LIVEKIT_API_KEY: "k",
+        LIVEKIT_API_SECRET: "s",
+        SIP_AUTH_USERNAME: "vd",
+        SIP_AUTH_PASSWORD: "pw",
+      })!;
+      const metadata = { tenantId: "t", phoneNumberId: "p" };
+      await gw.createRoute({ e164: "+442000000001", carrier: "twilio", metadata });
+      await gw.createRoute({ e164: "+442000000002", carrier: "telnyx", metadata });
+      expect(trunks[0]).toMatchObject({ authUsername: "vd", authPassword: "pw" });
+      expect(trunks[0]).not.toHaveProperty("allowedAddresses");
+      expect(trunks[1]).toMatchObject({ allowedAddresses: TELNYX_SIGNALLING_IPS });
+      expect(trunks[1]).not.toHaveProperty("authUsername");
+    } finally {
+      proto.createSipInboundTrunk = original.trunk;
+      proto.createSipDispatchRule = original.rule;
+    }
   });
 });

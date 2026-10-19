@@ -60,18 +60,38 @@ export async function llmFromEnv(env: Env = process.env): Promise<LlmProvider> {
 
 /**
  * SMS_PROVIDER=mailpit (default): texts are delivered as emails to Mailpit, free.
- * SMS_PROVIDER=twilio: real texts (costs money; needs TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN).
+ * SMS_PROVIDER=twilio / telnyx: real texts (costs money). A list such as "telnyx,twilio" tries
+ * them in that order. Twilio needs TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN; Telnyx needs
+ * TELNYX_API_KEY (and TELNYX_MESSAGING_PROFILE_ID for an alphanumeric sender).
  */
 export async function smsFromEnv(
   email: EmailProvider,
   env: Env = process.env,
 ): Promise<SmsProvider> {
-  const { MailpitSmsProvider, TwilioSmsProvider } = await import("./messaging/sms");
-  if (env.SMS_PROVIDER === "twilio") {
-    return new TwilioSmsProvider({
-      accountSid: required(env, "TWILIO_ACCOUNT_SID"),
-      authToken: required(env, "TWILIO_AUTH_TOKEN"),
-    });
-  }
-  return new MailpitSmsProvider(email);
+  const { FallbackSmsProvider, MailpitSmsProvider, TelnyxSmsProvider, TwilioSmsProvider } =
+    await import("./messaging/sms");
+  const names = (env.SMS_PROVIDER ?? "mailpit")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const providers: SmsProvider[] = names.map((name) => {
+    switch (name) {
+      case "twilio":
+        return new TwilioSmsProvider({
+          accountSid: required(env, "TWILIO_ACCOUNT_SID"),
+          authToken: required(env, "TWILIO_AUTH_TOKEN"),
+        });
+      case "telnyx":
+        return new TelnyxSmsProvider({
+          apiKey: required(env, "TELNYX_API_KEY"),
+          messagingProfileId: env.TELNYX_MESSAGING_PROFILE_ID || undefined,
+        });
+      case "mailpit":
+        return new MailpitSmsProvider(email);
+      default:
+        throw new Error(`Unknown SMS_PROVIDER "${name}" (use mailpit, twilio or telnyx)`);
+    }
+  });
+  if (providers.length === 0) return new MailpitSmsProvider(email);
+  return providers.length === 1 ? providers[0]! : new FallbackSmsProvider(providers);
 }

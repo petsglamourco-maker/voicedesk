@@ -95,6 +95,23 @@ A business connects one calendar at a time (Google or Microsoft).
 
 Then set the number's voice configuration to that TwiML Bin (Phone Numbers → your number → Voice configuration → "A call comes in" → TwiML Bin). Transfers (SIP REFER) need the SIP-trunk method.
 
+### Telnyx (alternative carrier)
+
+Both carriers can run side by side: each number records its carrier, and **Calls** compares response times per carrier.
+
+1. **Telnyx** (telnyx.com): create an account and add credit.
+2. **Voice → SIP Trunking → create an FQDN connection**:
+   - add your LiveKit SIP host (LiveKit Cloud → Project settings → SIP URI, without `sip:`), port 5060, transport **TCP**;
+   - inbound number format **+E.164**;
+   - inbound SIP region **Europe**.
+3. **Numbers → buy a UK number.** Telnyx needs ID and a UK address in the number's area (a utility bill under 3 months old), and approval takes about 3 days. Then assign the number to the FQDN connection.
+4. In VoiceDesk: **Platform admin → Phone numbers** → add the number with carrier **Telnyx**, or run `pnpm --filter @voicedesk/api number:add +44… <tenantId> "Main line" --telnyx`. Its LiveKit trunk only accepts calls from Telnyx's signalling servers (`TELNYX_SIP_ALLOWED_ADDRESSES` overrides the list).
+5. Call it.
+
+**Telnyx texts:** set `TELNYX_API_KEY` (plus `TELNYX_MESSAGING_PROFILE_ID` for a letters sender such as "BrightDent") and `SMS_PROVIDER=telnyx`. Use `telnyx,twilio` to fall back to Twilio. Real texts cost money, so ask first.
+
+**Transfers with Telnyx:** not yet confirmed. Test SIP REFER on the FQDN connection before relying on it.
+
 A business can keep its existing number by forwarding calls to the VoiceDesk number. The Calls page shows the UK forwarding codes.
 
 **Putting callers through to a person:** in Twilio, open the trunk's **General** settings and enable **Call Transfer (SIP REFER)**, allowing transfers to the PSTN. Then set a transfer number under **Assistant → Putting callers through**. Twilio bills the transferred leg per minute.

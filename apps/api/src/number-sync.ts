@@ -5,6 +5,7 @@
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import { closeDb, createDb, phoneNumbers, user, withPlatformAccess } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
+import { carrierOf } from "./lib/phone-numbers";
 import { sipGatewayFromEnv } from "./lib/sip";
 
 loadRootEnv();
@@ -30,6 +31,7 @@ try {
       dispatchRuleId: row.livekitDispatchRuleId ?? undefined,
     });
     const route = await sip.createRoute({
+      carrier: carrierOf(row),
       e164: row.e164,
       metadata: { tenantId: row.tenantId, phoneNumberId: row.id },
     });

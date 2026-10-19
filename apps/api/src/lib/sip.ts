@@ -7,6 +7,22 @@ export interface PhoneJobMetadata {
   phoneNumberId: string;
 }
 
+/** Who delivers the number's calls. Decides how LiveKit checks that a call is genuine. */
+export type PhoneCarrier = "twilio" | "telnyx";
+export const PHONE_CARRIERS = ["twilio", "telnyx"] as const;
+
+/**
+ * Telnyx's signalling IPs, Europe and US regions (https://sip.telnyx.com, checked
+ * 2026-10-19). Telnyx delivers inbound calls without a SIP login, so its trunks accept
+ * calls only from these addresses. Override with TELNYX_SIP_ALLOWED_ADDRESSES.
+ */
+export const TELNYX_SIGNALLING_IPS = [
+  "185.246.41.140/32",
+  "185.246.41.141/32",
+  "192.76.120.10/32",
+  "64.16.250.10/32",
+];
+
 export interface SipRoute {
   trunkId: string;
   dispatchRuleId: string;
@@ -18,7 +34,11 @@ export interface SipRoute {
  * Narrow so tests can fake it.
  */
 export interface SipGateway {
-  createRoute(params: { e164: string; metadata: PhoneJobMetadata }): Promise<SipRoute>;
+  createRoute(params: {
+    e164: string;
+    carrier: PhoneCarrier;
+    metadata: PhoneJobMetadata;
+  }): Promise<SipRoute>;
   deleteRoute(route: Partial<SipRoute>): Promise<void>;
 }
 
@@ -30,23 +50,29 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
     LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET,
   );
+  const list = (value: string | undefined) =>
+    (value ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
   // Twilio TwiML <Dial><Sip> sends a username and password; trunks then reject anything
   // without them. (Elastic SIP Trunking origination can't authenticate; use the address
   // allow-list for that instead.)
-  const auth =
+  const twilioAuth =
     env.SIP_AUTH_USERNAME && env.SIP_AUTH_PASSWORD
       ? { authUsername: env.SIP_AUTH_USERNAME, authPassword: env.SIP_AUTH_PASSWORD }
       : {};
-  const allowedAddresses = (env.SIP_ALLOWED_ADDRESSES ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const twilioAddresses = list(env.SIP_ALLOWED_ADDRESSES);
+  const telnyxAddresses = list(env.TELNYX_SIP_ALLOWED_ADDRESSES);
+  const security = (carrier: PhoneCarrier) =>
+    carrier === "telnyx"
+      ? { allowedAddresses: telnyxAddresses.length ? telnyxAddresses : TELNYX_SIGNALLING_IPS }
+      : { ...(twilioAddresses.length ? { allowedAddresses: twilioAddresses } : {}), ...twilioAuth };
 
   return {
-    async createRoute({ e164, metadata }) {
+    async createRoute({ e164, carrier, metadata }) {
       const trunk = await sip.createSipInboundTrunk(`voicedesk ${e164}`, [e164], {
-        ...(allowedAddresses.length ? { allowedAddresses } : {}),
-        ...auth,
+        ...security(carrier),
         metadata: JSON.stringify(metadata),
       });
       try {

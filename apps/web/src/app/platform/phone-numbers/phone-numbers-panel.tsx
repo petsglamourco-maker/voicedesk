@@ -21,6 +21,7 @@ interface NumberView {
   tenantId: string;
   e164: string;
   label: string | null;
+  carrier: "twilio" | "telnyx";
   status: string;
   routed: boolean;
 }
@@ -31,7 +32,7 @@ export interface PhoneNumbersResponse {
   sipConfigured: boolean;
 }
 
-/** Register numbers bought in Twilio and route them to a business (Phase 2b, ADR 0013). */
+/** Register numbers bought in Twilio or Telnyx and route them to a business (Phase 2b, ADR 0013). */
 export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }) {
   const t = useTranslations("phoneNumbers");
   const common = useTranslations("common");
@@ -63,6 +64,7 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
           e164: formString(data, "e164"),
           tenantId: formString(data, "tenantId"),
           label: formString(data, "label") || undefined,
+          carrier: formString(data, "carrier"),
         }),
       });
       setNumbers((list) => [...list, created].sort((a, b) => a.e164.localeCompare(b.e164)));
@@ -116,6 +118,13 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
             </Select>
           </div>
           <div>
+            <Label htmlFor="carrier">{t("carrier")}</Label>
+            <Select id="carrier" name="carrier" className="w-36">
+              <option value="twilio">Twilio</option>
+              <option value="telnyx">Telnyx</option>
+            </Select>
+          </div>
+          <div>
             <Label htmlFor="label">{t("label")}</Label>
             <Input
               id="label"
@@ -139,6 +148,9 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
             {numbers.map((n) => (
               <li key={n.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                 <span className="font-mono text-base">{n.e164}</span>
+                <Badge data-testid="number-carrier">
+                  {n.carrier === "telnyx" ? "Telnyx" : "Twilio"}
+                </Badge>
                 {n.label ? <span className="text-muted-foreground">{n.label}</span> : null}
                 {n.status === "active" ? (
                   n.routed ? (
@@ -187,15 +199,26 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
         )}
       </Card>
 
-      <Card>
-        <CardTitle className="text-base">{t("setupTitle")}</CardTitle>
-        <ol className="mt-3 list-decimal space-y-1 ps-5 text-sm text-muted-foreground">
-          <li>{t("setup1")}</li>
-          <li>{t("setup2")}</li>
-          <li>{t("setup3")}</li>
-          <li>{t("setup4")}</li>
-        </ol>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardTitle className="text-base">{t("twilioSetupTitle")}</CardTitle>
+          <ol className="mt-3 list-decimal space-y-1 ps-5 text-sm text-muted-foreground">
+            <li>{t("twilioSetup1")}</li>
+            <li>{t("twilioSetup2")}</li>
+            <li>{t("twilioSetup3")}</li>
+            <li>{t("setupLast")}</li>
+          </ol>
+        </Card>
+        <Card>
+          <CardTitle className="text-base">{t("telnyxSetupTitle")}</CardTitle>
+          <ol className="mt-3 list-decimal space-y-1 ps-5 text-sm text-muted-foreground">
+            <li>{t("telnyxSetup1")}</li>
+            <li>{t("telnyxSetup2")}</li>
+            <li>{t("telnyxSetup3")}</li>
+            <li>{t("setupLast")}</li>
+          </ol>
+        </Card>
+      </div>
     </div>
   );
 }

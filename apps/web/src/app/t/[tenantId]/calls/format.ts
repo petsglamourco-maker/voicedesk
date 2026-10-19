@@ -9,6 +9,8 @@ export interface CallRow {
   language: string;
   flow: string;
   calledNumber: string | null;
+  /** twilio / telnyx for phone calls; null for browser tests. */
+  carrier: string | null;
   callerPhone: string | null;
   callerWithheld: boolean;
   records: Array<{ type: string; reference: string }>;
