@@ -129,6 +129,24 @@ A business can keep its existing number by forwarding calls to the VoiceDesk num
 
 The quick-tunnel address changes each time `pnpm tunnel` starts, so update it in Meta when it does. Temporary access tokens expire after about a day; create a System User token for longer use.
 
+## Take calls in the browser (VA console, free)
+
+When a caller asks for a person, the assistant can put them through to someone in their browser, with the conversation so far on screen. No phone transfer, no extra cost.
+
+1. **Choose who answers:**
+   - a business's own members: **Team** page → tick **Answers calls**;
+   - your own VAs across businesses: **Platform admin → VAs** → their account email + the business.
+2. They open **VA console** (top right of the dashboard) and set their status to **Available**, keeping the tab open. The first click also allows the ringtone.
+3. Call the business's number and ask for a person. The console rings with the business name and why they called.
+   - **Answer** to talk.
+   - **Hand back to assistant** when done, or **Hang up**.
+4. **Calls** shows who answered, how long the caller waited, and the transcript (the caller's side).
+5. **Routing** is per business, under **Assistant → Putting callers through**:
+   - who callers reach: VA console then phone number, console only, or phone only;
+   - how long the console rings.
+
+**Outbound calls** (Call button on a contact, or **Call a customer** in the console) show the business's number. They cost per minute at the phone provider, so they stay off until an outbound trunk is set up (`SIP_OUTBOUND_TWILIO_*` or `SIP_OUTBOUND_TELNYX_*` in `.env`). Ask first.
+
 ## Answer a support mailbox (free)
 
 1. For Gmail: turn on **2-Step Verification**, then go to **Google Account → Security → App passwords** and create one. Zoho, iCloud and Yahoo work the same way. Microsoft 365 isn't supported yet.

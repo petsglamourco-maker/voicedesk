@@ -26,7 +26,13 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Email triage:** connected IMAP/SMTP mailbox polled every minute; drafts wait for approval, optional auto-send for simple answers.
   - **Form capture:** hosted `/f/<key>` form plus a webhook for existing forms.
   - **Dev tunnel:** `pnpm tunnel` exposes only `/api/webhooks/*`.
-- **Next:** Phases 5–7 (each needs plan approval). The live Twilio test is pending the owner's upgrade.
+- **Phase 2b live:** the first real phone call worked on 2026-10-20 (Twilio +44 23 8272 1976 via TwiML Bin). Telnyx is built as a second carrier (per-number `provider`).
+- **Phase 5 (human VA console): built** (ADR 0018):
+  - **VAs across businesses** (Platform admin → VAs) and a Team-page "Answers calls" toggle, with presence and heartbeat;
+  - **`/va` console:** ringing calls with atomic answer, browser softphone, live transcript and context, hand back / hang up; chats needing a person across businesses;
+  - **handoff routing** per business (`people_then_phone` default); handoff timeline on the call page and in the summary email;
+  - **outbound calls** with the business's caller ID, built but off until `SIP_OUTBOUND_*` is set (costs money).
+- **Next:** Phase 6 (outbound, feedback, VA assistant), then Phase 7. Each needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
 
 ## Layout
 
@@ -140,6 +146,10 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **VA console handoff** (ADR 0018):
+  - People from the console join call rooms as `va-<userId>`, and the voice worker keys off that prefix.
+  - Keep `session.start({ inputOptions: { participantIdentity: callerIdentity } })`, or the assistant may answer the person instead of the caller.
+  - Handoff status changes must stay conditional updates (`claimHandoff` / `moveHandoff`).
 - **Phone routing:** one LiveKit inbound trunk and dispatch rule per number. The dispatch metadata `{ tenantId, phoneNumberId }` tells the worker which business a call is for. Reassigning or disabling a number rebuilds the route. `phone_numbers` is platform-write-only (RLS).
 - **Recordings never leave our infrastructure:** `session.start({ record: false })` (otherwise LiveKit Cloud would receive session reports), and the in-process `CallRecorder` + `TeeAudioOutput` write `tenants/<id>/recordings/<conversationId>.wav`. Only when `agent_settings.record_calls` is on, which also adds the spoken notice.
 - **Notifications:** agent services take an optional `notify` hook and only report events. All "who gets what" logic lives in `agent-brain/src/notifications.ts` planners; `apps/workers` just sends. Never log message text or phone numbers.

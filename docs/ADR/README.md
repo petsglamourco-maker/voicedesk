@@ -21,5 +21,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0015](0015-notifications-and-transfers.md)    | Notifications and call transfers                     | Accepted           |
 | [0016](0016-channels-threads-takeover.md)      | Text channels, threads and human takeover            | Accepted           |
 | [0017](0017-whatsapp-email-forms-ingestion.md) | WhatsApp, email and form ingestion                   | Accepted           |
+| [0018](0018-human-handoff-va-console.md)       | Human handoff and the VA console                     | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.
