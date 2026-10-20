@@ -32,7 +32,12 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **`/va` console:** ringing calls with atomic answer, browser softphone, live transcript and context, hand back / hang up; chats needing a person across businesses;
   - **handoff routing** per business (`people_then_phone` default); handoff timeline on the call page and in the summary email;
   - **outbound calls** with the business's caller ID, built but off until `SIP_OUTBOUND_*` is set (costs money).
-- **Next:** Phase 6 (outbound, feedback, VA assistant), then Phase 7. Each needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
+- **Phase 6 (outbound, feedback, VA assistant): built** (ADRs 0019, 0020):
+  - **AI outbound calls:** callbacks and booking confirmations through an API-side dialler with compliance checks, voicemail handling and retries. Off by default; needs an outbound trunk (costs money).
+  - **CSAT/NPS surveys:** buttons in website chat, a reply in WhatsApp, a link after calls and emails; a Feedback dashboard; low-score alerts.
+  - **Daily brief:** an email at 07:30 local time.
+  - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
+- **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
 
 ## Layout
 
@@ -146,6 +151,12 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **Approval gates** (ADR 0020): the "Ask VoiceDesk" agent only ever _proposes_ (`assistant_actions` rows). Approved actions must run through the shared dashboard functions (`sendStaffReply`, `cancelBookingAsStaff`, `scheduleCallbackFor`), never their own copies.
+- **Outbound AI calls** (ADR 0019):
+  - every placement goes through `decideOutboundCall`; never dial around it;
+  - attempt status changes stay conditional updates;
+  - every opening must keep the AI disclosure.
+- **Per-business jobs scan `organization`** (the auth table, no RLS) and then use `withTenant`, rather than a cross-tenant read. Functions that scan accept an `only` list, so tests stay fast on the shared test DB.
 - **VA console handoff** (ADR 0018):
   - People from the console join call rooms as `va-<userId>`, and the voice worker keys off that prefix.
   - Keep `session.start({ inputOptions: { participantIdentity: callerIdentity } })`, or the assistant may answer the person instead of the caller.

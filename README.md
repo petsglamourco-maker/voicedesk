@@ -147,6 +147,21 @@ When a caller asks for a person, the assistant can put them through to someone i
 
 **Outbound calls** (Call button on a contact, or **Call a customer** in the console) show the business's number. They cost per minute at the phone provider, so they stay off until an outbound trunk is set up (`SIP_OUTBOUND_TWILIO_*` or `SIP_OUTBOUND_TELNYX_*` in `.env`). Ask first.
 
+## Feedback, daily brief and "Ask VoiceDesk"
+
+- **Feedback:** at the end of a website chat or WhatsApp conversation, customers are asked "How did we do?" (1–5). See **Feedback** for CSAT, NPS and comments. Low ratings email you straight away. Texting a rating link after phone calls is off by default because texts cost money (**Assistant → Customer feedback**).
+- **Daily brief:** owners and admins get one email at 07:30 with yesterday's numbers, today's bookings and what's waiting. **Assistant → Daily brief** has a preview.
+- **Ask VoiceDesk:** ask questions like "What's booked tomorrow?" or "Draft a reply to the WhatsApp customer". It prepares changes (replies, cancellations, callbacks) as cards, and nothing happens until you click **Approve**. It needs an AI provider switched on.
+
+## Calls the assistant makes (costs money: ask first)
+
+With an outbound trunk set up (`SIP_OUTBOUND_*`, see "Take calls in the browser"), the assistant can phone customers itself:
+
+- it calls back people who asked for a callback;
+- it confirms bookings the day before (instead of the reminder text).
+
+Switch these on under **Assistant → Calls the assistant makes**. It calls only between 8am and 9pm, never contacts marked "Don't phone", makes at most two attempts, and leaves a short voicemail with your number. **Records → Assistant calls back** schedules one by hand. **Calls** lists planned calls and their results.
+
 ## Answer a support mailbox (free)
 
 1. For Gmail: turn on **2-Step Verification**, then go to **Google Account → Security → App passwords** and create one. Zoho, iCloud and Yahoo work the same way. Microsoft 365 isn't supported yet.
