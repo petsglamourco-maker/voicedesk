@@ -394,7 +394,7 @@ export function EmptyState(props: {
 
 /** Slow-drifting aurora behind the app (static when reduced motion is on). */
 export function AuroraBackground(props: { className?: string; intensity?: "soft" | "vivid" }) {
-  const opacity = props.intensity === "vivid" ? "opacity-[0.32]" : "opacity-[0.2]";
+  const opacity = props.intensity === "vivid" ? "opacity-[0.45]" : "opacity-[0.3]";
   return (
     <div
       aria-hidden
