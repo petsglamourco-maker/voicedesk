@@ -146,5 +146,6 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Per-turn channel instructions** (`state.transfer`, `state.endRequested`) are cleared at the start of every `runTurn`. Never persist them across turns, or a later turn repeats the transfer or hang-up.
 - **Booking changes** are gated by turn order in `tools.ts`: cancel needs a later turn than `find_booking`; reschedule needs a later turn than `check_availability`. Don't replace this with a "call twice" confirmation, which made models ask twice or claim success after a refusal (evals 2026-10-18).
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
+- **LiveKit logs what the assistant says** (`lk.pii.message`) at info level. The voice-agent scripts pass `--log-level warn` to its logger (our own `createLogger` is separate). Keep it that way so transcripts stay out of logs.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

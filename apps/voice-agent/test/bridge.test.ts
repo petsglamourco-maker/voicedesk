@@ -166,6 +166,13 @@ describe("EngineBridge", () => {
     );
     expect(text).toBe("Just a moment. Found it.");
     expect(reported.at(-1)?.filler).toBe(true);
+    expect(bridge.lastTurnHadFiller).toBe(true);
+    // The next slow reply uses different words.
+    inner.enqueue(MockLlmProvider.text("Here you go."));
+    const second = await readAll(
+      engineReplyStream(bridge, "And the address?", { pending: () => ({}), report: () => {} }, 30),
+    );
+    expect(second).toBe("One second, please. Here you go.");
   });
 
   it("reports a language switch so speech recognition and TTS follow it", async () => {

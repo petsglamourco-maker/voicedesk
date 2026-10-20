@@ -46,6 +46,10 @@ export interface TurnTimings {
 export class EngineBridge {
   private state: ConversationState;
   private queue: Promise<unknown> = Promise.resolve();
+  /** Hold-on phrases spoken so far in this call (picks the next variant). */
+  fillersSpoken = 0;
+  /** Whether the previous reply needed a hold-on phrase (the next one waits longer). */
+  lastTurnHadFiller = false;
 
   constructor(
     private readonly deps: BridgeDeps,

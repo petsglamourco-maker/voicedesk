@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx src/main.ts dev",
-    "start": "tsx src/main.ts start",
+    "dev": "tsx src/main.ts dev --log-level warn",
+    "start": "tsx src/main.ts start --log-level warn",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

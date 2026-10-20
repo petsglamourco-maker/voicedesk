@@ -36,8 +36,14 @@ export interface TimingHooks {
   report: (timings: TurnTimings) => void;
 }
 
-/** After this long without reply text, say a short hold-on phrase (lookups take 2–5 s). */
-export const FILLER_AFTER_MS = 1000;
+/**
+ * After this long without reply text, say a short hold-on phrase (lookups take 2–5 s). An
+ * ordinary answer usually starts within 2 s, so it doesn't get one (the 2026-10-20 phone
+ * test on 1 s said "Just a moment" on 12 of 14 turns).
+ */
+export const FILLER_AFTER_MS = 2000;
+/** Right after a turn that needed one, wait longer: back-to-back fillers sound robotic. */
+export const REPEAT_FILLER_AFTER_MS = 3500;
 
 /**
  * Turns one caller utterance into a text stream for TTS by running a full engine turn.
@@ -47,8 +53,10 @@ export function engineReplyStream(
   bridge: EngineBridge,
   callerText: string,
   hooks: TimingHooks,
-  fillerAfterMs: number = FILLER_AFTER_MS,
+  fillerAfterMs?: number,
 ): ReadableStream<string> {
+  const fillerDelay =
+    fillerAfterMs ?? (bridge.lastTurnHadFiller ? REPEAT_FILLER_AFTER_MS : FILLER_AFTER_MS);
   const startedAt = Date.now();
   const timings: TurnTimings = { ...hooks.pending() };
   let open = true;
@@ -63,8 +71,8 @@ export function engineReplyStream(
         if (!open || timings.llmFirstTextMs !== undefined) return;
         timings.filler = true;
         firstText();
-        controller.enqueue(`${holdOnPhrase(bridge.language)} `);
-      }, fillerAfterMs);
+        controller.enqueue(`${holdOnPhrase(bridge.language, bridge.fillersSpoken++)} `);
+      }, fillerDelay);
       void bridge
         .handleTurn(
           callerText,
@@ -83,6 +91,7 @@ export function engineReplyStream(
         })
         .finally(() => {
           clearTimeout(filler);
+          bridge.lastTurnHadFiller = timings.filler === true;
           if (open) controller.close();
           open = false;
         });

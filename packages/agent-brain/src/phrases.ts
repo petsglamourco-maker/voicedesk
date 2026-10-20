@@ -44,18 +44,23 @@ export function recordingNotice(lang: Lang): string {
   return RECORDING_NOTICE[lang];
 }
 
-/** Spoken when a voice reply is slow (e.g. a lookup), so the caller isn't left in silence. */
-const HOLD_ON: Record<Lang, string> = {
-  en: "Just a moment.",
-  es: "Un momento.",
-  fr: "Un instant.",
-  de: "Einen Moment.",
-  zh: "请稍等。",
-  ar: "لحظة من فضلك.",
+/**
+ * Spoken when a voice reply is slow (e.g. a lookup), so the caller isn't left in silence.
+ * Rotated so the same words never come twice in a row.
+ */
+const HOLD_ON: Record<Lang, string[]> = {
+  en: ["Just a moment.", "One second, please.", "Let me just check."],
+  es: ["Un momento.", "Un segundo, por favor.", "Déjeme comprobarlo."],
+  fr: ["Un instant.", "Une seconde, s'il vous plaît.", "Je vérifie."],
+  de: ["Einen Moment.", "Eine Sekunde, bitte.", "Ich schaue kurz nach."],
+  zh: ["请稍等。", "稍等一下。", "我查一下。"],
+  ar: ["لحظة من فضلك.", "ثانية واحدة من فضلك.", "دعني أتحقق."],
 };
 
-export function holdOnPhrase(lang: Lang): string {
-  return HOLD_ON[lang];
+/** The `n`th hold-on phrase of the call (0, 1, 2…), cycling through the variants. */
+export function holdOnPhrase(lang: Lang, n = 0): string {
+  const phrases = HOLD_ON[lang];
+  return phrases[n % phrases.length]!;
 }
 
 /** Phone silence handling: a check after a quiet spell, then a goodbye before hanging up. */
