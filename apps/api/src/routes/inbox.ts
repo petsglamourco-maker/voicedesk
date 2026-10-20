@@ -13,7 +13,7 @@ import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
 import { live } from "../lib/live";
-import { requireTenantAccess } from "./guards";
+import { requireTenantAccess, type TenantAccess } from "./guards";
 import { canEmailReply } from "./mailbox";
 
 const params = z.object({ tenantId: z.string() });
@@ -280,58 +280,7 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "inbox:reply",
       );
-      const [current] = await withTenant(deps.db, access.tenantId, (tx) =>
-        tx
-          .select()
-          .from(channelThreads)
-          .where(
-            and(
-              eq(channelThreads.id, request.params.threadId),
-              eq(channelThreads.tenantId, access.tenantId),
-            ),
-          ),
-      );
-      if (!current) throw notFound();
-      const sender = deps.channelSenders?.[current.channel as TextChannel];
-      if (!sender) {
-        throw new HttpError(
-          409,
-          "CHANNEL_CANNOT_REPLY",
-          "Replies on this channel aren't set up yet",
-        );
-      }
-      if (current.mode !== "human") {
-        await changeMode(access.tenantId, current.id, "human", access.session.user.id);
-      }
-      const author = {
-        userId: access.session.user.id,
-        name: access.session.user.name.split(" ")[0] ?? "Team",
-      };
-      const sent = await recordHumanReply(
-        deps.db,
-        access.tenantId,
-        current.id,
-        author,
-        request.body.text,
-      );
-      if (!sent) throw notFound();
-      await sender.send({
-        tenantId: access.tenantId,
-        threadId: current.id,
-        channel: sent.channel,
-        externalId: sent.externalId,
-        text: request.body.text,
-        authorName: author.name,
-      });
-      live.publish({
-        tenantId: access.tenantId,
-        threadId: current.id,
-        type: "message",
-        role: "agent",
-        human: true,
-        authorName: author.name,
-        text: request.body.text,
-      });
+      await sendStaffReply(deps, access, request.params.threadId, request.body.text);
       return { sent: true };
     },
   );
@@ -367,4 +316,67 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
       });
     },
   );
+}
+
+/**
+ * A person's reply on a customer's thread: takes the thread over if the assistant had it,
+ * saves the reply and sends it on the customer's channel. Used by the Inbox and by approved
+ * "Ask VoiceDesk" replies.
+ */
+export async function sendStaffReply(
+  deps: AppDeps,
+  access: TenantAccess,
+  threadId: string,
+  text: string,
+): Promise<void> {
+  const [current] = await withTenant(deps.db, access.tenantId, (tx) =>
+    tx
+      .select()
+      .from(channelThreads)
+      .where(and(eq(channelThreads.id, threadId), eq(channelThreads.tenantId, access.tenantId))),
+  );
+  if (!current) throw notFound();
+  const sender = deps.channelSenders?.[current.channel as TextChannel];
+  if (!sender) {
+    throw new HttpError(409, "CHANNEL_CANNOT_REPLY", "Replies on this channel aren't set up yet");
+  }
+  if (current.mode !== "human") {
+    const thread = await setThreadMode(
+      deps.db,
+      access.tenantId,
+      current.id,
+      "human",
+      access.session.user.id,
+    );
+    if (thread)
+      live.publish({
+        tenantId: access.tenantId,
+        threadId: current.id,
+        type: "mode",
+        mode: "human",
+      });
+  }
+  const author = {
+    userId: access.session.user.id,
+    name: access.session.user.name.split(" ")[0] ?? "Team",
+  };
+  const sent = await recordHumanReply(deps.db, access.tenantId, current.id, author, text);
+  if (!sent) throw notFound();
+  await sender.send({
+    tenantId: access.tenantId,
+    threadId: current.id,
+    channel: sent.channel,
+    externalId: sent.externalId,
+    text,
+    authorName: author.name,
+  });
+  live.publish({
+    tenantId: access.tenantId,
+    threadId: current.id,
+    type: "message",
+    role: "agent",
+    human: true,
+    authorName: author.name,
+    text,
+  });
 }

@@ -20,6 +20,7 @@ export default async function TenantLayout(props: {
   const nav = [
     { href: `/t/${tenantId}`, label: t("overview") },
     { href: `/t/${tenantId}/inbox`, label: t("inbox") },
+    { href: `/t/${tenantId}/ask`, label: t("ask") },
     { href: `/t/${tenantId}/knowledge`, label: t("knowledge") },
     { href: `/t/${tenantId}/profile`, label: t("profile") },
     { href: `/t/${tenantId}/agent`, label: t("agent") },

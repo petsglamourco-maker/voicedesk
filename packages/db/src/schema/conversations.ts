@@ -547,3 +547,31 @@ export const outboundCalls = pgTable(
     index("outbound_calls_tenant_idx").on(t.tenantId, t.createdAt),
   ],
 );
+
+/**
+ * Actions the back-office assistant ("Ask VoiceDesk", Phase 6, ADR 0020) proposes. Nothing
+ * that changes data or contacts a customer runs until a person approves it.
+ */
+export const assistantActions = pgTable(
+  "assistant_actions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** Who asked (the proposal is shown to them; anyone allowed to do it may approve). */
+    requestedBy: uuid("requested_by").references(() => user.id, { onDelete: "set null" }),
+    /** "reply" | "cancel_booking" | "schedule_callback". */
+    kind: text("kind").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    /** What will happen, in plain words, for the approval card. */
+    summary: text("summary").notNull(),
+    /** pending → done / failed, or rejected. */
+    status: text("status").notNull().default("pending"),
+    result: text("result"),
+    decidedBy: uuid("decided_by").references(() => user.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("assistant_actions_tenant_idx").on(t.tenantId, t.status, t.createdAt)],
+);

@@ -163,3 +163,11 @@ export {
   type OutboundCallRow,
   type OutboundPurpose,
 } from "./outbound";
+export {
+  askBackOffice,
+  type ActionKind,
+  type AssistantActionRow,
+  type BackOfficeAnswer,
+  type BackOfficeTurn,
+  type BackOfficeUser,
+} from "./back-office";

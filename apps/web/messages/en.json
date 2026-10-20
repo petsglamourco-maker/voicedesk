@@ -84,7 +84,8 @@
     "email": "Email",
     "forms": "Forms",
     "vaConsole": "VA console",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "ask": "Ask VoiceDesk"
   },
   "roles": {
     "owner": "Owner",
@@ -925,5 +926,34 @@
     "confirmations": "Phone to confirm bookings (instead of the reminder text)",
     "cap": "Most calls per day",
     "rules": "Only between 8am and 9pm your time, never to customers marked “Don't phone”, at most two attempts per call. If nobody answers it leaves a short voicemail with your number."
+  },
+  "ask": {
+    "title": "Ask VoiceDesk",
+    "subtitle": "Ask about your bookings, calls, messages and customers, or ask it to do something. It prepares changes for you to approve; nothing happens without your click.",
+    "intro": "Try for example:",
+    "example1": "What's booked for tomorrow?",
+    "example2": "Which messages haven't been dealt with, and what do they want?",
+    "example3": "Draft a reply to the WhatsApp customer waiting for us.",
+    "placeholder": "Ask a question or say what you need…",
+    "send": "Ask",
+    "thinking": "Looking into it…",
+    "noAnswer": "I couldn't find an answer to that.",
+    "waiting": "Waiting for your approval",
+    "approve": "Approve",
+    "reject": "Reject",
+    "edit": "Edit",
+    "cancelEdit": "Cancel edit",
+    "kind": {
+      "reply": "Reply",
+      "cancel_booking": "Cancel booking",
+      "schedule_callback": "Call back"
+    },
+    "status": {
+      "done": "Done",
+      "failed": "Didn't work",
+      "rejected": "Rejected",
+      "approving": "Working…"
+    },
+    "privacy": "Answers come only from your own VoiceDesk data. Questions are processed by the AI provider switched on for your account."
   }
 }

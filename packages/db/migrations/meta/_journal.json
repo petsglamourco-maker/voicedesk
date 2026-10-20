@@ -211,6 +211,20 @@
       "when": 1792513077529,
       "tag": "0029_outbound_calls_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792513690558,
+      "tag": "0030_assistant_actions",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792513692036,
+      "tag": "0031_assistant_actions_rls",
+      "breakpoints": true
     }
   ]
 }

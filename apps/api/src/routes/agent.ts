@@ -22,7 +22,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
-import { requireTenantAccess } from "./guards";
+import { requireTenantAccess, type TenantAccess } from "./guards";
 
 const params = z.object({ tenantId: z.string() });
 
@@ -403,52 +403,64 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "records:write",
       );
-      const [booking] = await withTenant(deps.db, access.tenantId, (tx) =>
-        tx
-          .select()
-          .from(bookings)
-          .where(
-            and(eq(bookings.id, request.params.bookingId), eq(bookings.tenantId, access.tenantId)),
-          ),
-      );
-      if (!booking) throw notFound();
-      if (booking.status !== "confirmed") {
-        throw new HttpError(409, "NOT_CONFIRMED", "This booking is already cancelled");
-      }
-      const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
-        tx.select().from(tenants).where(eq(tenants.id, access.tenantId)),
-      );
-      // Same path as the assistant cancelling: calendar event removed, customer told.
-      const services = createDbAgentServices(
-        {
-          db: deps.db,
-          embeddings: await deps.embeddings(),
-          calendars: {
-            box: deps.secrets.box,
-            factory: deps.calendars?.factory ?? null,
-            log: (msg, data) => request.log.warn(data, msg),
-          },
-          notify: (event) => deps.jobs.notify({ ...event, tenantId: access.tenantId }),
-        },
-        {
-          tenantId: access.tenantId,
-          // Not used when cancelling; bookings made outside a conversation have none.
-          conversationId: booking.conversationId ?? "",
-          businessName: tenant?.name ?? "",
-          timezone: tenant?.timezone,
-        },
-      );
-      await services.cancelBooking(booking.id);
-      await withTenant(deps.db, access.tenantId, (tx) =>
-        recordAudit(tx, {
-          tenantId: access.tenantId,
-          actorType: "user",
-          actorUserId: access.session.user.id,
-          action: "booking.cancelled",
-          metadata: { bookingId: booking.id },
-        }),
-      );
-      return { id: booking.id, status: "cancelled" };
+      return cancelBookingAsStaff(deps, access, request.params.bookingId, request.log);
     },
   );
+}
+
+/**
+ * Cancels a booking on behalf of a staff member: same path as the assistant cancelling
+ * (calendar event removed, customer told), audited. Used by Records and approved
+ * "Ask VoiceDesk" actions.
+ */
+export async function cancelBookingAsStaff(
+  deps: AppDeps,
+  access: TenantAccess,
+  bookingId: string,
+  log: { warn: (obj: object, msg: string) => void },
+): Promise<{ id: string; status: "cancelled" }> {
+  const [booking] = await withTenant(deps.db, access.tenantId, (tx) =>
+    tx
+      .select()
+      .from(bookings)
+      .where(and(eq(bookings.id, bookingId), eq(bookings.tenantId, access.tenantId))),
+  );
+  if (!booking) throw notFound();
+  if (booking.status !== "confirmed") {
+    throw new HttpError(409, "NOT_CONFIRMED", "This booking is already cancelled");
+  }
+  const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
+    tx.select().from(tenants).where(eq(tenants.id, access.tenantId)),
+  );
+  // Same path as the assistant cancelling: calendar event removed, customer told.
+  const services = createDbAgentServices(
+    {
+      db: deps.db,
+      embeddings: await deps.embeddings(),
+      calendars: {
+        box: deps.secrets.box,
+        factory: deps.calendars?.factory ?? null,
+        log: (msg, data) => log.warn(data, msg),
+      },
+      notify: (event) => deps.jobs.notify({ ...event, tenantId: access.tenantId }),
+    },
+    {
+      tenantId: access.tenantId,
+      // Not used when cancelling; bookings made outside a conversation have none.
+      conversationId: booking.conversationId ?? "",
+      businessName: tenant?.name ?? "",
+      timezone: tenant?.timezone,
+    },
+  );
+  await services.cancelBooking(booking.id);
+  await withTenant(deps.db, access.tenantId, (tx) =>
+    recordAudit(tx, {
+      tenantId: access.tenantId,
+      actorType: "user",
+      actorUserId: access.session.user.id,
+      action: "booking.cancelled",
+      metadata: { bookingId: booking.id },
+    }),
+  );
+  return { id: booking.id, status: "cancelled" };
 }
