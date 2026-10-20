@@ -151,3 +151,23 @@ describe("VA console", () => {
     expect(inbox.statusCode).toBe(404);
   });
 });
+
+describe("display name", () => {
+  it("people can change the name callers hear", async () => {
+    const person = await signUpVerified(h, "Renamed");
+    const res = await h.app.inject({
+      method: "POST",
+      url: "/api/auth/update-user",
+      headers: as(person),
+      payload: { name: "Grace Hopper" },
+    });
+    expect(res.statusCode).toBe(200);
+    const [row] = await h.db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.email, person.email));
+    expect(row?.name).toBe("Grace Hopper");
+    const me = await h.app.inject({ method: "GET", url: "/api/me", headers: as(person) });
+    expect(me.json()).toMatchObject({ user: { name: "Grace Hopper" } });
+  });
+});

@@ -120,7 +120,7 @@
     "invalid": "This invitation is invalid, has expired, or was sent to a different email address."
   },
   "account": {
-    "title": "Account security",
+    "title": "Account",
     "twoFactor": "Two-step verification",
     "twoFactorOn": "On — you'll be asked for a code from your authenticator app when you sign in.",
     "twoFactorOff": "Off. We strongly recommend turning it on.",
@@ -131,7 +131,12 @@
     "backupCodes": "Backup codes — store these somewhere safe. Each can be used once.",
     "enterCode": "Enter the 6-digit code from the app to finish",
     "finish": "Finish setup",
-    "enabled": "Two-step verification is now on."
+    "enabled": "Two-step verification is now on.",
+    "nameTitle": "Your name",
+    "nameHint": "Shown to your team. When you take a call in the VA console, the caller hears your first name (\"You're through to Sam now\").",
+    "name": "Full name",
+    "saveName": "Save name",
+    "nameSaved": "Name saved."
   },
   "knowledge": {
     "title": "Knowledge",
