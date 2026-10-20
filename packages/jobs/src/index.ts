@@ -110,7 +110,14 @@ export type NotificationJob =
       startsAt: string;
       language?: string;
     }
-  | { kind: "staff.alert"; tenantId: string; record: "ticket" | "message" | "handoff"; id: string }
+  | {
+      kind: "staff.alert";
+      tenantId: string;
+      record: "ticket" | "message" | "handoff" | "feedback";
+      id: string;
+    }
+  /** Phase 6: a finished call / email / form conversation: send the rating link. */
+  | { kind: "feedback.request"; tenantId: string; conversationId: string }
   | {
       kind: "transfer.context";
       tenantId: string;

@@ -2,9 +2,11 @@ import {
   agentSettings,
   bookings,
   channelThreads,
+  contacts,
   conversations,
   member,
   phoneNumbers,
+  feedback,
   staffMessages,
   tenants,
   tickets,
@@ -14,6 +16,7 @@ import {
 } from "@voicedesk/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { toLang, type Lang } from "./languages";
+import { openSurvey, shortSurveyQuestion, surveyLinkInvite } from "./feedback";
 import { getApprovedProfile } from "./profile-store";
 
 /**
@@ -340,6 +343,7 @@ const ALERT: Record<
     transfer: string;
     withheld: string;
     handoff: string;
+    feedback: string;
   }
 > = {
   en: {
@@ -350,6 +354,7 @@ const ALERT: Record<
     transfer: "Putting a caller through to you now",
     withheld: "number withheld",
     handoff: "A customer is asking for a person",
+    feedback: "Low rating from a customer",
   },
   es: {
     ticket: "Incidencia urgente",
@@ -359,6 +364,7 @@ const ALERT: Record<
     transfer: "Le paso una llamada ahora",
     withheld: "número oculto",
     handoff: "Un cliente pide hablar con una persona",
+    feedback: "Valoración baja de un cliente",
   },
   fr: {
     ticket: "Problème urgent",
@@ -368,6 +374,7 @@ const ALERT: Record<
     transfer: "Je vous transfère un appel",
     withheld: "numéro masqué",
     handoff: "Un client demande à parler à quelqu'un",
+    feedback: "Note faible d'un client",
   },
   de: {
     ticket: "Dringendes Anliegen",
@@ -377,6 +384,7 @@ const ALERT: Record<
     transfer: "Ich stelle Ihnen jetzt einen Anruf durch",
     withheld: "Nummer unterdrückt",
     handoff: "Ein Kunde möchte mit einer Person sprechen",
+    feedback: "Schlechte Bewertung eines Kunden",
   },
   zh: {
     ticket: "紧急问题",
@@ -386,6 +394,7 @@ const ALERT: Record<
     transfer: "正在为您转接一通来电",
     withheld: "隐藏号码",
     handoff: "有客户要求人工服务",
+    feedback: "客户给出了低评分",
   },
   ar: {
     ticket: "مشكلة عاجلة",
@@ -395,6 +404,7 @@ const ALERT: Record<
     transfer: "أحوّل إليك مكالمة الآن",
     withheld: "رقم محجوب",
     handoff: "عميل يطلب التحدث إلى شخص",
+    feedback: "تقييم منخفض من عميل",
   },
 };
 
@@ -428,13 +438,23 @@ export async function planTransferContext(
  */
 export async function planStaffAlert(
   db: Database,
-  job: { tenantId: string; record: "ticket" | "message" | "handoff"; id: string },
+  job: { tenantId: string; record: "ticket" | "message" | "handoff" | "feedback"; id: string },
   webOrigin: string,
 ): Promise<NotificationPlan> {
   const business = await loadBusiness(db, job.tenantId);
   const l = ALERT[business.adminLanguage];
   let line = null as string | null;
+  let feedbackConversation = null as string | null;
   await withTenant(db, job.tenantId, async (tx) => {
+    if (job.record === "feedback") {
+      const [f] = await tx.select().from(feedback).where(eq(feedback.id, job.id));
+      if (!f || f.score === null) return;
+      line = [`${l.feedback}: ${f.score}/${f.kind === "nps" ? 10 : 5}`, f.channel, f.comment ?? ""]
+        .filter(Boolean)
+        .join(" · ");
+      feedbackConversation = f.conversationId;
+      return;
+    }
     if (job.record === "handoff") {
       const [th] = await tx.select().from(channelThreads).where(eq(channelThreads.id, job.id));
       if (!th) return;
@@ -472,7 +492,9 @@ export async function planStaffAlert(
   const link =
     job.record === "handoff"
       ? `${webOrigin}/t/${job.tenantId}/inbox/${job.id}`
-      : `${webOrigin}/t/${job.tenantId}/records`;
+      : job.record === "feedback"
+        ? `${webOrigin}/t/${job.tenantId}/feedback${feedbackConversation ? `?c=${feedbackConversation}` : ""}`
+        : `${webOrigin}/t/${job.tenantId}/records`;
   const recipients = await db
     .select({ email: user.email })
     .from(member)
@@ -494,4 +516,62 @@ export async function planStaffAlert(
     });
   }
   return { messages };
+}
+
+/**
+ * After a phone call, email or form conversation (Phase 6): a rating link by text (calls,
+ * only when the business turned that on) or email. Chats ask inside the chat instead.
+ */
+export async function planFeedbackRequest(
+  db: Database,
+  job: { tenantId: string; conversationId: string },
+  webOrigin: string,
+): Promise<NotificationPlan> {
+  const found = await withTenant(db, job.tenantId, async (tx) => {
+    const [conv] = await tx
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, job.conversationId));
+    const [contact] = conv?.contactId
+      ? await tx.select().from(contacts).where(eq(contacts.id, conv.contactId))
+      : [];
+    return { conv, contact };
+  });
+  const { conv, contact } = found;
+  if (!conv) return { messages: [] };
+  const state = conv.state as { callerPhone?: string | null };
+  let to: { channel: "sms" | "email"; address: string } | null = null;
+  if (conv.channel === "voice" && conv.direction !== "outbound") {
+    const phone = conv.callerNumberWithheld ? null : (state.callerPhone ?? null);
+    if (phone) to = { channel: "sms", address: phone };
+  } else if (conv.channel === "email" || conv.channel === "web_form") {
+    if (contact?.email) to = { channel: "email", address: contact.email };
+  }
+  if (!to) return { messages: [] };
+  const survey = await openSurvey(db, {
+    tenantId: job.tenantId,
+    conversationId: job.conversationId,
+    channel: conv.channel,
+    afterCall: conv.channel === "voice",
+  });
+  if (!survey) return { messages: [] };
+  const business = await loadBusiness(db, job.tenantId);
+  const text = surveyLinkInvite(
+    survey.language,
+    business.name,
+    `${webOrigin}/r/${encodeURIComponent(survey.token)}`,
+  );
+  return {
+    messages: [
+      to.channel === "sms"
+        ? { channel: "sms", to: to.address, text, kind: "feedback.request" }
+        : {
+            channel: "email",
+            to: to.address,
+            subject: `${business.name}: ${shortSurveyQuestion(survey.language, survey.kind, business.name)}`,
+            text,
+            kind: "feedback.request",
+          },
+    ],
+  };
 }

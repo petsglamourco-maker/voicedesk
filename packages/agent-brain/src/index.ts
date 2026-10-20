@@ -78,6 +78,7 @@ export {
   formatWhen,
   planBookingNotification,
   planBookingReminder,
+  planFeedbackRequest,
   planStaffAlert,
   planTransferContext,
   type NotificationPlan,
@@ -117,3 +118,20 @@ export {
   type EmailThreadMeta,
 } from "./email";
 export { processFormSubmission, type FormSubmission } from "./forms";
+export {
+  feedbackStats,
+  feedbackThanks,
+  isLowScore,
+  openSurvey,
+  parseScore,
+  pendingSurvey,
+  recordFeedback,
+  shortSurveyQuestion,
+  surveyByToken,
+  surveyLinkInvite,
+  surveyQuestion,
+  type FeedbackKind,
+  type FeedbackRow,
+  type FeedbackStats,
+  type OpenedSurvey,
+} from "./feedback";

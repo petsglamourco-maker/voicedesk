@@ -52,6 +52,12 @@ export const agentSettings = pgTable("agent_settings", {
   handoffRoute: text("handoff_route").notNull().default("people_then_phone"),
   /** How long the VA console rings before falling back. */
   ringSeconds: integer("ring_seconds").notNull().default(30),
+  /** Phase 6: ask customers how we did at the end of chats, WhatsApp and email (free). */
+  feedbackEnabled: boolean("feedback_enabled").notNull().default(true),
+  /** Phase 6: also text callers a rating link after phone calls (SMS costs money). */
+  feedbackAfterCalls: boolean("feedback_after_calls").notNull().default(false),
+  /** Phase 6: every Nth survey asks the NPS question instead (0 = never). */
+  npsEvery: integer("nps_every").notNull().default(0),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,
@@ -455,5 +461,39 @@ export const handoffs = pgTable(
   (t) => [
     index("handoffs_tenant_status_idx").on(t.tenantId, t.status),
     index("handoffs_conversation_idx").on(t.conversationId),
+  ],
+);
+
+/**
+ * Customer feedback (Phase 6, ADR 0020): one survey per conversation. `score` stays null
+ * until the customer answers. CSAT is 1–5, NPS 0–10.
+ */
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    channel: text("channel").notNull(),
+    kind: text("kind").notNull().default("csat"),
+    /** "<tenantId>.<random>": the public rating link's key. */
+    token: text("token").notNull(),
+    /** Who looked after the customer: "ai", or "person" when someone took over. */
+    handledBy: text("handled_by").notNull().default("ai"),
+    language: text("language").notNull().default("en"),
+    score: integer("score"),
+    comment: text("comment"),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("feedback_token_uq").on(t.token),
+    uniqueIndex("feedback_conversation_uq").on(t.conversationId),
+    index("feedback_tenant_sent_idx").on(t.tenantId, t.sentAt),
   ],
 );

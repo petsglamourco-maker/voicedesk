@@ -32,6 +32,9 @@ interface Settings {
   urgentSituations: string | null;
   handoffRoute: string;
   ringSeconds: number;
+  feedbackEnabled: boolean;
+  feedbackAfterCalls: boolean;
+  npsEvery: number;
 }
 
 export interface AgentResponse {
@@ -54,6 +57,7 @@ export function AgentSettingsForm(props: {
   const tv = useTranslations("voice");
   const tn = useTranslations("notifications");
   const tt = useTranslations("transfers");
+  const tf = useTranslations("feedbackSettings");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -372,6 +376,45 @@ export function AgentSettingsForm(props: {
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">{tt("note")}</p>
+        </Card>
+
+        <Card>
+          <CardTitle>{tf("title")}</CardTitle>
+          <CardDescription>{tf("hint")}</CardDescription>
+          <div className="mt-4 space-y-3 text-sm">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.feedbackEnabled}
+                onChange={(e) => update({ feedbackEnabled: e.target.checked })}
+              />
+              <span>{tf("enabled")}</span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.feedbackAfterCalls}
+                disabled={!settings.feedbackEnabled}
+                onChange={(e) => update({ feedbackAfterCalls: e.target.checked })}
+              />
+              <span>{tf("afterCalls")}</span>
+            </label>
+            <div className="max-w-xs">
+              <Label htmlFor="npsEvery">{tf("nps")}</Label>
+              <Select
+                id="npsEvery"
+                value={String(settings.npsEvery)}
+                disabled={!settings.feedbackEnabled}
+                onChange={(e) => update({ npsEvery: Number(e.target.value) })}
+              >
+                <option value="0">{tf("npsNever")}</option>
+                <option value="5">{tf("npsEvery", { n: 5 })}</option>
+                <option value="10">{tf("npsEvery", { n: 10 })}</option>
+              </Select>
+            </div>
+          </div>
         </Card>
 
         {props.canEdit ? (

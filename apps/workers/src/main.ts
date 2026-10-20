@@ -161,6 +161,9 @@ const workers = [
         sendEmail: async (job) => {
           await emailQueue.add(job.kind, job);
         },
+        notify: async (job) => {
+          await notificationQueue.add(job.kind, job);
+        },
       },
       log,
     ),

@@ -77,6 +77,9 @@ export function chatFrameHtml(params: {
   button { background: var(--brand); color: #fff; border: 0; border-radius: 10px; padding: 0 14px; font: inherit; cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
   .hp { position: absolute; left: -9999px; }
+  .survey { align-self: stretch; background: transparent; border: 1px dashed #d1d5db; border-radius: 12px; padding: 8px 10px; font-size: 14px; }
+  .survey .scale { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .survey .scale button { padding: 6px 10px; min-width: 34px; }
   footer { text-align: center; font-size: 11px; color: #9ca3af; padding: 0 0 6px; }
   @media (prefers-color-scheme: dark) { body { background: #111827; color: #f9fafb; } .agent { background: #1f2937; } input[name=text] { background: #1f2937; color: #f9fafb; border-color: #374151; } form { border-color: #374151; } }
 </style>
@@ -114,6 +117,38 @@ export function chatFrameHtml(params: {
     log.appendChild(el);
     log.scrollTop = log.scrollHeight;
     return body;
+  }
+
+  // End of the conversation: one tap to rate it (the answer goes to the business).
+  function askSurvey(survey) {
+    const box = document.createElement("div");
+    box.className = "msg survey";
+    const q = document.createElement("div");
+    q.textContent = survey.question;
+    box.appendChild(q);
+    const scale = document.createElement("div");
+    scale.className = "scale";
+    const from = survey.kind === "nps" ? 0 : 1;
+    const to = survey.kind === "nps" ? 10 : 5;
+    for (let n = from; n <= to; n++) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = String(n);
+      b.addEventListener("click", async () => {
+        scale.querySelectorAll("button").forEach((x) => (x.disabled = true));
+        const res = await fetch("/api/public/feedback/" + encodeURIComponent(survey.token), {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ score: n }),
+        }).catch(() => null);
+        const done = res && res.ok ? await res.json() : null;
+        box.replaceChildren(document.createTextNode(done ? done.thanks : "Thanks!"));
+      });
+      scale.appendChild(b);
+    }
+    box.appendChild(scale);
+    log.appendChild(box);
+    log.scrollTop = log.scrollHeight;
   }
 
   async function start() {
@@ -166,6 +201,7 @@ export function chatFrameHtml(params: {
           if (event === "delta") { bubble = bubble || add("agent", ""); bubble.textContent += data.text; log.scrollTop = log.scrollHeight; }
           if (event === "greeting" && data.text) add("agent", data.text);
           if (event === "error") add("agent", data.message);
+          if (event === "done" && data && data.survey) askSurvey(data.survey);
         }
       }
     } finally {

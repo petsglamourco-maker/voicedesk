@@ -35,6 +35,7 @@ import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { registerFormRoutes } from "./routes/forms";
 import { registerVaRoutes } from "./routes/va";
 import { registerOutboundRoutes } from "./routes/outbound";
+import { registerFeedbackRoutes } from "./routes/feedback";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 
 export type AppDeps = Omit<Container, "close"> & {
@@ -127,6 +128,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerFormRoutes(app, deps);
   registerVaRoutes(app, deps);
   registerOutboundRoutes(app, deps);
+  registerFeedbackRoutes(app, deps);
 
   return app;
 }

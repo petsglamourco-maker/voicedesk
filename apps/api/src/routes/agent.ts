@@ -58,6 +58,9 @@ const settingsSchema = z.object({
     .enum(["people_then_phone", "people_only", "phone_only"])
     .default("people_then_phone"),
   ringSeconds: z.number().int().min(10).max(120).default(30),
+  feedbackEnabled: z.boolean().default(true),
+  feedbackAfterCalls: z.boolean().default(false),
+  npsEvery: z.number().int().min(0).max(50).default(0),
 });
 
 const settingsResponse = z.object({
@@ -76,6 +79,9 @@ const settingsResponse = z.object({
   urgentSituations: z.string().nullable(),
   handoffRoute: z.string(),
   ringSeconds: z.number(),
+  feedbackEnabled: z.boolean(),
+  feedbackAfterCalls: z.boolean(),
+  npsEvery: z.number(),
 });
 
 const DEFAULTS = {
@@ -94,6 +100,9 @@ const DEFAULTS = {
   urgentSituations: null as string | null,
   handoffRoute: "people_then_phone",
   ringSeconds: 30,
+  feedbackEnabled: true,
+  feedbackAfterCalls: false,
+  npsEvery: 0,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -150,6 +159,9 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               urgentSituations: row.urgentSituations,
               handoffRoute: row.handoffRoute,
               ringSeconds: row.ringSeconds,
+              feedbackEnabled: row.feedbackEnabled,
+              feedbackAfterCalls: row.feedbackAfterCalls,
+              npsEvery: row.npsEvery,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),

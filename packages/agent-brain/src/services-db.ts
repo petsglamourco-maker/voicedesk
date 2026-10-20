@@ -53,7 +53,7 @@ export interface DbServiceDeps {
 /** What the agent did that someone should hear about (see NotificationJob in @voicedesk/jobs). */
 export type AgentNotification =
   | { kind: "booking.changed"; bookingId: string; change: "created" | "moved" | "cancelled" }
-  | { kind: "staff.alert"; record: "ticket" | "message" | "handoff"; id: string }
+  | { kind: "staff.alert"; record: "ticket" | "message" | "handoff" | "feedback"; id: string }
   | { kind: "transfer.context"; conversationId: string; to: string; reason: string };
 
 const BUSY_CACHE_MS = 60_000;

@@ -76,7 +76,10 @@ export function createChannelProcessor(deps: ChannelDeps, log: Logger) {
       log.info({ jobId: job.id, tenantId: data.tenantId }, "whatsapp message waiting for a person");
       return { mode: result.mode };
     }
-    const text = result.greeting ? `${result.greeting}\n\n${result.reply}` : result.reply;
+    // Phase 6: when the conversation ends, the rating question follows the goodbye.
+    const text = [result.greeting, result.reply, result.survey?.question]
+      .filter(Boolean)
+      .join("\n\n");
     if (!deps.whatsapp) {
       log.warn({ tenantId: data.tenantId }, "WhatsApp isn't configured; reply not sent");
       return { mode: result.mode, sent: false };

@@ -2,6 +2,7 @@ import type { EmailProvider, SmsProvider } from "@voicedesk/adapters";
 import {
   planBookingNotification,
   planBookingReminder,
+  planFeedbackRequest,
   planStaffAlert,
   planTransferContext,
   type NotificationPlan,
@@ -78,6 +79,12 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
         return execute(job, data.tenantId, await planBookingNotification(deps.db, data));
       case "booking.reminder":
         return execute(job, data.tenantId, await planBookingReminder(deps.db, data));
+      case "feedback.request":
+        return execute(
+          job,
+          data.tenantId,
+          await planFeedbackRequest(deps.db, data, deps.webOrigin),
+        );
       case "staff.alert":
         return execute(job, data.tenantId, await planStaffAlert(deps.db, data, deps.webOrigin));
       case "transfer.context":

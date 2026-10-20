@@ -83,7 +83,8 @@
     "whatsapp": "WhatsApp",
     "email": "Email",
     "forms": "Forms",
-    "vaConsole": "VA console"
+    "vaConsole": "VA console",
+    "feedback": "Feedback"
   },
   "roles": {
     "owner": "Owner",
@@ -849,5 +850,46 @@
     "dialling": "Calling…",
     "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact.",
     "keepOpenHint": "Keep this tab open while you're available: leaving it (or closing the laptop) makes you offline within a minute, and calls then go to your backup number or the assistant takes a message."
+  },
+  "feedbackSettings": {
+    "title": "Customer feedback",
+    "hint": "At the end of a conversation the customer is asked one quick question (\"How did we do?\", 1–5). Nobody is asked more than once a month. Low scores alert you straight away.",
+    "enabled": "Ask for a rating at the end of website chats and WhatsApp conversations, and by email after email or form enquiries (free)",
+    "afterCalls": "Also text callers a rating link after phone calls (texts cost money)",
+    "nps": "\"Would you recommend us?\" (NPS) question",
+    "npsNever": "Never",
+    "npsEvery": "Every {n}th survey"
+  },
+  "feedback": {
+    "title": "Customer feedback",
+    "subtitle": "How customers rate their conversations with your assistant and your team.",
+    "days": "Last {days} days",
+    "csat": "Satisfied (CSAT)",
+    "csatHint": "Share of ratings that were 4 or 5 out of 5",
+    "average": "Average {avg} / 5",
+    "nps": "Net Promoter Score",
+    "npsHint": "Promoters (9–10) minus detractors (0–6), from {n} answers",
+    "responses": "Responses",
+    "responsesHint": "{answered} of {sent} customers answered",
+    "byChannel": "By channel",
+    "byHandler": "Who looked after them",
+    "handler": {
+      "ai": "Assistant",
+      "person": "A person"
+    },
+    "latest": "Latest ratings",
+    "empty": "No ratings yet. They appear here as customers answer.",
+    "noData": "–"
+  },
+  "ratePage": {
+    "title": "How did we do?",
+    "thanks": "Thank you! Your feedback goes straight to {business}.",
+    "commentLabel": "Anything we could do better? (optional)",
+    "sendComment": "Send",
+    "answered": "You've already rated this conversation. Thank you!",
+    "poor": "Poor",
+    "excellent": "Excellent",
+    "unlikely": "Not likely",
+    "likely": "Very likely"
   }
 }

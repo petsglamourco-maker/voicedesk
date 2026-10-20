@@ -9,6 +9,16 @@ import {
 import { and, eq, sql } from "drizzle-orm";
 import type { AgentContext } from "./context";
 import { runTurn, type TurnEvent } from "./engine";
+import {
+  feedbackThanks,
+  openSurvey,
+  parseScore,
+  pendingSurvey,
+  recordFeedback,
+  shortSurveyQuestion,
+  surveyQuestion,
+  type FeedbackKind,
+} from "./feedback";
 import { createConversation, persistTurn } from "./persistence";
 import { createDbAgentServices, loadAgentContext, type DbServiceDeps } from "./services-db";
 import type { ConversationState } from "./state";
@@ -213,7 +223,17 @@ export interface ChannelTurnResult {
   reply: string | null;
   /** What the assistant did this turn (tool calls, records). */
   events: TurnEvent[];
+  /**
+   * Phase 6: the conversation just ended, so the customer is asked how it went (website
+   * chat shows buttons; WhatsApp appends `question` to the reply).
+   */
+  survey?: { token: string; kind: FeedbackKind; question: string; shortQuestion: string };
+  /** The message was an answer to the survey (no assistant turn ran). */
+  surveyAnswered?: boolean;
 }
+
+/** Channels that ask the survey inside the chat itself (others use a link afterwards). */
+const IN_CHAT_SURVEY = new Set<TextChannel>(["web_chat", "whatsapp"]);
 
 /**
  * One inbound customer message on a text channel. In "ai" mode the assistant answers
@@ -245,6 +265,11 @@ export async function handleInboundMessage(
         .set({ meta: { ...thread.meta, ...who.meta } })
         .where(eq(channelThreads.id, thread.id)),
     );
+  }
+  // A bare score right after the survey is the answer, not a new request.
+  if (open.greeting === null && IN_CHAT_SURVEY.has(who.channel)) {
+    const answered = await answerSurvey(deps, who, open, text, options.now);
+    if (answered) return answered;
   }
   if (thread.mode === "human") {
     await withTenant(deps.db, who.tenantId, (tx) =>
@@ -291,6 +316,24 @@ export async function handleInboundMessage(
       tx.update(channelThreads).set({ needsHuman: true }).where(eq(channelThreads.id, thread.id)),
     );
   }
+  let survey: ChannelTurnResult["survey"];
+  if (result.state.endRequested && IN_CHAT_SURVEY.has(who.channel)) {
+    const opened = await openSurvey(deps.db, {
+      tenantId: who.tenantId,
+      conversationId,
+      channel: who.channel,
+      now: options.now,
+    });
+    if (opened) {
+      const lang = result.state.language;
+      survey = {
+        token: opened.token,
+        kind: opened.kind,
+        question: surveyQuestion(lang, opened.kind, ctx.businessName),
+        shortQuestion: shortSurveyQuestion(lang, opened.kind, ctx.businessName),
+      };
+    }
+  }
   return {
     threadId: thread.id,
     conversationId,
@@ -298,6 +341,59 @@ export async function handleInboundMessage(
     greeting: open.greeting,
     reply: result.reply,
     events: result.events,
+    ...(survey ? { survey } : {}),
+  };
+}
+
+/** Records "4" (etc.) as the answer to this conversation's open survey, and says thanks. */
+async function answerSurvey(
+  deps: ChannelTurnDeps,
+  who: ThreadIdentity,
+  open: OpenThread,
+  text: string,
+  now: Date | undefined,
+): Promise<ChannelTurnResult | null> {
+  const pending = await pendingSurvey(deps.db, who.tenantId, open.conversationId, now);
+  if (!pending) return null;
+  const score = parseScore(text, pending.kind as FeedbackKind);
+  if (score === null) return null;
+  const saved = await recordFeedback(deps.db, who.tenantId, pending.id, { score }, now);
+  if (!saved?.first) return null;
+  const thanks = feedbackThanks(open.state.language);
+  await withTenant(deps.db, who.tenantId, (tx) =>
+    tx.insert(conversationMessages).values([
+      {
+        tenantId: who.tenantId,
+        conversationId: open.conversationId,
+        role: "caller",
+        content: text,
+        language: open.state.language,
+        metadata: { channel: who.channel, feedback: true },
+      },
+      {
+        tenantId: who.tenantId,
+        conversationId: open.conversationId,
+        role: "agent",
+        content: thanks,
+        language: open.state.language,
+        metadata: { channel: who.channel, feedback: true },
+      },
+    ]),
+  );
+  await touchThread(deps.db, who.tenantId, open.thread.id, thanks, false);
+  if (saved.low && deps.notify) {
+    await deps
+      .notify({ kind: "staff.alert", record: "feedback", id: pending.id })
+      .catch(() => undefined);
+  }
+  return {
+    threadId: open.thread.id,
+    conversationId: open.conversationId,
+    mode: open.thread.mode === "human" ? "human" : "ai",
+    greeting: null,
+    reply: thanks,
+    events: [],
+    surveyAnswered: true,
   };
 }
 

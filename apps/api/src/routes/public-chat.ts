@@ -238,7 +238,21 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
             text: result.reply,
           });
         }
-        send("done", { mode: result.mode, queued: result.reply === null });
+        // A survey answer has no streamed reply: send the thank-you as one piece.
+        if (result.surveyAnswered && result.reply) send("delta", { text: result.reply });
+        send("done", {
+          mode: result.mode,
+          queued: result.reply === null,
+          ...(result.survey
+            ? {
+                survey: {
+                  token: result.survey.token,
+                  kind: result.survey.kind,
+                  question: result.survey.shortQuestion,
+                },
+              }
+            : {}),
+        });
       } catch (error) {
         request.log.error({ err: error }, "website chat turn failed");
         send("error", { message: "Sorry, something went wrong. Please try again." });

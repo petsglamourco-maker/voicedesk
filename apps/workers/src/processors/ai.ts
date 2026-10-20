@@ -6,7 +6,7 @@ import {
 } from "@voicedesk/agent-brain";
 import type { Logger } from "@voicedesk/compliance/logger";
 import type { Database } from "@voicedesk/db";
-import type { AiJob, Job, SendEmailJob } from "@voicedesk/jobs";
+import type { AiJob, Job, NotificationJob, SendEmailJob } from "@voicedesk/jobs";
 
 export interface AiDeps {
   db: Database;
@@ -15,6 +15,8 @@ export interface AiDeps {
   sendEmail: (job: SendEmailJob) => Promise<void>;
   /** Browser-facing origin for links in emails. */
   webOrigin: string;
+  /** Notifications queue (Phase 6: the rating link after a finished conversation). */
+  notify?: (job: NotificationJob) => Promise<void>;
 }
 
 export function createAiProcessor(deps: AiDeps, log: Logger) {
@@ -50,6 +52,12 @@ export function createAiProcessor(deps: AiDeps, log: Logger) {
         if (emails.length) {
           log.info({ jobId: job.id, recipients: emails.length }, "call summary emailed");
         }
+        // Calls, emails and forms get a rating link (the planner checks settings and channel).
+        await deps.notify?.({
+          kind: "feedback.request",
+          tenantId: data.tenantId,
+          conversationId: data.conversationId,
+        });
         return { intent: summary.intent, emailed: emails.length };
       }
     }
