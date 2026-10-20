@@ -92,10 +92,27 @@ export const vaAssignments = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    /** "platform": a VA you assigned; "business": the business's own member who takes calls. */
+    source: text("source").notNull().default("platform"),
+    /** The assignment created the membership, so removing it removes the membership too. */
+    createdMembership: boolean("created_membership").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [uniqueIndex("va_assignments_tenant_user_uq").on(t.tenantId, t.userId)],
 );
+
+/**
+ * Whether someone who answers calls is at their console (Phase 5). Per user, not tenant
+ * data: one status across all the businesses they answer for. A heartbeat older than
+ * PRESENCE_TTL counts as offline.
+ */
+export const agentPresence = pgTable("agent_presence", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("offline"),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 export const auditActorType = pgEnum("audit_actor_type", [
   "user",

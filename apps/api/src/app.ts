@@ -33,6 +33,7 @@ import { registerInboxRoutes, type ChannelSender } from "./routes/inbox";
 import { registerWhatsAppRoutes, whatsAppSender } from "./routes/whatsapp";
 import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { registerFormRoutes } from "./routes/forms";
+import { registerVaRoutes } from "./routes/va";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 
 export type AppDeps = Omit<Container, "close"> & {
@@ -123,6 +124,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerWhatsAppRoutes(app, deps);
   registerMailboxRoutes(app, deps);
   registerFormRoutes(app, deps);
+  registerVaRoutes(app, deps);
 
   return app;
 }

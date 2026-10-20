@@ -82,7 +82,8 @@
     "inbox": "Inbox",
     "whatsapp": "WhatsApp",
     "email": "Email",
-    "forms": "Forms"
+    "forms": "Forms",
+    "vaConsole": "VA console"
   },
   "roles": {
     "owner": "Owner",
@@ -104,7 +105,10 @@
     "remove": "Remove",
     "cancelInvite": "Cancel",
     "changeRoleFor": "Role for {name}",
-    "readOnly": "Only owners and admins can manage the team."
+    "readOnly": "Only owners and admins can manage the team.",
+    "answersCalls": "Answers calls",
+    "va": "VA",
+    "vaHint": "A VA assigned by your VoiceDesk administrator. They answer handed-off calls for you."
   },
   "invite": {
     "title": "Join {organization}",
@@ -381,7 +385,8 @@
     "test": "Test connection",
     "testing": "Testing…",
     "failed": "Something went wrong.",
-    "phoneNumbers": "Phone numbers"
+    "phoneNumbers": "Phone numbers",
+    "vas": "VAs"
   },
   "voice": {
     "ended": "Call ended",
@@ -762,5 +767,37 @@
     "aiNote": "Your enquiry is read by an AI assistant and the team.",
     "send": "Send enquiry",
     "thanks": "Thank you. {business} has your enquiry and will reply soon."
+  },
+  "vas": {
+    "title": "VAs",
+    "subtitle": "People who answer calls handed over by the assistant, across businesses. Businesses can also let their own members answer calls (Team page).",
+    "addTitle": "Assign a VA to a business",
+    "addHint": "The person needs a VoiceDesk account first. Assigning makes them staff of that business, so they can see its calls, chats and contacts.",
+    "email": "Their account email",
+    "business": "Business",
+    "add": "Assign",
+    "empty": "No VAs yet.",
+    "ownStaff": "own staff",
+    "remove": "Remove from {business}"
+  },
+  "va": {
+    "badge": "VA console",
+    "backToBusiness": "Back to business",
+    "title": "VA console",
+    "answeringFor": "Answering for: {businesses}",
+    "status": "Status",
+    "presence": {
+      "available": "Available",
+      "busy": "Busy",
+      "away": "Away",
+      "offline": "Offline"
+    },
+    "notAvailableHint": "Calls only ring here while you're Available. Keep this tab open.",
+    "notAnswerer": "You don't answer calls for any business yet",
+    "notAnswererHint": "A business owner can switch on \"Answers calls\" for you on their Team page, or your VoiceDesk administrator can assign you as a VA.",
+    "chatsTitle": "Chats waiting for a person",
+    "chatsHint": "Website chat, WhatsApp, email and form conversations where the customer asked for a person or the assistant needs help.",
+    "chatsEmpty": "Nothing waiting.",
+    "unknownCustomer": "Customer"
   }
 }

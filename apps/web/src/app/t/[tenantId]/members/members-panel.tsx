@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Card, CardTitle, Input, Label, Select } from "@vo
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
+import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 
 type Role = "owner" | "admin" | "staff";
@@ -25,20 +26,29 @@ interface InvitationRow {
 interface TeamData {
   members: MemberRow[];
   invitations: InvitationRow[];
+  /** Who answers handed-off calls, and whether they're your own staff or a VA. */
+  answerers: Map<string, string>;
   error: string | null;
 }
 
 async function fetchTeam(tenantId: string, includeInvitations: boolean): Promise<TeamData> {
-  const [m, i] = await Promise.all([
+  const [m, i, a] = await Promise.all([
     authClient.organization.listMembers({ query: { organizationId: tenantId } }),
     includeInvitations
       ? authClient.organization.listInvitations({ query: { organizationId: tenantId } })
       : Promise.resolve({ data: [] as InvitationRow[], error: null }),
+    api<{ answerers: Array<{ userId: string; source: string }> }>(
+      `/api/tenants/${tenantId}/answerers`,
+    ).catch(() => ({ answerers: [] })),
   ]);
-  if (m.error) return { members: [], invitations: [], error: m.error.message ?? "error" };
+  const answerers = new Map(a.answerers.map((x) => [x.userId, x.source]));
+  if (m.error) {
+    return { members: [], invitations: [], answerers, error: m.error.message ?? "error" };
+  }
   return {
     members: m.data?.members ?? [],
     invitations: (i.data ?? []).filter((x) => x.status === "pending"),
+    answerers,
     error: null,
   };
 }
@@ -55,6 +65,7 @@ export function MembersPanel(props: {
   const common = useTranslations("common");
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
+  const [answerers, setAnswerers] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -68,6 +79,7 @@ export function MembersPanel(props: {
       if (cancelled) return;
       setMembers(team.members);
       setInvitations(team.invitations);
+      setAnswerers(team.answerers);
       if (team.error) setError(team.error);
     });
     return () => {
@@ -87,6 +99,20 @@ export function MembersPanel(props: {
     }
     setVersion((v) => v + 1);
     return true;
+  }
+
+  async function toggleAnswers(userId: string, on: boolean) {
+    await run(async () => {
+      try {
+        await api(`/api/tenants/${tenantId}/answerers/${userId}`, {
+          method: "PUT",
+          body: JSON.stringify({ on }),
+        });
+        return { error: null };
+      } catch (e) {
+        return { error: { message: e instanceof Error ? e.message : undefined } };
+      }
+    });
   }
 
   async function onInvite(event: FormEvent<HTMLFormElement>) {
@@ -154,6 +180,21 @@ export function MembersPanel(props: {
                   </p>
                   <p className="text-xs text-muted-foreground">{m.user.email}</p>
                 </div>
+                {answerers.get(m.userId) === "platform" ? (
+                  <Badge title={t("vaHint")}>{t("va")}</Badge>
+                ) : props.canManage ? (
+                  <label className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={answerers.has(m.userId)}
+                      disabled={pending}
+                      onChange={(e) => void toggleAnswers(m.userId, e.target.checked)}
+                    />
+                    {t("answersCalls")}
+                  </label>
+                ) : answerers.has(m.userId) ? (
+                  <Badge>{t("answersCalls")}</Badge>
+                ) : null}
                 {editable ? (
                   <>
                     <Select

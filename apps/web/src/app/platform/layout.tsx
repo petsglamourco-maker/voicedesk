@@ -30,6 +30,12 @@ export default async function PlatformLayout({ children }: { children: ReactNode
             >
               {t("phoneNumbers")}
             </Link>
+            <Link
+              href="/platform/vas"
+              className="rounded-md px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              {t("vas")}
+            </Link>
           </nav>
           {back ? (
             <Link href={`/t/${back}`} className="ms-auto text-sm text-primary hover:underline">
