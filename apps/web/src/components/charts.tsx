@@ -13,6 +13,12 @@ export interface Series {
 }
 
 const fill = (color: string) => ({ fill: color });
+/** Stable SVG id for gradients (server components can't use useId). */
+const gid = (...parts: string[]) =>
+  `g-${parts
+    .join("-")
+    .replace(/[^a-zA-Z0-9-]/g, "")
+    .slice(0, 60)}`;
 const stroke = (color: string) => ({ stroke: color });
 
 /** A tidy axis maximum: four equal whole-number steps (1, 2, 5 × 10ⁿ each) above the data. */
@@ -77,6 +83,21 @@ export function StackedBars(props: {
             </text>
           </g>
         ))}
+        <defs>
+          {props.series.map((s) => (
+            <linearGradient
+              key={s.key}
+              id={gid("bar", s.key, String(width))}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop offset="0%" stopColor={s.color} stopOpacity={1} />
+              <stop offset="100%" stopColor={s.color} stopOpacity={0.55} />
+            </linearGradient>
+          ))}
+        </defs>
         {props.labels.map((label, i) => {
           let acc = 0;
           const x = pad.left + slot * i + (slot - barW) / 2;
@@ -95,8 +116,10 @@ export function StackedBars(props: {
                     y={top}
                     width={barW}
                     height={Math.max(h, 1)}
-                    rx={2}
-                    style={fill(s.color)}
+                    rx={Math.min(6, barW / 4)}
+                    fill={`url(#${gid("bar", s.key, String(width))})`}
+                    className="origin-bottom animate-bar-grow transition-opacity [transform-box:fill-box] hover:opacity-80"
+                    style={{ animationDelay: `${i * 30}ms` }}
                   >
                     <title>{`${label} · ${s.label}: ${v}`}</title>
                   </rect>
@@ -148,15 +171,29 @@ export function Sparkline(props: {
   const step = values.length > 1 ? w / (values.length - 1) : w;
   const pts = values.map((v, i) => [i * step, h - 3 - (v / max) * (h - 6)] as const);
   const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const id = gid("spark", props.color, values.join("."));
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className={cn("h-9 w-full", props.className)} aria-hidden>
-      <path d={`${line} L${w},${h} L0,${h} Z`} style={{ fill: props.color, opacity: 0.12 }} />
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className={cn("h-9 w-full overflow-visible", props.className)}
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={props.color} stopOpacity={0.35} />
+          <stop offset="100%" stopColor={props.color} stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      <path d={`${line} L${w},${h} L0,${h} Z`} fill={`url(#${id})`} />
       <path
         d={line}
         fill="none"
         strokeWidth={2}
         strokeLinejoin="round"
-        style={stroke(props.color)}
+        strokeLinecap="round"
+        pathLength={1}
+        className="animate-draw [stroke-dasharray:1]"
+        style={{ ...stroke(props.color), filter: `drop-shadow(0 0 4px ${props.color})` }}
       />
     </svg>
   );
@@ -174,7 +211,11 @@ export function Donut(props: {
   let offset = 0;
   return (
     <div className="flex flex-wrap items-center gap-5">
-      <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0" role="img">
+      <svg
+        viewBox="0 0 140 140"
+        className="h-36 w-36 shrink-0 [filter:drop-shadow(0_0_10px_var(--color-glow))]"
+        role="img"
+      >
         <circle cx={70} cy={70} r={r} fill="none" strokeWidth={18} className="stroke-muted" />
         {total
           ? props.segments
@@ -415,10 +456,22 @@ export function LineChart(props: {
             </text>
           </g>
         ))}
+        <defs>
+          <linearGradient
+            id={gid("line", props.color, props.unit ?? "")}
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+            <stop offset="0%" stopColor={props.color} stopOpacity={0.35} />
+            <stop offset="100%" stopColor={props.color} stopOpacity={0} />
+          </linearGradient>
+        </defs>
         {points.length > 1 ? (
           <path
             d={`${line} L${points.at(-1)![0]},${y(0)} L${points[0]![0]},${y(0)} Z`}
-            style={{ fill: props.color, opacity: 0.12 }}
+            fill={`url(#${gid("line", props.color, props.unit ?? "")})`}
           />
         ) : null}
         {points.length ? (
@@ -427,13 +480,27 @@ export function LineChart(props: {
             fill="none"
             strokeWidth={2.5}
             strokeLinejoin="round"
-            style={stroke(props.color)}
+            strokeLinecap="round"
+            pathLength={1}
+            className="animate-draw [stroke-dasharray:1]"
+            style={{ ...stroke(props.color), filter: `drop-shadow(0 0 6px ${props.color})` }}
           />
         ) : null}
-        {points.map(([px, py, v, label]) => (
-          <circle key={label} cx={px} cy={py} r={3.5} style={fill(props.color)}>
-            <title>{`${label}: ${show(v)}${props.unit ?? ""}`}</title>
-          </circle>
+        {points.map(([px, py, v, label], i) => (
+          <g key={label}>
+            {i === points.length - 1 ? (
+              <circle
+                cx={px}
+                cy={py}
+                r={8}
+                className="animate-glow-pulse"
+                style={{ fill: props.color, opacity: 0.25 }}
+              />
+            ) : null}
+            <circle cx={px} cy={py} r={3.5} style={fill(props.color)}>
+              <title>{`${label}: ${show(v)}${props.unit ?? ""}`}</title>
+            </circle>
+          </g>
         ))}
         {[0, n - 1].map((i) => (
           <text
