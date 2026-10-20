@@ -1,13 +1,14 @@
 import {
   agentSettings,
   conversations,
+  handoffs,
   member,
   tenants,
   user,
   withTenant,
   type Database,
 } from "@voicedesk/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { toLang, type Lang } from "./languages";
 import type { ConversationState } from "./state";
 import type { ConversationSummary } from "./summary";
@@ -29,6 +30,10 @@ interface Labels {
   actions: string;
   records: string;
   followUp: string;
+  /** Phase 5: the caller spoke with someone from the VA console. */
+  spokeWith: string;
+  /** Phase 5: the caller asked for a person but nobody answered the console in time. */
+  nobodyAnswered: string;
   open: string;
   intents: Record<ConversationSummary["intent"], string>;
 }
@@ -45,6 +50,8 @@ const LABELS: Record<Lang, Labels> = {
     actions: "Action items",
     records: "Records created",
     followUp: "Follow-up needed",
+    spokeWith: "Spoke with",
+    nobodyAnswered: "Asked for a person; nobody answered the VA console in time",
     open: "Open the call (transcript and recording)",
     intents: {
       enquiry: "enquiry",
@@ -69,6 +76,8 @@ const LABELS: Record<Lang, Labels> = {
     actions: "Tareas",
     records: "Registros creados",
     followUp: "Requiere seguimiento",
+    spokeWith: "Habló con",
+    nobodyAnswered: "Pidió hablar con una persona; nadie respondió a tiempo en la consola",
     open: "Ver la llamada (transcripción y grabación)",
     intents: {
       enquiry: "consulta",
@@ -93,6 +102,8 @@ const LABELS: Record<Lang, Labels> = {
     actions: "Actions à mener",
     records: "Enregistrements créés",
     followUp: "Suivi nécessaire",
+    spokeWith: "A parlé avec",
+    nobodyAnswered: "A demandé une personne ; personne n'a répondu à temps sur la console",
     open: "Ouvrir l'appel (transcription et enregistrement)",
     intents: {
       enquiry: "demande d'information",
@@ -117,6 +128,9 @@ const LABELS: Record<Lang, Labels> = {
     actions: "Aufgaben",
     records: "Erstellte Einträge",
     followUp: "Rückmeldung nötig",
+    spokeWith: "Gesprochen mit",
+    nobodyAnswered:
+      "Wollte eine Person sprechen; an der Konsole hat niemand rechtzeitig angenommen",
     open: "Anruf öffnen (Transkript und Aufnahme)",
     intents: {
       enquiry: "Anfrage",
@@ -141,6 +155,8 @@ const LABELS: Record<Lang, Labels> = {
     actions: "待办事项",
     records: "已创建记录",
     followUp: "需要跟进",
+    spokeWith: "通话人员",
+    nobodyAnswered: "来电者要求转人工，但无人及时接听",
     open: "查看通话（文字记录和录音）",
     intents: {
       enquiry: "咨询",
@@ -165,6 +181,8 @@ const LABELS: Record<Lang, Labels> = {
     actions: "مهام مطلوبة",
     records: "سجلات تم إنشاؤها",
     followUp: "تحتاج إلى متابعة",
+    spokeWith: "تحدث مع",
+    nobodyAnswered: "طلب التحدث إلى شخص، لكن لم يرد أحد في الوقت المناسب",
     open: "فتح المكالمة (النص والتسجيل)",
     intents: {
       enquiry: "استفسار",
@@ -197,6 +215,8 @@ export interface CallEmailInput {
   records: Array<{ type: string; reference: string }>;
   summary: CallEmailSummary;
   link: string;
+  /** Phase 5: the person who took over from the assistant, or that nobody answered. */
+  person?: { name: string; seconds: number | null } | { missed: true } | null;
 }
 
 function formatDuration(seconds: number | null): string {
@@ -229,6 +249,14 @@ export function buildCallSummaryEmail(input: CallEmailInput): { subject: string;
   if (input.records.length) {
     lines.push("", `${l.records}: ${input.records.map((r) => r.reference).join(", ")}`);
   }
+  if (input.person && "missed" in input.person) {
+    lines.push("", l.nobodyAnswered);
+  } else if (input.person) {
+    lines.push(
+      "",
+      `${l.spokeWith}: ${input.person.name} (${formatDuration(input.person.seconds)})`,
+    );
+  }
   if (input.summary.followUpNeeded) lines.push("", `⚠ ${l.followUp}`);
   lines.push("", `${l.open}: ${input.link}`);
   const intent = l.intents[input.summary.intent];
@@ -258,7 +286,20 @@ export async function prepareCallSummaryEmails(
       .select({ adminLanguage: agentSettings.adminLanguage })
       .from(agentSettings)
       .where(eq(agentSettings.tenantId, tenantId));
-    return { call, tenant, settings };
+    // The latest handoff to a person on this call, with who answered.
+    const [handoff] = await tx
+      .select({
+        status: handoffs.status,
+        answeredAt: handoffs.answeredAt,
+        endedAt: handoffs.endedAt,
+        name: user.name,
+      })
+      .from(handoffs)
+      .leftJoin(user, eq(user.id, handoffs.answeredBy))
+      .where(eq(handoffs.conversationId, conversationId))
+      .orderBy(desc(handoffs.queuedAt))
+      .limit(1);
+    return { call, tenant, settings, handoff };
   });
   const { call, tenant } = data;
   if (!call || !tenant || call.channel !== "voice" || !call.summary) return [];
@@ -282,6 +323,23 @@ export async function prepareCallSummaryEmails(
     records: state.records ?? [],
     summary: call.summary as unknown as CallEmailSummary,
     link: `${webOrigin}/t/${tenantId}/calls/${conversationId}`,
+    person: personFor(data.handoff),
   });
   return recipients.map((r) => ({ to: r.email, ...email }));
+}
+
+function personFor(
+  handoff:
+    | { status: string; answeredAt: Date | null; endedAt: Date | null; name: string | null }
+    | undefined,
+): CallEmailInput["person"] {
+  if (!handoff) return null;
+  if (handoff.status === "missed") return { missed: true };
+  if (!handoff.answeredAt) return null;
+  return {
+    name: handoff.name?.split(" ")[0] ?? "—",
+    seconds: handoff.endedAt
+      ? Math.round((handoff.endedAt.getTime() - handoff.answeredAt.getTime()) / 1000)
+      : null,
+  };
 }

@@ -126,6 +126,16 @@ describe("handed-off calls", () => {
     expect(back.json()).toEqual({ status: "returned" });
     expect(ended).toEqual([]);
 
+    // The call's page shows who took it and that it went back to the assistant.
+    const detail = await h.app.inject({
+      method: "GET",
+      url: `/api/tenants/${biz.tenantId}/calls/${handoff.conversationId}`,
+      headers: as(biz),
+    });
+    expect(detail.json<{ handoffs: unknown[] }>().handoffs).toEqual([
+      expect.objectContaining({ status: "returned", answeredBy: "Sam" }),
+    ]);
+
     const other = await newHandoff();
     await h.app.inject({ method: "POST", url: url(other.id, "answer"), headers: as(vaTwo) });
     const hang = await h.app.inject({

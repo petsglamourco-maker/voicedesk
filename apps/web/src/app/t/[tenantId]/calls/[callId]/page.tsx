@@ -27,8 +27,19 @@ interface CallDetail extends CallRow {
       filler?: boolean;
     }>;
   } | null;
-  messages: Array<{ role: string; content: string; createdAt: string }>;
+  messages: Array<{ role: string; content: string; createdAt: string; withPerson?: boolean }>;
+  handoffs?: Array<{
+    status: string;
+    reason: string | null;
+    queuedAt: string;
+    answeredAt: string | null;
+    endedAt: string | null;
+    answeredBy: string | null;
+  }>;
 }
+
+const seconds = (from: string, to: string | null) =>
+  to ? Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 1000)) : null;
 
 export default async function CallPage(props: {
   params: Promise<{ tenantId: string; callId: string }>;
@@ -93,6 +104,11 @@ export default async function CallPage(props: {
                       {m.role === "caller" ? t("caller") : t("assistant")}:{" "}
                     </span>
                     {m.content}
+                    {m.withPerson ? (
+                      <span className="mt-1 block text-[11px] opacity-70">
+                        {t("whileWithPerson")}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -101,6 +117,30 @@ export default async function CallPage(props: {
         </div>
 
         <div className="space-y-4">
+          {call.handoffs?.length ? (
+            <Card className="p-4" data-testid="handoffs">
+              <CardTitle className="text-base">{t("handoffTitle")}</CardTitle>
+              <ul className="mt-2 space-y-2 text-sm">
+                {call.handoffs.map((h, i) => (
+                  <li key={i}>
+                    {h.answeredAt
+                      ? t("handoffAnswered", {
+                          name: h.answeredBy ?? "—",
+                          wait: seconds(h.queuedAt, h.answeredAt) ?? 0,
+                          talk: formatDuration(seconds(h.answeredAt, h.endedAt)),
+                        })
+                      : t("handoffMissed", { wait: seconds(h.queuedAt, h.endedAt) ?? 0 })}
+                    {h.status === "returned" ? ` ${t("handoffReturned")}` : ""}
+                    {h.reason ? (
+                      <span className="block text-xs text-muted-foreground" dir="auto">
+                        “{h.reason}”
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           <Card className="p-4">
             <CardTitle className="text-base">{t("summary")}</CardTitle>
             {call.summary ? (

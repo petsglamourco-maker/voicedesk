@@ -454,7 +454,12 @@
     "colVoice": "Voice",
     "colTotal": "Total",
     "carrierCompare": "By carrier (phone calls, 7 days)",
-    "carrierCalls": "{count, plural, one {# call} other {# calls}}"
+    "carrierCalls": "{count, plural, one {# call} other {# calls}}",
+    "whileWithPerson": "said while talking to a person",
+    "handoffTitle": "Put through to a person",
+    "handoffAnswered": "{name} answered after {wait}s and talked for {talk}.",
+    "handoffMissed": "Nobody answered the VA console ({wait}s).",
+    "handoffReturned": "Then handed back to the assistant."
   },
   "phoneNumbers": {
     "title": "Phone numbers",

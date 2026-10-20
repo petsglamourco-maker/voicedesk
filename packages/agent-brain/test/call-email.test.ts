@@ -53,6 +53,16 @@ describe("buildCallSummaryEmail", () => {
     expect(text).toContain("Numéro masqué");
     expect(text).toContain("Suivi nécessaire");
   });
+
+  it("says who took over from the assistant, or that nobody answered", () => {
+    expect(buildCallSummaryEmail({ ...base, person: { name: "Sam", seconds: 80 } }).text).toContain(
+      "Spoke with: Sam (1m 20s)",
+    );
+    expect(buildCallSummaryEmail({ ...base, person: { missed: true } }).text).toContain(
+      "nobody answered the VA console in time",
+    );
+    expect(buildCallSummaryEmail(base).text).not.toContain("Spoke with");
+  });
 });
 
 describe("prepareCallSummaryEmails", () => {

@@ -1,6 +1,13 @@
 import type { ConversationState } from "@voicedesk/agent-brain";
 import { can } from "@voicedesk/core";
-import { conversationMessages, conversations, phoneNumbers, withTenant } from "@voicedesk/db";
+import {
+  conversationMessages,
+  conversations,
+  handoffs,
+  phoneNumbers,
+  user,
+  withTenant,
+} from "@voicedesk/db";
 import { and, asc, desc, eq, gte, isNotNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -167,16 +174,35 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
             role: conversationMessages.role,
             content: conversationMessages.content,
             language: conversationMessages.language,
+            metadata: conversationMessages.metadata,
             createdAt: conversationMessages.createdAt,
           })
           .from(conversationMessages)
           .where(eq(conversationMessages.conversationId, found.call.id))
           .orderBy(asc(conversationMessages.id));
+        // Phase 5: when the call went to a person at the VA console, and who answered.
+        const handoffRows = await tx
+          .select({ handoff: handoffs, name: user.name })
+          .from(handoffs)
+          .leftJoin(user, eq(user.id, handoffs.answeredBy))
+          .where(eq(handoffs.conversationId, found.call.id))
+          .orderBy(asc(handoffs.queuedAt));
         return {
           ...callView(found.call, found, showPhone),
           summary: found.call.summary,
           latency: found.call.voiceMetrics,
-          messages,
+          handoffs: handoffRows.map(({ handoff, name }) => ({
+            status: handoff.status,
+            reason: handoff.reason,
+            queuedAt: handoff.queuedAt,
+            answeredAt: handoff.answeredAt,
+            endedAt: handoff.endedAt,
+            answeredBy: name?.split(" ")[0] ?? null,
+          })),
+          messages: messages.map(({ metadata, ...m }) => ({
+            ...m,
+            withPerson: (metadata as { withPerson?: boolean } | null)?.withPerson === true,
+          })),
         };
       });
     },
