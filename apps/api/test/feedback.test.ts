@@ -94,3 +94,17 @@ describe("feedback", () => {
     expect(peek.statusCode).toBe(404);
   });
 });
+
+describe("daily brief preview", () => {
+  it("shows today's brief without sending it", async () => {
+    const res = await h.app.inject({
+      method: "GET",
+      url: `/api/tenants/${biz.tenantId}/daily-brief/preview`,
+      headers: { cookie: biz.cookie, origin: ORIGIN },
+    });
+    const body = res.json<{ subject: string; text: string; recipients: number }>();
+    expect(body.subject).toMatch(/^Rated Co: your daily brief for \d{4}-\d{2}-\d{2}$/);
+    expect(body.text).toContain("Yesterday");
+    expect(body.recipients).toBe(1);
+  });
+});

@@ -35,6 +35,7 @@ interface Settings {
   feedbackEnabled: boolean;
   feedbackAfterCalls: boolean;
   npsEvery: number;
+  dailyBrief: boolean;
 }
 
 export interface AgentResponse {
@@ -58,6 +59,7 @@ export function AgentSettingsForm(props: {
   const tn = useTranslations("notifications");
   const tt = useTranslations("transfers");
   const tf = useTranslations("feedbackSettings");
+  const tb = useTranslations("dailyBrief");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -417,6 +419,21 @@ export function AgentSettingsForm(props: {
           </div>
         </Card>
 
+        <Card>
+          <CardTitle>{tb("title")}</CardTitle>
+          <CardDescription>{tb("hint")}</CardDescription>
+          <label className="mt-4 flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={settings.dailyBrief}
+              onChange={(e) => update({ dailyBrief: e.target.checked })}
+            />
+            <span>{tb("enabled")}</span>
+          </label>
+          <BriefPreview tenantId={props.tenantId} />
+        </Card>
+
         {props.canEdit ? (
           <Button
             onClick={() => void save()}
@@ -426,6 +443,40 @@ export function AgentSettingsForm(props: {
           </Button>
         ) : null}
       </fieldset>
+    </div>
+  );
+}
+
+/** Shows today's brief as it would be emailed (fetched on demand; nothing is sent). */
+function BriefPreview(props: { tenantId: string }) {
+  const t = useTranslations("dailyBrief");
+  const [brief, setBrief] = useState<{ subject: string; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    setBusy(true);
+    try {
+      setBrief(
+        await api<{ subject: string; text: string }>(
+          `/api/tenants/${props.tenantId}/daily-brief/preview`,
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="mt-3">
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => void load()}>
+        {t("preview")}
+      </Button>
+      {brief ? (
+        <div className="mt-3 rounded-md border border-border bg-muted p-3 text-sm">
+          <p className="font-medium">{brief.subject}</p>
+          <pre className="mt-2 font-sans whitespace-pre-wrap" data-testid="brief-preview">
+            {brief.text}
+          </pre>
+        </div>
+      ) : null}
     </div>
   );
 }

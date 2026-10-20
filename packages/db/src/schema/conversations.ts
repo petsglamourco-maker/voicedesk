@@ -58,6 +58,10 @@ export const agentSettings = pgTable("agent_settings", {
   feedbackAfterCalls: boolean("feedback_after_calls").notNull().default(false),
   /** Phase 6: every Nth survey asks the NPS question instead (0 = never). */
   npsEvery: integer("nps_every").notNull().default(0),
+  /** Phase 6: morning email to owners/admins with yesterday and today at a glance. */
+  dailyBrief: boolean("daily_brief").notNull().default(true),
+  /** Local date (YYYY-MM-DD) of the last brief, so each day's goes out once. */
+  briefSentOn: text("brief_sent_on"),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,

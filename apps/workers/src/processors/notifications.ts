@@ -1,6 +1,8 @@
 import type { EmailProvider, SmsProvider } from "@voicedesk/adapters";
 import {
+  claimDueBriefs,
   planBookingNotification,
+  prepareDailyBrief,
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
@@ -74,6 +76,24 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
 
   return async (job: Job<NotificationJob>) => {
     const data = job.data;
+    if (data.kind === "brief.tick") {
+      const now = new Date();
+      const due = await claimDueBriefs(deps.db, now);
+      for (const tenantId of due) {
+        const brief = await prepareDailyBrief(deps.db, tenantId, now, deps.webOrigin);
+        if (!brief) continue;
+        await execute(job, tenantId, {
+          messages: brief.to.map((to) => ({
+            channel: "email",
+            to,
+            subject: brief.subject,
+            text: brief.text,
+            kind: "daily.brief",
+          })),
+        });
+      }
+      return { briefs: due.length };
+    }
     switch (data.kind) {
       case "booking.changed":
         return execute(job, data.tenantId, await planBookingNotification(deps.db, data));

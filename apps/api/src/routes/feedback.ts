@@ -1,4 +1,5 @@
 import {
+  prepareDailyBrief,
   feedbackStats,
   feedbackThanks,
   loadAgentContext,
@@ -76,6 +77,33 @@ export function registerFeedbackRoutes(app: FastifyInstance, deps: AppDeps): voi
         });
       }
       return { thanks: feedbackThanks(toLang(survey.language, "en")), low: saved.low };
+    },
+  );
+
+  r.get(
+    "/api/tenants/:tenantId/daily-brief/preview",
+    {
+      schema: {
+        tags: ["feedback"],
+        summary: "Today's daily brief as it would be emailed (nothing is sent)",
+        params: z.object({ tenantId: z.string() }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:read",
+      );
+      const brief = await prepareDailyBrief(
+        deps.db,
+        access.tenantId,
+        new Date(),
+        deps.webOrigin ?? "http://localhost:3000",
+      );
+      if (!brief) throw notFound();
+      return { subject: brief.subject, text: brief.text, recipients: brief.to.length };
     },
   );
 

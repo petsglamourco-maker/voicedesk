@@ -16,6 +16,7 @@ import {
   QUEUES,
   type ChannelJob,
   reminderJobId,
+  scheduleDailyBriefs,
   type NotificationJob,
   type AiJob,
   type ProcessSourceJob,
@@ -82,6 +83,8 @@ const appLlm = createAppLlm(
 
 const emailQueue = createEmailQueue(connection);
 const notificationQueue = createNotificationQueue(connection);
+// Daily briefs: a 15-minute tick (each business's goes out once, after 07:30 local time).
+await scheduleDailyBriefs(notificationQueue);
 const box = SecretBox.fromEnv();
 const whatsapp = process.env.WHATSAPP_ACCESS_TOKEN
   ? new WhatsAppCloudProvider({

@@ -118,6 +118,8 @@ export type NotificationJob =
     }
   /** Phase 6: a finished call / email / form conversation: send the rating link. */
   | { kind: "feedback.request"; tenantId: string; conversationId: string }
+  /** Phase 6: every 15 minutes, send the daily briefs that are due (07:30 local time). */
+  | { kind: "brief.tick" }
   | {
       kind: "transfer.context";
       tenantId: string;
@@ -226,3 +228,12 @@ export async function scheduleRecrawl(
 
 export type { Queue, Job } from "bullmq";
 export type { Redis } from "ioredis";
+
+/** Repeating job that sends due daily briefs (idempotent per business and day). */
+export async function scheduleDailyBriefs(queue: Queue<NotificationJob>): Promise<void> {
+  await queue.upsertJobScheduler(
+    "daily-brief",
+    { every: 15 * 60 * 1000 },
+    { name: "brief.tick", data: { kind: "brief.tick" }, opts: { attempts: 1 } },
+  );
+}

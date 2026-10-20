@@ -61,6 +61,7 @@ const settingsSchema = z.object({
   feedbackEnabled: z.boolean().default(true),
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
+  dailyBrief: z.boolean().default(true),
 });
 
 const settingsResponse = z.object({
@@ -82,6 +83,7 @@ const settingsResponse = z.object({
   feedbackEnabled: z.boolean(),
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
+  dailyBrief: z.boolean(),
 });
 
 const DEFAULTS = {
@@ -103,6 +105,7 @@ const DEFAULTS = {
   feedbackEnabled: true,
   feedbackAfterCalls: false,
   npsEvery: 0,
+  dailyBrief: true,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -162,6 +165,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               feedbackEnabled: row.feedbackEnabled,
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,
+              dailyBrief: row.dailyBrief,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),
