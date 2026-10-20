@@ -82,7 +82,7 @@ test("sign up, create a business, invite staff who sees only that business", asy
   // Owner now sees the staff member and the audit trail.
   await owner.reload();
   await expect(owner.getByTestId("member-list")).toContainText(staffEmail);
-  await owner.getByRole("link", { name: "Overview" }).click();
+  await owner.getByRole("link", { name: "Dashboard" }).click();
   await expect(owner.getByText("member.joined")).toBeVisible();
 
   await ownerContext.close();

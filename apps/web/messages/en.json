@@ -50,7 +50,7 @@
   },
   "tenant": {
     "navLabel": "Business navigation",
-    "overview": "Overview",
+    "overview": "Dashboard",
     "members": "Team",
     "account": "Account security",
     "switchBusiness": "Business",
@@ -955,5 +955,94 @@
       "approving": "Working…"
     },
     "privacy": "Answers come only from your own VoiceDesk data. Questions are processed by the AI provider switched on for your account."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "period": "Period",
+    "views": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "range": {
+      "daily": "Last 14 days",
+      "weekly": "Last 12 weeks",
+      "monthly": "Last 12 months"
+    },
+    "vs": {
+      "daily": "vs the 14 days before",
+      "weekly": "vs the 12 weeks before",
+      "monthly": "vs the 12 months before"
+    },
+    "timesIn": "times in {tz}",
+    "kpi": {
+      "conversations": "Conversations",
+      "customers": "Customers",
+      "customersHint": "Known customers who got in touch",
+      "bookings": "Bookings made",
+      "csat": "Satisfied",
+      "csatHint": "From {n} ratings",
+      "aiResolved": "Handled by the assistant",
+      "aiResolvedHint": "Conversations no person had to step into",
+      "latency": "Voice response time",
+      "latencyHint": "Median, end of speech to reply",
+      "people": "Taken by your team",
+      "peopleHint": "Calls answered in the VA console · {missed} missed",
+      "issues": "Tickets & messages",
+      "issuesHint": "{tickets} tickets · {messages} messages"
+    },
+    "engagement": "Engagement by touchpoint",
+    "engagementHint": "Every conversation with a customer, by channel",
+    "touchpoint": {
+      "voice": "Phone calls",
+      "outbound": "Calls by the assistant",
+      "web_chat": "Website chat",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "web_form": "Forms"
+    },
+    "conversations": "conversations",
+    "mix": "Channel mix",
+    "funnel": "From conversation to result",
+    "funnelHint": "How many conversations led to something",
+    "funnelConversations": "Conversations",
+    "funnelRecorded": "Booking, ticket or message taken",
+    "funnelBookings": "Bookings",
+    "mood": "How customers felt",
+    "sentiment": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "very_negative": "Very unhappy"
+    },
+    "wanted": "What they wanted",
+    "intent": {
+      "enquiry": "Questions",
+      "signup": "Sign-ups",
+      "complaint": "Complaints",
+      "booking": "Bookings",
+      "change_booking": "Changing a booking",
+      "message": "Leaving a message",
+      "human": "Asking for a person",
+      "emergency": "Emergencies",
+      "other": "Other"
+    },
+    "when": "When customers get in touch",
+    "whenHint": "Darker squares mean more conversations at that hour",
+    "more": "Also in this period",
+    "moreOutbound": "Calls by the assistant",
+    "moreOutboundHint": "Answered / placed",
+    "moreMissed": "Missed handoffs",
+    "moreMissedHint": "Callers nobody at the console could take",
+    "moreUnanswered": "Unanswered questions",
+    "moreUnansweredHint": "Things to add to your business info",
+    "csatTrend": "Satisfaction over time",
+    "latencyTrend": "Voice response time",
+    "recordsTrend": "Bookings, tickets and messages",
+    "tickets": "Tickets",
+    "messages": "Messages",
+    "empty": "No activity yet in this period",
+    "noRatings": "No ratings yet",
+    "noCalls": "No calls yet"
   }
 }

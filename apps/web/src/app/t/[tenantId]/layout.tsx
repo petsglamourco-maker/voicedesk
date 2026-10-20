@@ -41,7 +41,7 @@ export default async function TenantLayout(props: {
   return (
     <div className="min-h-screen">
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
           <span className="font-semibold tracking-tight">VoiceDesk</span>
           <BusinessSwitcher
             currentId={tenantId}
@@ -64,20 +64,20 @@ export default async function TenantLayout(props: {
         </div>
         <nav
           aria-label={t("navLabel")}
-          className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4"
+          className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4"
         >
           {nav.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="rounded-t-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="rounded-t-md px-3 py-2 text-sm font-medium whitespace-nowrap text-muted-foreground hover:bg-muted hover:text-foreground"
             >
               {item.label}
             </Link>
           ))}
         </nav>
       </header>
-      <main id="main" className="mx-auto max-w-5xl px-4 py-8">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-8">
         {props.children}
       </main>
     </div>

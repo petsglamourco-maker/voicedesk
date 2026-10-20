@@ -15,6 +15,13 @@
   --color-danger: #b42318;
   --color-success: #067647;
   --color-warning: #b54708;
+  /* Dashboard: one colour per touchpoint (distinct in hue and lightness for colour-blind users). */
+  --color-ch-voice: #3b3fd8;
+  --color-ch-outbound: #7c3aed;
+  --color-ch-web: #0e9384;
+  --color-ch-whatsapp: #16a34a;
+  --color-ch-email: #d97706;
+  --color-ch-form: #db2777;
   --font-sans:
     ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", "Noto Sans SC",
     sans-serif;
@@ -34,6 +41,12 @@
     --color-danger: #f97066;
     --color-success: #47cd89;
     --color-warning: #fdb022;
+    --color-ch-voice: #8b8ef5;
+    --color-ch-outbound: #b692f6;
+    --color-ch-web: #2ed3b7;
+    --color-ch-whatsapp: #4ade80;
+    --color-ch-email: #fbbf24;
+    --color-ch-form: #f472b6;
   }
 }
 
