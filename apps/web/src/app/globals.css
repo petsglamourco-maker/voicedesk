@@ -7,7 +7,8 @@
  * Never hard-code colours in components: use these tokens.
  *
  * Contrast (WCAG 2.2 AA) is verified by src/lib/contrast.test.ts. Light-mode success, info,
- * accent and danger are one shade darker than the brief so small text passes 4.5:1.
+ * accent, danger, secondary and warning are one shade darker than the brief so small text
+ * (including badges on their own tint) passes 4.5:1.
  */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
@@ -62,6 +63,8 @@
   --animate-aurora: aurora-drift 32s ease-in-out infinite alternate;
   --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-draw: draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bar-grow: bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Light: pale aurora washes, crisp ink. */
@@ -77,13 +80,13 @@
     --color-input: #64748b;
     --color-primary: #0f766e;
     --color-primary-foreground: #ffffff;
-    --color-secondary: #2563eb;
+    --color-secondary: #1d4ed8;
     --color-secondary-foreground: #ffffff;
     --color-accent: #a21caf;
     --color-accent-foreground: #ffffff;
     --color-info: #0369a1;
     --color-success: #047857;
-    --color-warning: #b45309;
+    --color-warning: #92400e;
     --color-danger: #b91c1c;
     --color-danger-foreground: #ffffff;
     --color-ring: #0f766e;
@@ -112,13 +115,13 @@
       --color-input: #64748b;
       --color-primary: #0f766e;
       --color-primary-foreground: #ffffff;
-      --color-secondary: #2563eb;
+      --color-secondary: #1d4ed8;
       --color-secondary-foreground: #ffffff;
       --color-accent: #a21caf;
       --color-accent-foreground: #ffffff;
       --color-info: #0369a1;
       --color-success: #047857;
-      --color-warning: #b45309;
+      --color-warning: #92400e;
       --color-danger: #b91c1c;
       --color-danger-foreground: #ffffff;
       --color-ring: #0f766e;
@@ -244,6 +247,24 @@
   }
   50% {
     opacity: 0.55;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
   }
 }
 

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
     "test:e2e": "playwright test"
   },
   "dependencies": {
