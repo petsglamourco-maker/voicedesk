@@ -63,7 +63,10 @@ async function signIn(page) {
 const browser = await chromium.launch();
 for (const scheme of ["dark", "light"]) {
   for (const width of [375, 768, 1440]) {
-    const anon = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
+    const anon = await browser.newContext({
+      viewport: { width, height: 900 },
+      colorScheme: scheme,
+    });
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
     const page = await ctx.newPage();
     await signIn(page);
@@ -74,7 +77,11 @@ for (const scheme of ["dark", "light"]) {
     };
     const extra = [
       ["call-detail", await first("/calls", (d) => d.calls?.[0]?.id), (id) => t(`/calls/${id}`)],
-      ["contact-detail", await first("/contacts", (d) => d.contacts?.[0]?.id), (id) => t(`/contacts/${id}`)],
+      [
+        "contact-detail",
+        await first("/contacts", (d) => d.contacts?.[0]?.id),
+        (id) => t(`/contacts/${id}`),
+      ],
       ["inbox-thread", await first("/inbox", (d) => d.threads?.[0]?.id), (id) => t(`/inbox/${id}`)],
     ]
       .filter(([, id]) => id)

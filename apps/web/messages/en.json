@@ -4,7 +4,9 @@
     "signOut": "Sign out",
     "working": "Working…",
     "errorGeneric": "Something went wrong. Please try again.",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -1044,5 +1046,38 @@
     "empty": "No activity yet in this period",
     "noRatings": "No ratings yet",
     "noCalls": "No calls yet"
+  },
+  "shell": {
+    "groups": {
+      "overview": "Overview",
+      "customers": "Customers",
+      "channels": "Channels",
+      "assistant": "Assistant",
+      "settings": "Settings"
+    },
+    "search": "Search or jump to…",
+    "collapse": "Collapse",
+    "expand": "Expand sidebar",
+    "openMenu": "Open menu",
+    "account": "Account menu",
+    "theme": "Appearance",
+    "themes": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Match my device"
+    },
+    "notifications": "Notifications",
+    "palette": {
+      "placeholder": "Search pages, businesses and actions…",
+      "empty": "Nothing matches that.",
+      "pages": "Pages",
+      "businesses": "Switch business",
+      "actions": "Appearance"
+    },
+    "notices": {
+      "chats": "{n} conversations waiting for a person",
+      "calls": "{n} calls ringing at the VA console",
+      "none": "You're all caught up."
+    }
   }
 }

@@ -189,15 +189,19 @@ export default async function TenantDashboard(props: {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-3">
         <div>
+          <p className="mb-1 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+            {t("title")}
+          </p>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+            <h1 className="font-display text-[32px] leading-tight font-semibold tracking-tight sm:text-[36px]">
+              {tenant.name}
+            </h1>
             <Badge>
               {tt("yourRole")}: {roles(role)}
             </Badge>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
-            {tenant.name} · {t(`range.${view}`)} ·{" "}
-            {t("timesIn", { tz: tenant.timezone.replaceAll("_", " ") })}
+            {t(`range.${view}`)} · {t("timesIn", { tz: tenant.timezone.replaceAll("_", " ") })}
           </p>
         </div>
         <nav
