@@ -473,7 +473,7 @@
     "carrier": "Carrier",
     "twilioSetupTitle": "Twilio setup",
     "twilioSetup1": "Set SIP_AUTH_USERNAME and SIP_AUTH_PASSWORD in .env (Twilio sends them with each call; LiveKit rejects calls without them).",
-    "twilioSetup2": "Twilio → TwiML Bins: create a bin that dials sip:<the number>@<your LiveKit SIP host>;transport=tcp with that username and password (see the README).",
+    "twilioSetup2": "Twilio → TwiML Bins: create a bin that dials sip:+44…@YOUR-LIVEKIT-SIP-HOST;transport=tcp with that username and password (see the README).",
     "twilioSetup3": "Phone Numbers → your number → Voice: \"A call comes in\" → TwiML Bin → choose the bin.",
     "telnyxSetupTitle": "Telnyx setup",
     "telnyxSetup1": "Telnyx → Voice → SIP Trunking: create an FQDN connection to your LiveKit SIP host, port 5060, TCP, number format +E.164, inbound region Europe.",
