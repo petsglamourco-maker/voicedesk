@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "number:add": "tsx src/number-add.ts",
-    "number:sync": "tsx src/number-sync.ts"
+    "number:sync": "tsx src/number-sync.ts",
+    "number:remove": "tsx src/number-remove.ts"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.4",
