@@ -30,6 +30,8 @@ interface Settings {
   transferHours: string;
   onCallPhone: string | null;
   urgentSituations: string | null;
+  handoffRoute: string;
+  ringSeconds: number;
 }
 
 export interface AgentResponse {
@@ -302,6 +304,31 @@ export function AgentSettingsForm(props: {
           <CardTitle>{tt("title")}</CardTitle>
           <CardDescription>{tt("hint")}</CardDescription>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="handoffRoute">{tt("route")}</Label>
+              <Select
+                id="handoffRoute"
+                value={settings.handoffRoute}
+                onChange={(e) => update({ handoffRoute: e.target.value })}
+              >
+                <option value="people_then_phone">{tt("routePeopleThenPhone")}</option>
+                <option value="people_only">{tt("routePeopleOnly")}</option>
+                <option value="phone_only">{tt("routePhoneOnly")}</option>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">{tt("routeHint")}</p>
+            </div>
+            <div>
+              <Label htmlFor="ringSeconds">{tt("ringSeconds")}</Label>
+              <Input
+                id="ringSeconds"
+                type="number"
+                min={10}
+                max={120}
+                value={settings.ringSeconds}
+                disabled={settings.handoffRoute === "phone_only"}
+                onChange={(e) => update({ ringSeconds: Number(e.target.value) || 30 })}
+              />
+            </div>
             <div>
               <Label htmlFor="transferPhone">{tt("transferPhone")}</Label>
               <Input

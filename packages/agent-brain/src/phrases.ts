@@ -96,6 +96,62 @@ export function transferFailedPhrase(lang: Lang): string {
   return TRANSFER_FAILED[lang];
 }
 
+/** Phase 5 handoff to the VA console: spoken every so often while the console rings. */
+const STILL_CONNECTING: Record<Lang, string> = {
+  en: "Still connecting you, thanks for waiting.",
+  es: "Sigo intentando pasarle, gracias por esperar.",
+  fr: "Je vous mets toujours en relation, merci de patienter.",
+  de: "Ich verbinde Sie noch, danke für Ihre Geduld.",
+  zh: "正在为您转接，感谢您的耐心等待。",
+  ar: "ما زلت أحاول تحويلك، شكرًا على انتظارك.",
+};
+
+export function stillConnectingPhrase(lang: Lang): string {
+  return STILL_CONNECTING[lang];
+}
+
+/** When the person answers: the caller now knows they're talking to a human, and who. */
+const THROUGH_TO: Record<Lang, (name: string) => string> = {
+  en: (n) => `You're through to ${n} now.`,
+  es: (n) => `Le paso con ${n}.`,
+  fr: (n) => `Je vous passe ${n}.`,
+  de: (n) => `Ich verbinde Sie jetzt mit ${n}.`,
+  zh: (n) => `现在为您接通${n}。`,
+  ar: (n) => `أنت الآن على اتصال مع ${n}.`,
+};
+
+export function throughToPhrase(lang: Lang, name: string): string {
+  return THROUGH_TO[lang](name);
+}
+
+/** Nobody at the console picked up in time and there's no phone fallback. */
+const NOBODY_FREE: Record<Lang, string> = {
+  en: "I'm sorry, nobody's free to take the call right now. I can take a message so someone gets back to you.",
+  es: "Lo siento, ahora mismo no hay nadie disponible. Puedo tomar un mensaje para que le devuelvan la llamada.",
+  fr: "Je suis désolée, personne n'est disponible pour le moment. Je peux prendre un message pour qu'on vous rappelle.",
+  de: "Es tut mir leid, gerade ist niemand frei. Ich kann gern eine Nachricht aufnehmen, damit man Sie zurückruft.",
+  zh: "很抱歉，现在没有同事可以接听。我可以帮您留言，稍后会有人回复您。",
+  ar: "عذرًا، لا يوجد أحد متاح للرد الآن. يمكنني أخذ رسالة ليتواصل معك أحد لاحقًا.",
+};
+
+export function nobodyFreePhrase(lang: Lang): string {
+  return NOBODY_FREE[lang];
+}
+
+/** The person handed the call back: the AI disclosure again, since a human was speaking. */
+const BACK_WITH_ASSISTANT: Record<Lang, string> = {
+  en: "You're back with the AI assistant. Is there anything else I can help with?",
+  es: "Vuelve a hablar con el asistente de IA. ¿Puedo ayudarle con algo más?",
+  fr: "Vous êtes de nouveau avec l'assistante IA. Puis-je vous aider pour autre chose ?",
+  de: "Sie sprechen wieder mit der KI-Assistenz. Kann ich sonst noch helfen?",
+  zh: "您现在又在与人工智能助理通话。还有什么可以帮您的吗？",
+  ar: "أنت الآن مع المساعد الذكي مجددًا. هل يمكنني مساعدتك في شيء آخر؟",
+};
+
+export function backWithAssistantPhrase(lang: Lang): string {
+  return BACK_WITH_ASSISTANT[lang];
+}
+
 /** Email signature: who wrote it and that it's an AI assistant (disclosure on every email). */
 const AI_SIGNATURE: Record<Lang, (name: string, business: string) => string> = {
   en: (n, b) => `${n}\nAI assistant, ${b}`,

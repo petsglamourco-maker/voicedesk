@@ -6,7 +6,13 @@ import { ConversationDriver } from "../src/driver";
 import { createConversation } from "../src/persistence";
 import { InMemoryAgentServices } from "../src/services";
 import { createDbAgentServices, type AgentNotification } from "../src/services-db";
-import { isOpenNow, transferTarget, type TransferSettings } from "../src/transfer";
+import {
+  handoffPlan,
+  isOpenNow,
+  PEOPLE_TARGET,
+  transferTarget,
+  type TransferSettings,
+} from "../src/transfer";
 import { makeContext, PROFILE } from "./fixtures";
 
 const S = (over: Partial<TransferSettings> = {}): TransferSettings => ({
@@ -61,6 +67,27 @@ describe("request_human on a phone call", () => {
   });
 });
 
+describe("handoffPlan (Phase 5)", () => {
+  const phone = "+447700900111";
+  it.each([
+    [
+      "people first, someone free",
+      "people_then_phone",
+      true,
+      phone,
+      { to: PEOPLE_TARGET, fallback: phone },
+    ],
+    ["people first, nobody free", "people_then_phone", false, phone, { to: phone }],
+    ["people first, no phone", "people_then_phone", true, null, { to: PEOPLE_TARGET }],
+    ["people only, nobody free", "people_only", false, phone, null],
+    ["people only, someone free", "people_only", true, phone, { to: PEOPLE_TARGET }],
+    ["phone only ignores the console", "phone_only", true, phone, { to: phone }],
+    ["nothing at all", "people_then_phone", false, null, null],
+  ] as const)("%s", (_name, route, people, number, expected) => {
+    expect(handoffPlan(route, people, number)).toEqual(expected);
+  });
+});
+
 describe("transfer decision in the database services", () => {
   let dbs: TestDbs;
   let tenantId: string;
@@ -81,7 +108,11 @@ describe("transfer decision in the database services", () => {
     await closeDb(dbs.owner);
   });
 
-  async function services(canTransfer: boolean, events: AgentNotification[]) {
+  async function services(
+    canTransfer: boolean,
+    events: AgentNotification[],
+    peopleAvailable?: () => Promise<boolean>,
+  ) {
     const { conversationId } = await createConversation(dbs.app, makeContext({ style: "voice" }), {
       tenantId,
       channel: "voice",
@@ -92,7 +123,7 @@ describe("transfer decision in the database services", () => {
         embeddings: new MockEmbeddingProvider(),
         notify: (e) => Promise.resolve(void events.push(e)),
       },
-      { tenantId, conversationId, businessName: "Transfer Co", canTransfer },
+      { tenantId, conversationId, businessName: "Transfer Co", canTransfer, peopleAvailable },
     );
   }
 
@@ -107,6 +138,20 @@ describe("transfer decision in the database services", () => {
         reason: "Billing question",
       }),
     ]);
+  });
+
+  it("goes to the VA console when someone is available, with the phone line as fallback", async () => {
+    const events: AgentNotification[] = [];
+    const res = await (
+      await services(true, events, () => Promise.resolve(true))
+    ).requestHuman("Billing question");
+    expect(res).toMatchObject({
+      available: true,
+      transferTo: PEOPLE_TARGET,
+      transferFallback: "+447700900111",
+    });
+    // The context is on the console screen; no text to the phone line yet.
+    expect(events).toEqual([]);
   });
 
   it("never transfers chats or browser tests", async () => {

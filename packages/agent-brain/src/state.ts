@@ -117,7 +117,7 @@ export interface ConversationState {
   /** The agent closed the conversation (end_conversation); phone calls hang up. */
   endRequested?: boolean;
   /** Phone calls: put the caller through to this number once the current reply is spoken. */
-  transfer?: { to: string };
+  transfer?: { to: string; fallback?: string; urgent?: boolean };
   /** Turn the last booking was made in (guards against a duplicate create in one turn). */
   lastBookingTurn?: number;
 }

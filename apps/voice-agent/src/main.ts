@@ -21,12 +21,17 @@ import {
 import type { EmbeddingProvider, LlmProvider, ObjectStorage } from "@voicedesk/adapters";
 import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import {
+  backWithAssistantPhrase,
   createConversation,
   endConversation,
   loadAgentContext,
   loadConversationState,
+  nobodyFreePhrase,
   normalisePhone,
+  PEOPLE_TARGET,
   silentGoodbyePhrase,
+  stillConnectingPhrase,
+  throughToPhrase,
   stillTherePhrase,
   sttLanguageFor,
   transferFailedPhrase,
@@ -35,21 +40,33 @@ import {
 } from "@voicedesk/agent-brain";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
-import { createAppLlm, calendarsFromEnv, SecretBox, type CalendarFactory } from "@voicedesk/core";
+import {
+  availableAnswerers,
+  calendarsFromEnv,
+  createAppLlm,
+  createHandoff,
+  getHandoff,
+  moveHandoff,
+  SecretBox,
+  type CalendarFactory,
+} from "@voicedesk/core";
 import { createDb, type Database } from "@voicedesk/db";
 import {
   createAiQueue,
   createNotificationQueue,
   createRedisConnection,
+  LIVE_CHANNEL,
   type NotificationJob,
 } from "@voicedesk/jobs";
 import { EngineLlmPlaceholder, EngineVoiceAgent } from "./agent";
 import { EngineBridge, median, type TurnTimings } from "./bridge";
+import { HandoffController } from "./handoff";
 import {
   activePhoneNumber,
   callerFromSip,
   loadGreeting,
   parseJobMetadata,
+  ringSecondsFor,
   saveRecording,
   saveVoiceMetrics,
   type JobIds,
@@ -57,6 +74,11 @@ import {
 import { CallRecorder, RECORDING_SAMPLE_RATE } from "./recorder";
 import { SILENCE_SECONDS, SilenceHandler } from "./silence";
 import { TeeAudioOutput } from "./tee-output";
+
+/** People answering from the VA console join with identity va-<userId> (see apps/api). */
+function isConsolePerson(identity: string): boolean {
+  return identity.startsWith("va-");
+}
 
 /** Must match VOICE_AGENT_NAME in apps/api (explicit dispatch only). */
 const AGENT_NAME = "voicedesk-agent";
@@ -76,6 +98,8 @@ let shared:
       storage: () => ObjectStorage;
       calendars: { box: SecretBox | null; factory: CalendarFactory | null };
       notify: (job: NotificationJob) => Promise<void>;
+      /** Live events for the VA console (Redis pub/sub, then API, then browsers). */
+      publishLive: (event: { tenantId: string; threadId: string; type: string }) => void;
     }
   | undefined;
 function resources() {
@@ -90,6 +114,13 @@ function resources() {
         return async (job: NotificationJob) => {
           queue ??= createNotificationQueue(createRedisConnection(process.env.REDIS_URL!));
           await queue.add(job.kind, job);
+        };
+      })(),
+      publishLive: (() => {
+        let redis: ReturnType<typeof createRedisConnection> | undefined;
+        return (event: { tenantId: string; threadId: string; type: string }) => {
+          redis ??= createRedisConnection(process.env.REDIS_URL!);
+          void redis.publish(LIVE_CHANNEL, JSON.stringify(event)).catch(() => undefined);
         };
       })(),
       llm: createAppLlm(db, {
@@ -109,7 +140,7 @@ function resources() {
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     const job = parseJobMetadata(ctx.job.metadata);
-    const { db, llm, embeddings, storage, calendars, notify } = resources();
+    const { db, llm, embeddings, storage, calendars, notify, publishLive } = resources();
     const agentCtx = await loadAgentContext(db, job.tenantId, "voice");
     await ctx.connect();
 
@@ -118,9 +149,12 @@ export default defineAgent({
     const recordCaller = (track: RemoteTrack, participant: RemoteParticipant) => {
       if (!recorder || track.kind !== TrackKind.KIND_AUDIO) return;
       if (participant.identity === ctx.room.localParticipant?.identity) return;
+      // A person from the VA console is on the business's side of the stereo recording.
+      const business = isConsolePerson(participant.identity);
       void (async () => {
         for await (const frame of new AudioStream(track, RECORDING_SAMPLE_RATE, 1)) {
-          recorder.addCaller(frame);
+          if (business) recorder.addAgent(frame);
+          else recorder.addCaller(frame);
         }
       })().catch(() => undefined);
     };
@@ -199,7 +233,8 @@ export default defineAgent({
     // Set when the agent closes the conversation; the call ends once the goodbye is heard.
     let hangUpAfterSpeech = false;
     // Set when the caller is being put through to a person; done once the sentence is heard.
-    let transferAfterSpeech: string | null = null;
+    let transferAfterSpeech: { to: string; fallback?: string; urgent?: boolean } | null = null;
+    let handoffReason: string | null = null;
     const bridge = new EngineBridge(
       {
         db,
@@ -208,6 +243,10 @@ export default defineAgent({
         calendars: { ...calendars, log: (msg, data) => log.warn(data, msg) },
         notify: (event) => notify({ ...event, tenantId: ids.tenantId }),
         canTransfer: job.kind === "phone",
+        peopleAvailable:
+          job.kind === "phone"
+            ? async () => (await availableAnswerers(db, job.tenantId)).length > 0
+            : undefined,
       },
       agentCtx,
       ids,
@@ -218,10 +257,12 @@ export default defineAgent({
           tts.updateOptions({ language });
           jobLog.info({ language }, "switched speech language");
         },
-        onTurn: (result) => {
+        onTurn: (result, callerText) => {
           if (result.state.endRequested) hangUpAfterSpeech = true;
-          if (result.state.transfer && callerIdentity)
-            transferAfterSpeech = result.state.transfer.to;
+          if (result.state.transfer && callerIdentity) {
+            transferAfterSpeech = result.state.transfer;
+            handoffReason = callerText.slice(0, 200);
+          }
           publish({ type: "turn", flow: result.state.flow, records: result.state.records });
         },
         onError: (error) => jobLog.error({ err: error }, "voice turn failed"),
@@ -306,13 +347,76 @@ export default defineAgent({
         session.say(transferFailedPhrase(bridge.language));
       }
     };
+    // Phase 5: ring the VA console; the person joins this room from their browser.
+    const ringMs = (await ringSecondsFor(db, ids.tenantId)) * 1000;
+    const handoffLive = (id: string) =>
+      publishLive({ tenantId: ids.tenantId, threadId: id, type: "handoff" });
+    const say = (text: string) => void session.say(text);
+    const handoff = new HandoffController(
+      {
+        open: async (reason, urgent) => {
+          const row = await createHandoff(db, {
+            tenantId: ids.tenantId,
+            conversationId: ids.conversationId,
+            roomName: ctx.room.name!,
+            reason,
+            urgent,
+          });
+          handoffLive(row.id);
+          return row.id;
+        },
+        markMissed: async (id) => {
+          const moved = await moveHandoff(db, ids.tenantId, id, ["waiting"], "missed");
+          handoffLive(id);
+          return moved !== null;
+        },
+        statusOf: async (id) => (await getHandoff(db, ids.tenantId, id))?.status ?? null,
+        markReturned: async (id) => {
+          await moveHandoff(db, ids.tenantId, id, ["answered"], "returned");
+          handoffLive(id);
+        },
+        markEnded: async (id) => {
+          await moveHandoff(db, ids.tenantId, id, ["answered"], "ended");
+          handoffLive(id);
+        },
+        sayStillConnecting: () => say(stillConnectingPhrase(bridge.language)),
+        sayThroughTo: (name) => say(throughToPhrase(bridge.language, name)),
+        sayNobodyFree: () => say(nobodyFreePhrase(bridge.language)),
+        sayBackWithAssistant: () => say(backWithAssistantPhrase(bridge.language)),
+        transferToPhone: (to) => transfer(to),
+        note: (text) => bridge.note(text),
+        hangUp: (reason) => hangUp(reason),
+        setHumanActive: (active) => {
+          bridge.humanActive = active;
+        },
+        log: (message, data) => jobLog.info(data ?? {}, message),
+      },
+      ringMs,
+    );
+    ctx.room.on(RoomEvent.ParticipantConnected, (participant) => {
+      if (isConsolePerson(participant.identity)) {
+        handoff.personJoined(participant.name || "a colleague");
+      }
+    });
+    ctx.room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      if (isConsolePerson(participant.identity)) void handoff.personLeft();
+    });
+
     // Hang up or transfer once the closing sentence has finished playing.
     session.on(voice.AgentSessionEventTypes.AgentStateChanged, (e) => {
       if (e.oldState !== "speaking" || e.newState === "speaking") return;
       if (transferAfterSpeech) {
-        const to = transferAfterSpeech;
+        const target = transferAfterSpeech;
         transferAfterSpeech = null;
-        void transfer(to);
+        if (target.to === PEOPLE_TARGET) {
+          void handoff.start({
+            reason: handoffReason,
+            urgent: target.urgent === true,
+            fallback: target.fallback,
+          });
+        } else {
+          void transfer(target.to);
+        }
       } else if (hangUpAfterSpeech) {
         hangUpAfterSpeech = false;
         void hangUp("conversation closed");
@@ -327,6 +431,8 @@ export default defineAgent({
       },
     });
     session.on(voice.AgentSessionEventTypes.UserStateChanged, (e) => {
+      // While a person has the call, quiet moments are theirs to handle.
+      if (bridge.humanActive) return;
       void silence.onUserState(e.newState).catch(() => undefined);
     });
     session.on(voice.AgentSessionEventTypes.Close, () => ctx.shutdown("session closed"));
@@ -344,6 +450,7 @@ export default defineAgent({
     });
 
     ctx.addShutdownCallback(async () => {
+      await handoff.callEnded();
       await bridge.drain();
       const turns = latencies.map((t) => ({
         endOfUtteranceMs: t.endOfUtteranceMs,
@@ -375,7 +482,14 @@ export default defineAgent({
     });
 
     // record: false keeps audio and transcripts out of LiveKit Cloud's session reports.
-    await session.start({ agent, room: ctx.room, record: false });
+    await session.start({
+      agent,
+      room: ctx.room,
+      record: false,
+      // Listen to the caller only: a person joining from the VA console must not become the
+      // user the assistant answers.
+      ...(callerIdentity ? { inputOptions: { participantIdentity: callerIdentity } } : {}),
+    });
     if (recorder && session.output.audio) {
       session.output.audio = new TeeAudioOutput(session.output.audio, {
         onFrame: (frame) => recorder.addAgent(frame),

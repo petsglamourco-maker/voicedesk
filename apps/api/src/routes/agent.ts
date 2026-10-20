@@ -54,6 +54,10 @@ const settingsSchema = z.object({
   /** Urgent situations only, outside the transfer hours. */
   onCallPhone: z.string().trim().max(40).nullable().default(null),
   urgentSituations: z.string().trim().max(500).nullable().default(null),
+  handoffRoute: z
+    .enum(["people_then_phone", "people_only", "phone_only"])
+    .default("people_then_phone"),
+  ringSeconds: z.number().int().min(10).max(120).default(30),
 });
 
 const settingsResponse = z.object({
@@ -70,6 +74,8 @@ const settingsResponse = z.object({
   transferHours: z.string(),
   onCallPhone: z.string().nullable(),
   urgentSituations: z.string().nullable(),
+  handoffRoute: z.string(),
+  ringSeconds: z.number(),
 });
 
 const DEFAULTS = {
@@ -86,6 +92,8 @@ const DEFAULTS = {
   transferHours: "open",
   onCallPhone: null as string | null,
   urgentSituations: null as string | null,
+  handoffRoute: "people_then_phone",
+  ringSeconds: 30,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -140,6 +148,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               transferHours: row.transferHours,
               onCallPhone: row.onCallPhone,
               urgentSituations: row.urgentSituations,
+              handoffRoute: row.handoffRoute,
+              ringSeconds: row.ringSeconds,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),

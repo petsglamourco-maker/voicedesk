@@ -13,6 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { contacts, tenants, timestamps } from "./app";
+import { user } from "./auth";
 
 /** Per-tenant agent configuration (persona, languages). See @voicedesk/agent-brain. */
 export const agentSettings = pgTable("agent_settings", {
@@ -44,6 +45,13 @@ export const agentSettings = pgTable("agent_settings", {
   onCallPhone: text("on_call_phone"),
   /** What counts as urgent for this business (e.g. "burst pipe, no heating"). */
   urgentSituations: text("urgent_situations"),
+  /**
+   * Who a phone caller asking for a person reaches (Phase 5): "people_then_phone" (someone
+   * at the VA console, else the transfer number), "people_only", or "phone_only".
+   */
+  handoffRoute: text("handoff_route").notNull().default("people_then_phone"),
+  /** How long the VA console rings before falling back. */
+  ringSeconds: integer("ring_seconds").notNull().default(30),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,
@@ -417,4 +425,33 @@ export const mailboxes = pgTable(
     ...timestamps,
   },
   (t) => [uniqueIndex("mailboxes_tenant_uq").on(t.tenantId)],
+);
+
+/**
+ * A phone call handed from the assistant to a person at the VA console (Phase 5, ADR 0018).
+ * waiting → answered → returned (back to the assistant) / ended; or waiting → missed.
+ */
+export const handoffs = pgTable(
+  "handoffs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.id, { onDelete: "cascade" }),
+    roomName: text("room_name").notNull(),
+    reason: text("reason"),
+    urgent: boolean("urgent").notNull().default(false),
+    status: text("status").notNull().default("waiting"),
+    answeredBy: uuid("answered_by").references(() => user.id, { onDelete: "set null" }),
+    queuedAt: timestamp("queued_at", { withTimezone: true }).notNull().defaultNow(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("handoffs_tenant_status_idx").on(t.tenantId, t.status),
+    index("handoffs_conversation_idx").on(t.conversationId),
+  ],
 );

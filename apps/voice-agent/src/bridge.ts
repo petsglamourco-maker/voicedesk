@@ -9,7 +9,7 @@ import {
   type Lang,
   type TurnResult,
 } from "@voicedesk/agent-brain";
-import type { Database } from "@voicedesk/db";
+import { conversationMessages, withTenant, type Database } from "@voicedesk/db";
 
 export interface BridgeDeps {
   db: Database;
@@ -21,6 +21,8 @@ export interface BridgeDeps {
   notify?: DbServiceDeps["notify"];
   /** Phone calls: callers can be put through to a person (SIP transfer). */
   canTransfer?: boolean;
+  /** Phone calls: whether someone at the VA console can take the call now (Phase 5). */
+  peopleAvailable?: () => Promise<boolean>;
 }
 
 export interface TurnTimings {
@@ -46,6 +48,11 @@ export interface TurnTimings {
 export class EngineBridge {
   private state: ConversationState;
   private queue: Promise<unknown> = Promise.resolve();
+  /**
+   * True while the call is with (or ringing for) a person at the VA console: the assistant
+   * doesn't answer, and what the caller says is saved as transcript only.
+   */
+  humanActive = false;
   /** Hold-on phrases spoken so far in this call (picks the next variant). */
   fillersSpoken = 0;
   /** Whether the previous reply needed a hold-on phrase (the next one waits longer). */
@@ -96,6 +103,7 @@ export class EngineBridge {
           businessName: this.ctx.businessName,
           timezone: this.ctx.timezone,
           canTransfer: this.deps.canTransfer,
+          peopleAvailable: this.deps.peopleAvailable,
         },
       );
       try {
@@ -140,6 +148,28 @@ export class EngineBridge {
       transfer: undefined,
       history: [...this.state.history, { role: "system", content: `[Engine note] ${text}` }],
     };
+  }
+
+  /**
+   * Saves what the caller said while a person had the call (transcript only, no engine
+   * turn), in order with the other turns.
+   */
+  saveCallerSpeech(text: string): Promise<void> {
+    const run = async () => {
+      await withTenant(this.deps.db, this.ids.tenantId, (tx) =>
+        tx.insert(conversationMessages).values({
+          tenantId: this.ids.tenantId,
+          conversationId: this.ids.conversationId,
+          role: "caller",
+          content: text,
+          language: this.state.language,
+          metadata: { channel: "voice", withPerson: true },
+        }),
+      ).catch((error: unknown) => this.hooks.onError?.(error));
+    };
+    const next = this.queue.then(run, run);
+    this.queue = next;
+    return next;
   }
 
   /** Waits for any turn still in progress (call before ending the conversation). */

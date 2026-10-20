@@ -1,5 +1,5 @@
 import type { TextToSpeechProvider } from "@voicedesk/adapters";
-import { AccessToken, AgentDispatchClient } from "livekit-server-sdk";
+import { AccessToken, AgentDispatchClient, RoomServiceClient } from "livekit-server-sdk";
 
 /** Name the voice worker registers under; dispatches must use the same name. */
 export const VOICE_AGENT_NAME = "voicedesk-agent";
@@ -18,6 +18,14 @@ export interface VoiceGateway {
     displayName: string;
     metadata: VoiceJobMetadata;
   }): Promise<{ url: string; token: string }>;
+  /** A token for a person joining an existing call from the VA console (Phase 5). */
+  joinCall(params: {
+    roomName: string;
+    identity: string;
+    displayName: string;
+  }): Promise<{ url: string; token: string }>;
+  /** Ends a call for everyone in it (the caller's phone line hangs up). */
+  endCall(roomName: string): Promise<void>;
 }
 
 export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): VoiceGateway | null {
@@ -26,6 +34,7 @@ export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): Voice
   const apiSecret = env.LIVEKIT_API_SECRET;
   if (!url || !apiKey || !apiSecret) return null;
   const dispatch = new AgentDispatchClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
+  const rooms = new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
   return {
     async createSession({ roomName, identity, displayName, metadata }) {
       // Explicit dispatch: the worker only joins rooms we create (never all rooms).
@@ -45,6 +54,14 @@ export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): Voice
         canPublishData: true,
       });
       return { url, token: await token.toJwt() };
+    },
+    async joinCall({ roomName, identity, displayName }) {
+      const token = new AccessToken(apiKey, apiSecret, { identity, name: displayName, ttl: "2h" });
+      token.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true });
+      return { url, token: await token.toJwt() };
+    },
+    async endCall(roomName) {
+      await rooms.deleteRoom(roomName).catch(() => undefined);
     },
   };
 }

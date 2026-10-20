@@ -8,7 +8,7 @@ import { formatProfileForPrompt } from "./profile";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-18.6";
+export const PROMPT_VERSION = "2026-10-20.1";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;

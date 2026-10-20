@@ -122,6 +122,11 @@ export class EngineVoiceAgent extends voice.Agent {
   ): Promise<ReadableStream<string> | null> {
     const callerText = newCallerText(chatCtx);
     if (!callerText) return null;
+    // With a person (or ringing for one): keep the transcript, don't answer.
+    if (this.bridge.humanActive) {
+      void this.bridge.saveCallerSpeech(callerText);
+      return null;
+    }
     return engineReplyStream(this.bridge, callerText, this.hooks);
   }
 }

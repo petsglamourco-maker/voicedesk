@@ -27,6 +27,10 @@ export {
   silentGoodbyePhrase,
   stillTherePhrase,
   transferFailedPhrase,
+  stillConnectingPhrase,
+  throughToPhrase,
+  nobodyFreePhrase,
+  backWithAssistantPhrase,
 } from "./phrases";
 export type { AgentContext } from "./context";
 export { buildSystemPrompt, PROMPT_VERSION } from "./prompt";
@@ -79,7 +83,15 @@ export {
   type NotificationPlan,
   type OutgoingMessage,
 } from "./notifications";
-export { isOpenNow, transferTarget, type TransferSettings } from "./transfer";
+export {
+  handoffPlan,
+  isOpenNow,
+  PEOPLE_TARGET,
+  toHandoffRoute,
+  transferTarget,
+  type HandoffRoute,
+  type TransferSettings,
+} from "./transfer";
 export {
   handleInboundMessage,
   openThread,

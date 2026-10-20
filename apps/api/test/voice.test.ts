@@ -16,6 +16,8 @@ const voice: VoiceGateway = {
     sessions.push(params);
     return Promise.resolve({ url: "wss://example.livekit.cloud", token: "jwt" });
   },
+  joinCall: () => Promise.resolve({ url: "wss://example.livekit.cloud", token: "jwt" }),
+  endCall: () => Promise.resolve(),
 };
 
 let h: TestHarness;

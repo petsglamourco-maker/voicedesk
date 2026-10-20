@@ -69,7 +69,16 @@ export interface AgentServices {
   requestHuman(
     reason: string,
     options?: { urgent?: boolean },
-  ): Promise<Created & { available: boolean; transferTo?: string; handoff?: boolean }>;
+  ): Promise<
+    Created & {
+      available: boolean;
+      /** A phone number, or PEOPLE_TARGET for the VA console. */
+      transferTo?: string;
+      /** Phone number to try if nobody at the console answers. */
+      transferFallback?: string;
+      handoff?: boolean;
+    }
+  >;
   /** Registers a new customer (lead / sign-up) taken by the assistant. */
   registerCustomer(input: SignupInput): Promise<Created>;
   /** Logs a question the assistant couldn't answer, so the business can fill the gap. */

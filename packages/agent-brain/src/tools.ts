@@ -15,6 +15,7 @@ import {
   type ConversationState,
   type CreatedRecord,
 } from "./state";
+import { PEOPLE_TARGET } from "./transfer";
 import { groupDigitsForReadback, normalisePhone } from "./util";
 
 /**
@@ -786,11 +787,20 @@ export const TOOLS = {
         };
       }
       if (created.available) {
-        if (created.transferTo) env.state.transfer = { to: created.transferTo };
+        if (created.transferTo) {
+          env.state.transfer = {
+            to: created.transferTo,
+            ...(created.transferFallback ? { fallback: created.transferFallback } : {}),
+            ...(urgent ? { urgent: true } : {}),
+          };
+        }
         return {
           result: {
             available: true,
-            next: "In one short sentence, tell the caller you're putting them through now. Say nothing after that.",
+            next:
+              created.transferTo === PEOPLE_TARGET
+                ? "In one short sentence, tell the caller you're connecting them to a member of the team now. Say nothing after that."
+                : "In one short sentence, tell the caller you're putting them through now. Say nothing after that.",
           },
           record,
         };

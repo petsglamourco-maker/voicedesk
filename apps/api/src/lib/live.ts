@@ -7,7 +7,8 @@ import { EventEmitter } from "node:events";
 export interface LiveEvent {
   tenantId: string;
   threadId: string;
-  type: "message" | "mode" | "thread";
+  /** "handoff": a phone call ringing at, answered from or leaving the VA console. */
+  type: "message" | "mode" | "thread" | "handoff";
   /** For "message": who wrote it and the text. */
   role?: "caller" | "agent";
   human?: boolean;

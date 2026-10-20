@@ -45,3 +45,31 @@ export function transferTarget(
   if (urgent && settings.onCallPhone) return settings.onCallPhone;
   return null;
 }
+
+/** `transfer.to` value meaning "a person at the VA console" rather than a phone number. */
+export const PEOPLE_TARGET = "people";
+
+export type HandoffRoute = "people_then_phone" | "people_only" | "phone_only";
+
+export function toHandoffRoute(value: string | null | undefined): HandoffRoute {
+  return value === "people_only" || value === "phone_only" ? value : "people_then_phone";
+}
+
+/**
+ * Where a phone caller asking for a person goes (Phase 5, ADR 0018): someone at the VA console
+ * when the route allows it and someone is available (with the phone number as fallback if
+ * nobody answers), else the phone number, else nobody (the assistant takes a message).
+ */
+export function handoffPlan(
+  route: HandoffRoute,
+  peopleAvailable: boolean,
+  phone: string | null,
+): { to: string; fallback?: string } | null {
+  if (route !== "phone_only" && peopleAvailable) {
+    return route === "people_then_phone" && phone
+      ? { to: PEOPLE_TARGET, fallback: phone }
+      : { to: PEOPLE_TARGET };
+  }
+  if (route !== "people_only" && phone) return { to: phone };
+  return null;
+}

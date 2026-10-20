@@ -1,5 +1,6 @@
 import { tenantKey, type ObjectStorage } from "@voicedesk/adapters";
 import {
+  agentSettings,
   conversationMessages,
   conversations,
   phoneNumbers,
@@ -101,4 +102,15 @@ export async function saveRecording(
       .where(eq(conversations.id, ids.conversationId)),
   );
   return key;
+}
+
+/** How long the VA console rings for this business before falling back (Phase 5). */
+export async function ringSecondsFor(db: Database, tenantId: string): Promise<number> {
+  const [row] = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ ringSeconds: agentSettings.ringSeconds })
+      .from(agentSettings)
+      .where(eq(agentSettings.tenantId, tenantId)),
+  );
+  return Math.min(Math.max(row?.ringSeconds ?? 30, 10), 120);
 }

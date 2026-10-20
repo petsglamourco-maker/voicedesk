@@ -1,8 +1,14 @@
 import {
+  activeHandoffFor,
   AnswererError,
   answererTenants,
   assignVa,
+  claimHandoff,
+  getHandoff,
   getPresence,
+  moveHandoff,
+  recordAudit,
+  waitingHandoffs,
   listAnswerers,
   listVaAssignments,
   PRESENCE_STATUSES,
@@ -10,7 +16,17 @@ import {
   setAnswersCalls,
   setPresence,
 } from "@voicedesk/core";
-import { channelThreads, contacts, tenants, withPlatformAccess, withTenant } from "@voicedesk/db";
+import type { ConversationState } from "@voicedesk/agent-brain";
+import {
+  channelThreads,
+  contacts,
+  conversationMessages,
+  conversations,
+  tenants,
+  withPlatformAccess,
+  withTenant,
+  type Database,
+} from "@voicedesk/db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -188,7 +204,14 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
       const session = await requireSession(deps.auth, request);
       const businesses = await answererTenants(deps.db, session.user.id);
       const chats = [];
+      const calls = [];
+      let activeCall: { tenantId: string; businessName: string; handoffId: string } | null = null;
       for (const b of businesses) {
+        for (const call of await waitingHandoffs(deps.db, b.tenantId)) {
+          calls.push({ ...call, tenantId: b.tenantId, businessName: b.name });
+        }
+        const mine = await activeHandoffFor(deps.db, b.tenantId, session.user.id);
+        if (mine) activeCall = { tenantId: b.tenantId, businessName: b.name, handoffId: mine.id };
         const rows = await withTenant(deps.db, b.tenantId, (tx) =>
           tx
             .select({ thread: channelThreads, contactName: contacts.fullName })
@@ -214,9 +237,156 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
         );
       }
       chats.sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime());
-      return { chats };
+      calls.sort(
+        (a, b) =>
+          Number(b.urgent) - Number(a.urgent) || a.queuedAt.getTime() - b.queuedAt.getTime(),
+      );
+      return { calls, activeCall, chats };
     },
   );
+
+  // ---- Calls handed over by the assistant ----
+
+  const handoffParams = z.object({ tenantId: z.string(), handoffId: z.string().uuid() });
+
+  /** Members who answer calls for this business (platform VAs or opted-in staff). */
+  async function requireAnswerer(tenantId: string, userId: string) {
+    const answerers = await listAnswerers(deps.db, tenantId);
+    if (!answerers.some((a) => a.userId === userId)) {
+      throw new HttpError(403, "NOT_AN_ANSWERER", "You don't answer calls for this business");
+    }
+  }
+
+  r.post(
+    "/api/tenants/:tenantId/handoffs/:handoffId/answer",
+    {
+      schema: {
+        tags: ["va"],
+        summary: "Answer a call the assistant is handing over (first to answer wins)",
+        params: handoffParams,
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "calls:read",
+      );
+      const userId = access.session.user.id;
+      await requireAnswerer(access.tenantId, userId);
+      if (!deps.voice) {
+        throw new HttpError(
+          503,
+          "VOICE_NOT_CONFIGURED",
+          "LiveKit is not configured on this server",
+        );
+      }
+      const claimed = await claimHandoff(
+        deps.db,
+        access.tenantId,
+        request.params.handoffId,
+        userId,
+      );
+      if (!claimed) {
+        throw new HttpError(
+          409,
+          "ALREADY_ANSWERED",
+          "Someone else answered, or the caller hung up",
+        );
+      }
+      await setPresence(deps.db, userId, "busy");
+      const firstName = access.session.user.name.split(" ")[0] || "a colleague";
+      const join = await deps.voice.joinCall({
+        roomName: claimed.roomName,
+        identity: `va-${userId}`,
+        displayName: firstName,
+      });
+      await withTenant(deps.db, access.tenantId, (tx) =>
+        recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: userId,
+          action: "handoff.answered",
+          targetType: "conversation",
+          targetId: claimed.conversationId,
+        }),
+      );
+      live.publish({ tenantId: access.tenantId, threadId: claimed.id, type: "handoff" });
+      return {
+        ...join,
+        handoffId: claimed.id,
+        context: await callContext(deps.db, access.tenantId, claimed.conversationId),
+      };
+    },
+  );
+
+  r.get(
+    "/api/tenants/:tenantId/handoffs/:handoffId/context",
+    {
+      schema: {
+        tags: ["va"],
+        summary: "The call so far: transcript, caller, records",
+        params: handoffParams,
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "calls:read",
+      );
+      const handoff = await getHandoff(deps.db, access.tenantId, request.params.handoffId);
+      if (!handoff) throw notFound();
+      return {
+        status: handoff.status,
+        context: await callContext(deps.db, access.tenantId, handoff.conversationId),
+      };
+    },
+  );
+
+  for (const [action, to, summary] of [
+    ["return", "returned", "Hand the caller back to the assistant"],
+    ["end", "ended", "End the call"],
+  ] as const) {
+    r.post(
+      `/api/tenants/:tenantId/handoffs/:handoffId/${action}`,
+      { schema: { tags: ["va"], summary, params: handoffParams } },
+      async (request) => {
+        const access = await requireTenantAccess(
+          deps,
+          request,
+          request.params.tenantId,
+          "calls:read",
+        );
+        const userId = access.session.user.id;
+        const moved = await moveHandoff(
+          deps.db,
+          access.tenantId,
+          request.params.handoffId,
+          ["answered"],
+          to,
+          { by: userId },
+        );
+        if (!moved) throw new HttpError(409, "NOT_ON_CALL", "You're not on this call");
+        if (to === "ended") await deps.voice?.endCall(moved.roomName);
+        await setPresence(deps.db, userId, "available");
+        await withTenant(deps.db, access.tenantId, (tx) =>
+          recordAudit(tx, {
+            tenantId: access.tenantId,
+            actorType: "user",
+            actorUserId: userId,
+            action: `handoff.${to}`,
+            targetType: "conversation",
+            targetId: moved.conversationId,
+          }),
+        );
+        live.publish({ tenantId: access.tenantId, threadId: moved.id, type: "handoff" });
+        return { status: moved.status };
+      },
+    );
+  }
 
   r.get(
     "/api/va/stream",
@@ -245,4 +415,46 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
       });
     },
   );
+}
+
+/** What the person answering sees: who's calling, what was said, what's been recorded. */
+async function callContext(db: Database, tenantId: string, conversationId: string) {
+  return withTenant(db, tenantId, async (tx) => {
+    const [conversation] = await tx
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, conversationId));
+    if (!conversation) return null;
+    const [contact] = conversation.contactId
+      ? await tx.select().from(contacts).where(eq(contacts.id, conversation.contactId))
+      : [];
+    const messages = await tx
+      .select({
+        role: conversationMessages.role,
+        content: conversationMessages.content,
+        createdAt: conversationMessages.createdAt,
+      })
+      .from(conversationMessages)
+      .where(eq(conversationMessages.conversationId, conversationId))
+      .orderBy(asc(conversationMessages.id));
+    const state = conversation.state as unknown as Partial<ConversationState>;
+    return {
+      conversationId,
+      callerPhone: state.callerPhone ?? null,
+      flow: state.flow ?? null,
+      records: state.records ?? [],
+      contact: contact
+        ? {
+            id: contact.id,
+            fullName: contact.fullName,
+            phone: contact.phoneE164,
+            email: contact.email,
+            notes: contact.notes,
+          }
+        : null,
+      transcript: messages
+        .filter((m) => m.role === "caller" || m.role === "agent")
+        .map((m) => ({ role: m.role, text: m.content, at: m.createdAt })),
+    };
+  });
 }

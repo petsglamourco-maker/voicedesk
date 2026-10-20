@@ -28,7 +28,7 @@ import type { AgentContext } from "./context";
 import { toLang } from "./languages";
 import { upsertContactByPhone } from "./contacts";
 import { getPersona } from "./personas";
-import { isOpenNow, transferTarget } from "./transfer";
+import { handoffPlan, isOpenNow, PEOPLE_TARGET, toHandoffRoute, transferTarget } from "./transfer";
 import { getApprovedProfile } from "./profile-store";
 import type { BusyRange } from "./availability";
 import type { AgentServices, Created } from "./services";
@@ -96,6 +96,8 @@ export function createDbAgentServices(
     canTransfer?: boolean;
     /** Inbox channels (web chat, WhatsApp, email): a person can pick up this thread. */
     handoffThreadId?: string;
+    /** Phone calls: whether someone at the VA console can take the call now (Phase 5). */
+    peopleAvailable?: () => Promise<boolean>;
   },
 ): AgentServices {
   const { db } = deps;
@@ -411,21 +413,29 @@ export function createDbAgentServices(
     async requestHuman(reason, options = {}) {
       const reference = makeReference(businessName);
       let transferTo: string | undefined;
+      let transferFallback: string | undefined;
       if (scope.canTransfer) {
         const [settings] = await tx((t) =>
           t.select().from(agentSettings).where(eq(agentSettings.tenantId, tenantId)),
         );
         const profile = await getApprovedProfile(db, tenantId);
-        transferTo =
-          transferTarget(
-            {
-              transferPhone: settings?.transferPhone ?? null,
-              transferHours: settings?.transferHours === "always" ? "always" : "open",
-              onCallPhone: settings?.onCallPhone ?? null,
-            },
-            isOpenNow(profile, scope.timezone ?? "Europe/London", new Date()),
-            options.urgent === true,
-          ) ?? undefined;
+        const phone = transferTarget(
+          {
+            transferPhone: settings?.transferPhone ?? null,
+            transferHours: settings?.transferHours === "always" ? "always" : "open",
+            onCallPhone: settings?.onCallPhone ?? null,
+          },
+          isOpenNow(profile, scope.timezone ?? "Europe/London", new Date()),
+          options.urgent === true,
+        );
+        const route = toHandoffRoute(settings?.handoffRoute);
+        const people =
+          route !== "phone_only" && scope.peopleAvailable
+            ? await scope.peopleAvailable().catch(() => false)
+            : false;
+        const plan = handoffPlan(route, people, phone);
+        transferTo = plan?.to;
+        transferFallback = plan?.fallback;
       }
       await tx((t) =>
         t.insert(auditLog).values({
@@ -443,14 +453,17 @@ export function createDbAgentServices(
         }),
       );
       if (transferTo) {
-        // Context for the person about to answer: who's calling and why.
-        await notify({
-          kind: "transfer.context",
-          conversationId,
-          to: transferTo,
-          reason: reason.slice(0, 200),
-        });
-        return { id: conversationId, reference, available: true, transferTo };
+        // Context for the person about to answer a phone transfer: who's calling and why.
+        // (At the VA console the context is on screen.)
+        if (transferTo !== PEOPLE_TARGET) {
+          await notify({
+            kind: "transfer.context",
+            conversationId,
+            to: transferTo,
+            reason: reason.slice(0, 200),
+          });
+        }
+        return { id: conversationId, reference, available: true, transferTo, transferFallback };
       }
       if (scope.handoffThreadId) {
         const threadId = scope.handoffThreadId;
