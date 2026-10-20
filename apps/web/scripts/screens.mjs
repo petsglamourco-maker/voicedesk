@@ -50,6 +50,7 @@ const screens = [
   ["platform-ai", "/platform/ai"],
   ["platform-numbers", "/platform/phone-numbers"],
   ["platform-vas", "/platform/vas"],
+  ["design", "/design"],
 ];
 
 async function signIn(page) {
@@ -66,8 +67,17 @@ for (const scheme of ["dark", "light"]) {
     const anon = await browser.newContext({
       viewport: { width, height: 900 },
       colorScheme: scheme,
+      reducedMotion: "reduce",
     });
-    const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
+    const ctx = await browser.newContext({
+      viewport: { width, height: 900 },
+      colorScheme: scheme,
+      reducedMotion: "reduce",
+    });
+    // The theme comes from the vd-theme cookie (dark by default), not the OS scheme.
+    const themeCookie = [{ name: "vd-theme", value: scheme, url: base }];
+    await ctx.addCookies(themeCookie);
+    await anon.addCookies(themeCookie);
     const page = await ctx.newPage();
     await signIn(page);
     // Detail pages need an id from the API.

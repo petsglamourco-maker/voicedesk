@@ -106,6 +106,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Dependencies:** exact pins. pnpm's release-age gate stays on; never add `minimumReleaseAgeExclude`. If a version is too new, pick the previous release. Install scripts are allow-listed or denied in `pnpm-workspace.yaml` (`allowBuilds`).
 - **TypeScript:** TS 6.0, strict, ESM, `verbatimModuleSyntax` (use `import type`). Workspace packages export `.ts` source and must typecheck **without the DOM lib** (consumers compile them).
 - **Next.js 16:** `params`, `searchParams` and `cookies()` are async. Read `apps/web/AGENTS.md` and `node_modules/next/dist/docs/`. Never define components inside render (`react-hooks/static-components`).
+- **Design ("Aurora Glow", `DESIGN.md`):** tokens only (no hex in components), components from `@voicedesk/ui`, gallery at `/design`. Token changes must pass `contrast.test.ts`; visual baselines in `apps/web/e2e/visual.spec.ts-snapshots`.
 - **UI strings:** go in `apps/web/messages/en.json` (next-intl). Use logical CSS (`ms-`, `me-`, `start-`) and `dir="auto"` on user/agent text for right-to-left languages.
 - **Commits:** small, conventional (`feat(scope): …`), with the Co-Authored-By trailer.
 

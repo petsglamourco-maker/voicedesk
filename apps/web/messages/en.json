@@ -1079,5 +1079,24 @@
       "calls": "{n} calls ringing at the VA console",
       "none": "You're all caught up."
     }
+  },
+  "design": {
+    "title": "Design system",
+    "description": "Every token and component of Aurora Glow, in dark and light.",
+    "colours": "Colours",
+    "type": "Typography",
+    "buttons": "Buttons",
+    "forms": "Form fields",
+    "surfaces": "Surfaces",
+    "status": "Status and feedback",
+    "kpis": "Key numbers",
+    "charts": "Charts",
+    "overlays": "Dialogs, menus and toasts",
+    "controls": "Controls",
+    "display": "Display",
+    "empty": "Empty state",
+    "table": "Data table",
+    "dark": "Dark",
+    "light": "Light"
   }
 }
