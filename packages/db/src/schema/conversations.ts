@@ -133,6 +133,8 @@ export const conversations = pgTable(
     }),
     /** Phone calls: the caller hid their number. */
     callerNumberWithheld: boolean("caller_number_withheld").notNull().default(false),
+    /** Phone calls: "inbound", or "outbound" when someone at the VA console dialled out. */
+    direction: text("direction").notNull().default("inbound"),
     /** Object-storage key of the call recording (only when the business records calls). */
     recordingKey: text("recording_key"),
     /** Voice calls: per-turn latency, written by the voice worker when the call ends. */

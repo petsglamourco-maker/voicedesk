@@ -23,9 +23,14 @@ export interface CallContext {
 }
 
 export interface AnsweredCall {
+  /** "handoff": a caller the assistant put through; "outbound": a call this person placed. */
+  kind: "handoff" | "outbound";
   tenantId: string;
   businessName: string;
+  /** Handoff id, or the outbound call's conversation id. */
   handoffId: string;
+  /** Outbound: who's being called. */
+  callee?: string;
   url: string;
   token: string;
   context: CallContext | null;
@@ -53,7 +58,10 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   const audioRef = useRef<HTMLDivElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const onDone = useRef(props.onDone);
-  const base = `/api/tenants/${call.tenantId}/handoffs/${call.handoffId}`;
+  const outbound = call.kind === "outbound";
+  const base = outbound
+    ? `/api/tenants/${call.tenantId}/outbound-calls/${call.handoffId}`
+    : `/api/tenants/${call.tenantId}/handoffs/${call.handoffId}`;
 
   useEffect(() => {
     const room = new Room({ adaptiveStream: true, dynacast: true });
@@ -66,7 +74,15 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
       track.detach().forEach((el) => el.remove());
     });
     // The caller hung up, or the call was ended.
-    room.on(RoomEvent.Disconnected, () => onDone.current());
+    room.on(RoomEvent.Disconnected, () => {
+      // Outbound calls are logged as ended here too (it's idempotent).
+      if (call.kind === "outbound") {
+        void api(`/api/tenants/${call.tenantId}/outbound-calls/${call.handoffId}/end`, {
+          method: "POST",
+        }).catch(() => undefined);
+      }
+      onDone.current();
+    });
     void (async () => {
       try {
         await room.connect(call.url, call.token);
@@ -80,7 +96,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
     return () => {
       void room.disconnect();
     };
-  }, [call.url, call.token, t]);
+  }, [call.url, call.token, call.kind, call.tenantId, call.handoffId, t]);
 
   useEffect(() => {
     if (!connected) return;
@@ -89,6 +105,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   }, [connected]);
 
   useEffect(() => {
+    if (outbound) return;
     let cancelled = false;
     const timer = setInterval(() => {
       api<{ status: string; context: CallContext | null }>(`${base}/context`)
@@ -101,7 +118,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [base]);
+  }, [base, outbound]);
 
   useEffect(() => {
     void bottom.current?.scrollIntoView({ block: "end" });
@@ -119,6 +136,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
     setError(null);
     try {
       await api(`${base}/${action}`, { method: "POST" });
+      if (outbound) return; // the API ended the room; Disconnected follows
       // Leaving the room is what tells the assistant to take over again (or the call ends).
       await roomRef.current?.disconnect();
     } catch (e) {
@@ -127,7 +145,8 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
     }
   }
 
-  const name = context?.contact?.fullName ?? context?.callerPhone ?? t("unknownCaller");
+  const name =
+    call.callee ?? context?.contact?.fullName ?? context?.callerPhone ?? t("unknownCaller");
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
 
@@ -162,9 +181,11 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
         <Button variant="secondary" onClick={() => void toggleMute()} disabled={!connected}>
           {muted ? t("unmute") : t("mute")}
         </Button>
-        <Button variant="secondary" onClick={() => void finish("return")} disabled={busy}>
-          {t("handBack")}
-        </Button>
+        {outbound ? null : (
+          <Button variant="secondary" onClick={() => void finish("return")} disabled={busy}>
+            {t("handBack")}
+          </Button>
+        )}
         <Button
           className="bg-danger text-white hover:bg-danger/90"
           onClick={() => void finish("end")}
@@ -183,7 +204,8 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_260px]">
+      {outbound ? <p className="mt-4 text-xs text-muted-foreground">{t("outboundNote")}</p> : null}
+      <div className={cn("mt-4 grid gap-4 lg:grid-cols-[1fr_260px]", outbound && "hidden")}>
         <div
           className="h-72 space-y-2 overflow-y-auto rounded-md border border-border p-3"
           data-testid="softphone-transcript"

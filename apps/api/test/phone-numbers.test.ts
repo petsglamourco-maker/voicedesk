@@ -36,6 +36,8 @@ const sip: SipGateway = {
     deleted.push(route);
     return Promise.resolve();
   },
+  canDial: () => false,
+  dial: () => Promise.reject(new Error("not in these tests")),
 };
 
 interface NumberView {

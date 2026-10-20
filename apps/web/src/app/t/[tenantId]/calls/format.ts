@@ -11,6 +11,8 @@ export interface CallRow {
   calledNumber: string | null;
   /** twilio / telnyx for phone calls; null for browser tests. */
   carrier: string | null;
+  /** "inbound", or "outbound" when someone at the VA console dialled out. */
+  direction?: string;
   callerPhone: string | null;
   callerWithheld: boolean;
   records: Array<{ type: string; reference: string }>;

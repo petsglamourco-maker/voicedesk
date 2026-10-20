@@ -459,7 +459,8 @@
     "handoffTitle": "Put through to a person",
     "handoffAnswered": "{name} answered after {wait}s and talked for {talk}.",
     "handoffMissed": "Nobody answered the VA console ({wait}s).",
-    "handoffReturned": "Then handed back to the assistant."
+    "handoffReturned": "Then handed back to the assistant.",
+    "outbound": "Outbound"
   },
   "phoneNumbers": {
     "title": "Phone numbers",
@@ -539,7 +540,8 @@
       "phone": "Phone",
       "email": "Email",
       "notes": "Notes",
-      "marketingConsent": "Agreed to marketing"
+      "marketingConsent": "Agreed to marketing",
+      "doNotCall": "Don't phone this person (they asked not to be called)"
     },
     "lawfulBasis": "Only import people you have a lawful reason to contact (for example existing customers). Marketing is only sent to people marked as agreeing to it.",
     "import": "Import {count, plural, one {# row} other {# rows}}",
@@ -575,7 +577,9 @@
       "whatsapp": "WhatsApp",
       "sms": "SMS",
       "email": "Email"
-    }
+    },
+    "doNotCall": "Don't phone",
+    "call": "Call"
   },
   "notifications": {
     "title": "Confirmations, reminders and alerts",
@@ -830,6 +834,14 @@
     "assistantLabel": "Assistant",
     "records": "Records from this call",
     "notes": "Notes",
-    "handBackHint": "Hand back when you're done but the caller may still need something: the assistant tells them they're back with the AI assistant and carries on."
+    "handBackHint": "Hand back when you're done but the caller may still need something: the assistant tells them they're back with the AI assistant and carries on.",
+    "dialTitle": "Call a customer",
+    "dialHint": "The customer sees the business's number. Calls cost money at the phone provider and only go out once outbound calling is set up. Unsolicited calls only between 8am and 9pm.",
+    "dialBusiness": "Calling for",
+    "dialNumber": "Number",
+    "dialCallback": "They asked us to call back",
+    "dial": "Call",
+    "dialling": "Calling…",
+    "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact."
   }
 }

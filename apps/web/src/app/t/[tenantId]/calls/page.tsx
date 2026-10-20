@@ -161,6 +161,9 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
                         })}
                       </Link>
                       {c.test ? <Badge className="ms-2">{t("test")}</Badge> : null}
+                      {c.direction === "outbound" ? (
+                        <Badge className="ms-2">{t("outbound")}</Badge>
+                      ) : null}
                       {c.carrier ? <Badge className="ms-2 capitalize">{c.carrier}</Badge> : null}
                       {c.status === "active" ? (
                         <Badge className="ms-2 border-success/40 text-success">{t("live")}</Badge>

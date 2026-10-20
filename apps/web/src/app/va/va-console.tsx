@@ -1,10 +1,21 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardDescription, CardTitle, Select } from "@voicedesk/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardDescription,
+  CardTitle,
+  Input,
+  Label,
+  Select,
+} from "@voicedesk/ui";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
+import { formString } from "@/lib/form";
 import { Softphone, type AnsweredCall, type CallContext } from "./softphone";
 
 type Presence = "available" | "busy" | "away" | "offline";
@@ -67,7 +78,14 @@ const CHANNEL_ICON: Record<string, string> = {
   web_form: "📝",
 };
 
-export function VaConsole() {
+/** Pre-filled from a contact's Call button (/va?tenant=…&dial=…&contact=…). */
+export interface DialRequest {
+  tenantId: string;
+  to: string;
+  contactId: string | null;
+}
+
+export function VaConsole(props: { dial?: DialRequest | null }) {
   const t = useTranslations("va");
   const common = useTranslations("common");
   const format = useFormatter();
@@ -77,6 +95,7 @@ export function VaConsole() {
   const [calls, setCalls] = useState<RingingCall[]>([]);
   const [onCall, setOnCall] = useState<AnsweredCall | null>(null);
   const [answering, setAnswering] = useState<string | null>(null);
+  const [dialling, setDialling] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const audio = useRef<AudioContext | null>(null);
   // Clock for "waiting 12s", ticking only while calls ring.
@@ -157,13 +176,57 @@ export function VaConsole() {
         handoffId: string;
         context: CallContext | null;
       }>(`/api/tenants/${call.tenantId}/handoffs/${call.id}/answer`, { method: "POST" });
-      setOnCall({ ...res, tenantId: call.tenantId, businessName: call.businessName });
+      setOnCall({
+        ...res,
+        kind: "handoff",
+        tenantId: call.tenantId,
+        businessName: call.businessName,
+      });
       setPresenceState("busy");
     } catch (e) {
       setError(e instanceof Error ? e.message : common("errorGeneric"));
       void loadQueue();
     } finally {
       setAnswering(null);
+    }
+  }
+
+  async function placeCall(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const tenantId = formString(data, "tenantId");
+    const business = me?.businesses.find((b) => b.tenantId === tenantId);
+    setError(null);
+    setDialling(true);
+    try {
+      const res = await api<{ url: string; token: string; conversationId: string; callee: string }>(
+        `/api/tenants/${tenantId}/outbound-calls`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            to: formString(data, "to"),
+            callback: data.get("callback") === "on",
+            ...(props.dial?.contactId && props.dial.tenantId === tenantId
+              ? { contactId: props.dial.contactId }
+              : {}),
+          }),
+        },
+      );
+      setOnCall({
+        kind: "outbound",
+        tenantId,
+        businessName: business?.name ?? "",
+        handoffId: res.conversationId,
+        url: res.url,
+        token: res.token,
+        callee: res.callee,
+        context: null,
+      });
+      setPresenceState("busy");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : common("errorGeneric"));
+    } finally {
+      setDialling(false);
     }
   }
 
@@ -229,6 +292,52 @@ export function VaConsole() {
       ) : null}
 
       {onCall ? <Softphone call={onCall} onDone={callFinished} /> : null}
+
+      {!onCall ? (
+        <Card>
+          <CardTitle className="text-base">{t("dialTitle")}</CardTitle>
+          <CardDescription>{t("dialHint")}</CardDescription>
+          <form
+            onSubmit={(e) => void placeCall(e)}
+            className="mt-3 flex flex-wrap items-end gap-3"
+            data-testid="va-dial"
+          >
+            <div>
+              <Label htmlFor="dial-business">{t("dialBusiness")}</Label>
+              <Select
+                id="dial-business"
+                name="tenantId"
+                defaultValue={props.dial?.tenantId ?? me.businesses[0]?.tenantId}
+                className="w-48"
+              >
+                {me.businesses.map((b) => (
+                  <option key={b.tenantId} value={b.tenantId}>
+                    {b.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="dial-to">{t("dialNumber")}</Label>
+              <Input
+                id="dial-to"
+                name="to"
+                type="tel"
+                required
+                defaultValue={props.dial?.to ?? ""}
+                className="w-48"
+              />
+            </div>
+            <label className="flex items-center gap-2 pb-2 text-sm">
+              <input type="checkbox" name="callback" defaultChecked={Boolean(props.dial)} />
+              {t("dialCallback")}
+            </label>
+            <Button type="submit" disabled={dialling}>
+              {dialling ? t("dialling") : t("dial")}
+            </Button>
+          </form>
+        </Card>
+      ) : null}
 
       <Card className="p-0">
         <div className="border-b border-border px-4 py-3">

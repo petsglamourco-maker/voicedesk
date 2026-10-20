@@ -1,4 +1,12 @@
-import { RoomAgentDispatch, RoomConfiguration, SipClient } from "livekit-server-sdk";
+import {
+  RoomAgentDispatch,
+  RoomConfiguration,
+  SipClient,
+  type CreateSipOutboundTrunkOptions,
+} from "livekit-server-sdk";
+
+/** SIPTransport.SIP_TRANSPORT_TCP in @livekit/protocol (not a direct dependency). */
+const SIP_TRANSPORT_TCP = 2 as CreateSipOutboundTrunkOptions["transport"];
 import { VOICE_AGENT_NAME } from "./voice";
 
 /** Dispatch metadata for phone calls (read by apps/voice-agent `parseJobMetadata`). */
@@ -40,6 +48,31 @@ export interface SipGateway {
     metadata: PhoneJobMetadata;
   }): Promise<SipRoute>;
   deleteRoute(route: Partial<SipRoute>): Promise<void>;
+  /** Whether outbound calls through this carrier are set up in .env (Phase 5). */
+  canDial(carrier: PhoneCarrier): boolean;
+  /**
+   * Rings `to` from the business's number and puts the call in `roomName` (where the person
+   * calling is). Costs per minute at the carrier.
+   */
+  dial(params: {
+    carrier: PhoneCarrier;
+    from: string;
+    to: string;
+    roomName: string;
+    participantIdentity: string;
+  }): Promise<void>;
+}
+
+/**
+ * Outbound calls go through the carrier's SIP termination with a login: Twilio Elastic SIP
+ * Trunking (termination URI + credential list) or a Telnyx credentials connection.
+ */
+function outboundFromEnv(env: NodeJS.ProcessEnv, carrier: PhoneCarrier) {
+  const prefix = `SIP_OUTBOUND_${carrier.toUpperCase()}`;
+  const host = env[`${prefix}_HOST`] || (carrier === "telnyx" ? "sip.telnyx.com" : "");
+  const username = env[`${prefix}_USERNAME`];
+  const password = env[`${prefix}_PASSWORD`];
+  return host && username && password ? { host, username, password } : null;
 }
 
 export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGateway | null {
@@ -96,6 +129,31 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
         await sip.deleteSipTrunk(trunk.sipTrunkId).catch(() => undefined);
         throw error;
       }
+    },
+    canDial: (carrier) => outboundFromEnv(env, carrier) !== null,
+    async dial({ carrier, from, to, roomName, participantIdentity }) {
+      const outbound = outboundFromEnv(env, carrier);
+      if (!outbound) throw new Error(`Outbound calling through ${carrier} isn't set up`);
+      // One LiveKit outbound trunk per business number (its caller ID), created on first use.
+      const name = `voicedesk out ${from}`;
+      const existing = (await sip.listSipOutboundTrunk()).find((t) => t.name === name);
+      const trunkId =
+        existing?.sipTrunkId ??
+        (
+          await sip.createSipOutboundTrunk(name, outbound.host, [from], {
+            transport: SIP_TRANSPORT_TCP,
+            authUsername: outbound.username,
+            authPassword: outbound.password,
+          })
+        ).sipTrunkId;
+      await sip.createSipParticipant(trunkId, to, roomName, {
+        fromNumber: from,
+        participantIdentity,
+        participantName: "Customer",
+        playDialtone: true,
+        ringingTimeout: 40,
+        maxCallDuration: 60 * 60,
+      });
     },
     async deleteRoute({ trunkId, dispatchRuleId }) {
       // Ignore "not found": removing a number must work even if it was deleted in LiveKit.

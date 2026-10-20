@@ -38,6 +38,7 @@ const view = (c: ContactRow) => ({
   source: c.source,
   interest: c.interest,
   marketingConsent: c.marketingConsent,
+  doNotCall: c.doNotCall,
   createdAt: c.createdAt,
   updatedAt: c.updatedAt,
 });
@@ -64,6 +65,7 @@ export function registerContactRoutes(app: FastifyInstance, deps: AppDeps): void
     email: z.string().trim().email().max(200).nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
     marketingConsent: z.boolean().optional(),
+    doNotCall: z.boolean().optional(),
   });
 
   async function toValues(tenantId: string, body: z.infer<typeof editable>) {
@@ -71,6 +73,7 @@ export function registerContactRoutes(app: FastifyInstance, deps: AppDeps): void
     if (body.fullName !== undefined) values.fullName = body.fullName || null;
     if (body.email !== undefined) values.email = body.email?.toLowerCase() || null;
     if (body.notes !== undefined) values.notes = body.notes || null;
+    if (body.doNotCall !== undefined) values.doNotCall = body.doNotCall;
     if (body.marketingConsent !== undefined) {
       values.marketingConsent = body.marketingConsent;
       values.consentAt = body.marketingConsent ? new Date() : null;

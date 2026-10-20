@@ -17,6 +17,7 @@ interface Contact {
   source: string | null;
   interest: string | null;
   marketingConsent: boolean;
+  doNotCall?: boolean;
 }
 
 export interface ContactDetailResponse {
@@ -81,6 +82,7 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
             email: formString(form, "email") || null,
             notes: formString(form, "notes") || null,
             marketingConsent: form.get("marketingConsent") === "on",
+            doNotCall: form.get("doNotCall") === "on",
           }),
         }),
       );
@@ -148,6 +150,10 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
               />
               {t("field.marketingConsent")}
             </label>
+            <label className="flex items-center gap-2 text-sm sm:col-span-2">
+              <input type="checkbox" name="doNotCall" defaultChecked={contact.doNotCall} />
+              {t("field.doNotCall")}
+            </label>
             <div className="flex gap-2 sm:col-span-2">
               <Button type="submit" disabled={busy}>
                 {busy ? common("working") : t("save")}
@@ -181,11 +187,22 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
             </dl>
             <div className="flex flex-wrap gap-1">
               <Badge>{contact.marketingConsent ? t("marketingYes") : t("marketingNo")}</Badge>
+              {contact.doNotCall ? (
+                <Badge className="border-danger/40 text-danger">{t("doNotCall")}</Badge>
+              ) : null}
               {contact.source ? (
                 <Badge>{t(`source.${contact.source}` as "source.manual")}</Badge>
               ) : null}
             </div>
             <div className="flex gap-2 pt-2">
+              {contact.phone && !contact.doNotCall ? (
+                <Link
+                  href={`/va?tenant=${props.tenantId}&dial=${encodeURIComponent(contact.phone)}&contact=${contact.id}`}
+                  className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  {t("call")}
+                </Link>
+              ) : null}
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
                 {t("edit")}
               </Button>

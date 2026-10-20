@@ -53,6 +53,7 @@ function callView(
     language: row.language,
     flow: state.flow,
     calledNumber: number.e164,
+    direction: row.direction,
     /** Phone calls: which carrier delivered it (twilio / telnyx); null for browser tests. */
     carrier: number.e164 ? (number.carrier ?? "twilio") : null,
     callerPhone: maskPhone(state.callerPhone ?? null, showPhone),

@@ -8,7 +8,10 @@ import { VaConsole } from "./va-console";
 export const metadata: Metadata = { title: "VA console" };
 
 /** Human VA console (Phase 5): status, calls handed over by the assistant, chats needing a person. */
-export default async function VaPage() {
+export default async function VaPage(props: {
+  searchParams: Promise<{ tenant?: string; dial?: string; contact?: string }>;
+}) {
+  const query = await props.searchParams;
   const me = await getMe();
   if (!me) redirect("/sign-in?redirect=/va");
   const t = await getTranslations("va");
@@ -28,7 +31,13 @@ export default async function VaPage() {
         </div>
       </header>
       <main id="main" className="mx-auto max-w-6xl px-4 py-8">
-        <VaConsole />
+        <VaConsole
+          dial={
+            query.tenant && query.dial
+              ? { tenantId: query.tenant, to: query.dial, contactId: query.contact ?? null }
+              : null
+          }
+        />
       </main>
     </div>
   );

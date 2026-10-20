@@ -66,6 +66,8 @@ export const contacts = pgTable(
     interest: text("interest"),
     /** Consent to marketing messages (PECR); service messages don't need it. */
     marketingConsent: boolean("marketing_consent").notNull().default(false),
+    /** Asked not to be phoned: outbound calls to this contact are refused (Phase 5). */
+    doNotCall: boolean("do_not_call").notNull().default(false),
     consentAt: timestamp("consent_at", { withTimezone: true }),
     /** Reference given to the customer when the assistant signed them up. */
     reference: text("reference"),

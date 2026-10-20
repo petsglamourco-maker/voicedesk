@@ -169,6 +169,13 @@
       "when": 1792495886737,
       "tag": "0023_handoffs_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792496815152,
+      "tag": "0024_outbound_calls",
+      "breakpoints": true
     }
   ]
 }
