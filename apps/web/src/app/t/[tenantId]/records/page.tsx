@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
 import { KnowledgeGaps, type Gap } from "./knowledge-gaps";
-import { BookingCancel, MessageDone, TicketStatus } from "./record-actions";
+import { AiCallBack, BookingCancel, MessageDone, TicketStatus } from "./record-actions";
 
 export const metadata: Metadata = { title: "Records" };
 
@@ -122,6 +122,14 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
                   <Badge>{r.priority}</Badge>
                   <span className="ms-auto text-xs text-muted-foreground">{when(r.createdAt)}</span>
                   <TicketStatus tenantId={tenantId} id={r.id} status={r.status} canEdit={canEdit} />
+                  {r.callbackPhone ? (
+                    <AiCallBack
+                      tenantId={tenantId}
+                      sourceType="ticket"
+                      id={r.id}
+                      canEdit={canEdit}
+                    />
+                  ) : null}
                 </div>
                 <p className="mt-1">{r.summary}</p>
                 <p className="text-xs text-muted-foreground">
@@ -149,6 +157,14 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
                   <Badge>{m.urgency}</Badge>
                   <span className="ms-auto text-xs text-muted-foreground">{when(m.createdAt)}</span>
                   <MessageDone tenantId={tenantId} id={m.id} status={m.status} canEdit={canEdit} />
+                  {m.status !== "done" ? (
+                    <AiCallBack
+                      tenantId={tenantId}
+                      sourceType="message"
+                      id={m.id}
+                      canEdit={canEdit}
+                    />
+                  ) : null}
                 </div>
                 <p className="mt-1">
                   {m.forStaff ? `${t("for", { name: m.forStaff })} ` : ""}

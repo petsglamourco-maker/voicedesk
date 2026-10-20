@@ -62,6 +62,9 @@ const settingsSchema = z.object({
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
   dailyBrief: z.boolean().default(true),
+  aiCallbacks: z.boolean().default(false),
+  confirmationCalls: z.boolean().default(false),
+  outboundDailyCap: z.number().int().min(1).max(500).default(20),
 });
 
 const settingsResponse = z.object({
@@ -84,6 +87,9 @@ const settingsResponse = z.object({
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
   dailyBrief: z.boolean(),
+  aiCallbacks: z.boolean(),
+  confirmationCalls: z.boolean(),
+  outboundDailyCap: z.number(),
 });
 
 const DEFAULTS = {
@@ -106,6 +112,9 @@ const DEFAULTS = {
   feedbackAfterCalls: false,
   npsEvery: 0,
   dailyBrief: true,
+  aiCallbacks: false,
+  confirmationCalls: false,
+  outboundDailyCap: 20,
 };
 
 export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -166,6 +175,9 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,
               dailyBrief: row.dailyBrief,
+              aiCallbacks: row.aiCallbacks,
+              confirmationCalls: row.confirmationCalls,
+              outboundDailyCap: row.outboundDailyCap,
             }
           : DEFAULTS,
         personas: Object.values(PERSONAS),

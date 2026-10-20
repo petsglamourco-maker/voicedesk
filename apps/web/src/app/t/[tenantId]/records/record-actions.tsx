@@ -121,3 +121,43 @@ export function BookingCancel(props: {
     </span>
   );
 }
+
+/** Phase 6: the assistant phones the customer back (within calling hours; costs money). */
+export function AiCallBack(props: {
+  tenantId: string;
+  sourceType: "ticket" | "message";
+  id: string;
+  canEdit: boolean;
+}) {
+  const t = useTranslations("records");
+  const [state, setState] = useState<"idle" | "busy" | "planned" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  if (!props.canEdit) return null;
+  if (state === "planned") return <Badge>{t("aiCallPlanned")}</Badge>;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={state === "busy"}
+        title={t("aiCallHint")}
+        onClick={async () => {
+          setState("busy");
+          try {
+            await api(`/api/tenants/${props.tenantId}/ai-calls`, {
+              method: "POST",
+              body: JSON.stringify({ sourceType: props.sourceType, sourceId: props.id }),
+            });
+            setState("planned");
+          } catch (e) {
+            setMessage(e instanceof Error ? e.message : null);
+            setState("error");
+          }
+        }}
+      >
+        {t("aiCallBack")}
+      </Button>
+      {state === "error" && message ? <span className="text-xs text-danger">{message}</span> : null}
+    </span>
+  );
+}

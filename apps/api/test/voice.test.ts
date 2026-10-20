@@ -17,6 +17,7 @@ const voice: VoiceGateway = {
     return Promise.resolve({ url: "wss://example.livekit.cloud", token: "jwt" });
   },
   joinCall: () => Promise.resolve({ url: "wss://example.livekit.cloud", token: "jwt" }),
+  dispatchAgent: () => Promise.resolve(),
   endCall: () => Promise.resolve(),
 };
 

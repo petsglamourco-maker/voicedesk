@@ -62,6 +62,12 @@ export const agentSettings = pgTable("agent_settings", {
   dailyBrief: boolean("daily_brief").notNull().default(true),
   /** Local date (YYYY-MM-DD) of the last brief, so each day's goes out once. */
   briefSentOn: text("brief_sent_on"),
+  /** Phase 6: the assistant phones customers who asked to be called back (costs money). */
+  aiCallbacks: boolean("ai_callbacks").notNull().default(false),
+  /** Phase 6: the assistant phones to confirm bookings instead of the reminder text. */
+  confirmationCalls: boolean("confirmation_calls").notNull().default(false),
+  /** Phase 6: most AI outbound calls per day (a cost and courtesy limit). */
+  outboundDailyCap: integer("outbound_daily_cap").notNull().default(20),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
   ...timestamps,
@@ -499,5 +505,45 @@ export const feedback = pgTable(
     uniqueIndex("feedback_token_uq").on(t.token),
     uniqueIndex("feedback_conversation_uq").on(t.conversationId),
     index("feedback_tenant_sent_idx").on(t.tenantId, t.sentAt),
+  ],
+);
+
+/**
+ * Calls the assistant places itself (Phase 6, ADR 0019): callbacks customers asked for and
+ * booking confirmations. The API's dialler picks up due rows; each attempt is a conversation.
+ */
+export const outboundCalls = pgTable(
+  "outbound_calls",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** "callback" or "confirmation". */
+    purpose: text("purpose").notNull(),
+    phone: text("phone").notNull(),
+    contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    bookingId: uuid("booking_id").references(() => bookings.id, { onDelete: "cascade" }),
+    /** What it's about (e.g. the ticket or message reference and summary). */
+    reason: text("reason"),
+    sourceType: text("source_type"),
+    sourceId: uuid("source_id"),
+    language: text("language"),
+    notBefore: timestamp("not_before", { withTimezone: true }).notNull().defaultNow(),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(2),
+    /** scheduled → calling → answered / voicemail / no_answer / cancelled / failed. */
+    status: text("status").notNull().default("scheduled"),
+    outcome: text("outcome"),
+    conversationId: uuid("conversation_id").references(() => conversations.id, {
+      onDelete: "set null",
+    }),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    createdBy: uuid("created_by"),
+    ...timestamps,
+  },
+  (t) => [
+    index("outbound_calls_due_idx").on(t.status, t.notBefore),
+    index("outbound_calls_tenant_idx").on(t.tenantId, t.createdAt),
   ],
 );

@@ -27,6 +27,7 @@ const sip: SipGateway = {
 const voice: VoiceGateway = {
   createSession: () => Promise.resolve({ url: "wss://lk.example", token: "t" }),
   joinCall: (p) => Promise.resolve({ url: "wss://lk.example", token: `jwt-${p.identity}` }),
+  dispatchAgent: () => Promise.resolve(),
   endCall: (room) => {
     ended.push(room);
     return Promise.resolve();

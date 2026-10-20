@@ -20,6 +20,7 @@ const voice: VoiceGateway = {
     joins.push(params);
     return Promise.resolve({ url: "wss://lk.example", token: `jwt-${params.identity}` });
   },
+  dispatchAgent: () => Promise.resolve(),
   endCall: (room) => {
     ended.push(room);
     return Promise.resolve();

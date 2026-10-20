@@ -143,3 +143,23 @@ export {
   renderBrief,
   type BriefNumbers,
 } from "./daily-brief";
+export {
+  AI_CALL_HOURS,
+  claimDueOutboundCalls,
+  createOutboundConversation,
+  decideOutboundCall,
+  finishOutboundAttempt,
+  isVoicemailGreeting,
+  outboundCallContext,
+  outboundCallById,
+  outboundNote,
+  reapStaleOutboundCalls,
+  scheduleCallbackFor,
+  scheduleConfirmationFor,
+  scheduleOutboundCall,
+  voicemailMessage,
+  type CallDecision,
+  type OutboundCallPlan,
+  type OutboundCallRow,
+  type OutboundPurpose,
+} from "./outbound";

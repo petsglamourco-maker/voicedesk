@@ -344,7 +344,10 @@
     "done": "Done",
     "new": "New",
     "cancelBooking": "Cancel",
-    "confirmCancel": "Cancel this booking? It's removed from your calendar and the customer gets a cancellation text."
+    "confirmCancel": "Cancel this booking? It's removed from your calendar and the customer gets a cancellation text.",
+    "aiCallBack": "Assistant calls back",
+    "aiCallHint": "The assistant phones the customer back during calling hours (8am–9pm) from your number. Calls cost money at your phone provider.",
+    "aiCallPlanned": "Call planned"
   },
   "platform": {
     "badge": "Platform admin",
@@ -466,7 +469,24 @@
     "handoffAnswered": "{name} answered after {wait}s and talked for {talk}.",
     "handoffMissed": "Nobody answered the VA console ({wait}s).",
     "handoffReturned": "Then handed back to the assistant.",
-    "outbound": "Outbound"
+    "outbound": "Outbound",
+    "aiCallsTitle": "Calls the assistant makes",
+    "aiCallsHint": "Callbacks customers asked for and booking confirmations. Placed between 8am and 9pm, at most twice each.",
+    "aiPurpose": {
+      "callback": "Callback",
+      "confirmation": "Confirmation"
+    },
+    "aiDue": "planned {when}",
+    "aiStatus": {
+      "calling": "calling now",
+      "answered": "answered",
+      "voicemail": "left a voicemail",
+      "no_answer": "no answer",
+      "cancelled": "cancelled",
+      "failed": "couldn't call"
+    },
+    "aiCancel": "Cancel",
+    "open": "Open"
   },
   "phoneNumbers": {
     "title": "Phone numbers",
@@ -897,5 +917,13 @@
     "hint": "Every morning at 07:30 your time, owners and admins get one email: yesterday's calls, chats, bookings and issues, today's bookings, and anything waiting for you.",
     "enabled": "Send the daily brief",
     "preview": "Preview today's brief"
+  },
+  "aiCalls": {
+    "title": "Calls the assistant makes",
+    "hint": "The assistant can phone customers itself, always introducing itself as an AI. It needs outbound calling set up for your number, and calls cost money at your phone provider.",
+    "callbacks": "Call customers back when they ask for a callback",
+    "confirmations": "Phone to confirm bookings (instead of the reminder text)",
+    "cap": "Most calls per day",
+    "rules": "Only between 8am and 9pm your time, never to customers marked “Don't phone”, at most two attempts per call. If nobody answers it leaves a short voicemail with your number."
   }
 }

@@ -26,6 +26,8 @@ export interface VoiceGateway {
   }): Promise<{ url: string; token: string }>;
   /** Ends a call for everyone in it (the caller's phone line hangs up). */
   endCall(roomName: string): Promise<void>;
+  /** Sends the assistant into a room (Phase 6 outbound calls), before the customer is dialled. */
+  dispatchAgent(roomName: string, metadata: Record<string, unknown>): Promise<void>;
 }
 
 export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): VoiceGateway | null {
@@ -59,6 +61,11 @@ export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): Voice
       const token = new AccessToken(apiKey, apiSecret, { identity, name: displayName, ttl: "2h" });
       token.addGrant({ roomJoin: true, room: roomName, canPublish: true, canSubscribe: true });
       return { url, token: await token.toJwt() };
+    },
+    async dispatchAgent(roomName, metadata) {
+      await dispatch.createDispatch(roomName, VOICE_AGENT_NAME, {
+        metadata: JSON.stringify(metadata),
+      });
     },
     async endCall(roomName) {
       await rooms.deleteRoom(roomName).catch(() => undefined);

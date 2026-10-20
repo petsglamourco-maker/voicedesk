@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { apiGetOrNull } from "@/lib/api";
+import { apiGetOrNull, type TenantDetail } from "@/lib/api";
+import { AiCalls } from "./ai-calls";
 import { formatDuration, latencyTone, type CallRow } from "./format";
 
 export const metadata: Metadata = { title: "Calls" };
@@ -37,9 +38,10 @@ interface NumbersResponse {
 
 export default async function CallsPage(props: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await props.params;
-  const [data, numbers] = await Promise.all([
+  const [data, numbers, detail] = await Promise.all([
     apiGetOrNull<CallsResponse>(`/api/tenants/${tenantId}/calls`),
     apiGetOrNull<NumbersResponse>(`/api/tenants/${tenantId}/phone-numbers`),
+    apiGetOrNull<TenantDetail>(`/api/tenants/${tenantId}`),
   ]);
   if (!data) notFound();
   const t = await getTranslations("calls");
@@ -52,6 +54,11 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
         <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
+
+      <AiCalls
+        tenantId={tenantId}
+        canEdit={detail?.permissions.includes("records:write") ?? false}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>

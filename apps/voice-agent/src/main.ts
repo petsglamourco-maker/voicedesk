@@ -24,6 +24,9 @@ import {
   backWithAssistantPhrase,
   createConversation,
   endConversation,
+  finishOutboundAttempt,
+  outboundCallById,
+  voicemailMessage,
   loadAgentContext,
   loadConversationState,
   nobodyFreePhrase,
@@ -61,6 +64,7 @@ import {
 import { EngineLlmPlaceholder, EngineVoiceAgent } from "./agent";
 import { EngineBridge, median, type TurnTimings } from "./bridge";
 import { HandoffController } from "./handoff";
+import { OutboundOpener } from "./outbound";
 import {
   activePhoneNumber,
   callerFromSip,
@@ -79,6 +83,9 @@ import { TeeAudioOutput } from "./tee-output";
 function isConsolePerson(identity: string): boolean {
   return identity.startsWith("va-");
 }
+
+/** How long an outbound call may ring before it counts as unanswered. */
+const OUTBOUND_RING_MS = 50_000;
 
 /** Must match VOICE_AGENT_NAME in apps/api (explicit dispatch only). */
 const AGENT_NAME = "voicedesk-agent";
@@ -181,6 +188,31 @@ export default defineAgent({
       }
       state = stored.state;
       opening = await loadGreeting(db, ids);
+    } else if (job.kind === "outbound") {
+      // Phase 6: a call the assistant placed. The conversation (with the fixed opening)
+      // exists; the customer's phone is ringing.
+      ids = { tenantId: job.tenantId, conversationId: job.conversationId };
+      const stored = await loadConversationState(db, ids.tenantId, ids.conversationId);
+      if (!stored || stored.status !== "active") return;
+      state = stored.state;
+      opening = await loadGreeting(db, ids);
+      const answered = await Promise.race([
+        ctx.waitForParticipant("customer"),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), OUTBOUND_RING_MS)),
+      ]);
+      if (!answered) {
+        const call = await outboundCallById(db, ids.tenantId, job.outboundCallId);
+        if (call) {
+          await finishOutboundAttempt(db, call, {
+            status: "no_answer",
+            conversationId: ids.conversationId,
+          });
+        }
+        await endConversation(db, ids.tenantId, ids.conversationId);
+        await ctx.deleteRoom().catch(() => undefined);
+        return;
+      }
+      callerIdentity = answered.identity;
     } else {
       const number = await activePhoneNumber(db, job.tenantId, job.phoneNumberId);
       if (!number) {
@@ -235,6 +267,9 @@ export default defineAgent({
     // Set when the caller is being put through to a person; done once the sentence is heard.
     let transferAfterSpeech: { to: string; fallback?: string; urgent?: boolean } | null = null;
     let handoffReason: string | null = null;
+    // Phase 6 outbound calls: how the call opened, and whether we left a voicemail.
+    let opener: OutboundOpener | null = null;
+    let voicemailLeft = false;
     const bridge = new EngineBridge(
       {
         db,
@@ -242,9 +277,9 @@ export default defineAgent({
         embeddings: await embeddings,
         calendars: { ...calendars, log: (msg, data) => log.warn(data, msg) },
         notify: (event) => notify({ ...event, tenantId: ids.tenantId }),
-        canTransfer: job.kind === "phone",
+        canTransfer: job.kind === "phone" || job.kind === "outbound",
         peopleAvailable:
-          job.kind === "phone"
+          job.kind === "phone" || job.kind === "outbound"
             ? async () => (await availableAnswerers(db, job.tenantId)).length > 0
             : undefined,
       },
@@ -451,6 +486,20 @@ export default defineAgent({
 
     ctx.addShutdownCallback(async () => {
       await handoff.callEnded();
+      if (job.kind === "outbound") {
+        const call = await outboundCallById(db, ids.tenantId, job.outboundCallId);
+        if (call && call.status === "calling") {
+          await finishOutboundAttempt(
+            db,
+            call,
+            voicemailLeft
+              ? { status: "voicemail", conversationId: ids.conversationId }
+              : opener?.state === "live" || opener?.state === "opening"
+                ? { status: "answered", conversationId: ids.conversationId }
+                : { status: "no_answer", conversationId: ids.conversationId },
+          ).catch((err: unknown) => jobLog.error({ err }, "saving the outbound result failed"));
+        }
+      }
       await bridge.drain();
       const turns = latencies.map((t) => ({
         endOfUtteranceMs: t.endOfUtteranceMs,
@@ -497,7 +546,37 @@ export default defineAgent({
       });
     }
     // The fixed greeting (AI disclosure, plus recording notice) is spoken word for word.
-    if (opening) session.say(opening, { allowInterruptions: false });
+    if (job.kind === "outbound") {
+      // Listen first: a person says "Hello?", an answering machine starts a greeting.
+      opener = new OutboundOpener({
+        setHold: (on) => {
+          bridge.humanActive = on;
+        },
+        sayOpening: async () => {
+          if (opening) await session.say(opening, { allowInterruptions: false }).waitForPlayout();
+        },
+        leaveVoicemail: async () => {
+          voicemailLeft = true;
+          await session
+            .say(
+              voicemailMessage(bridge.language, {
+                name: agentCtx.personaName,
+                business: agentCtx.businessName,
+                number: job.callbackNumber ?? "",
+              }),
+              { allowInterruptions: false },
+            )
+            .waitForPlayout();
+          await hangUp("voicemail");
+        },
+      });
+      session.on(voice.AgentSessionEventTypes.UserInputTranscribed, (e) => {
+        if (e.isFinal) opener?.heard(e.transcript);
+      });
+      opener.answered();
+    } else if (opening) {
+      session.say(opening, { allowInterruptions: false });
+    }
   },
 });
 

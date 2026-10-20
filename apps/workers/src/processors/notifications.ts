@@ -1,6 +1,8 @@
 import type { EmailProvider, SmsProvider } from "@voicedesk/adapters";
 import {
   claimDueBriefs,
+  scheduleCallbackFor,
+  scheduleConfirmationFor,
   planBookingNotification,
   prepareDailyBrief,
   planBookingReminder,
@@ -98,6 +100,10 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       case "booking.changed":
         return execute(job, data.tenantId, await planBookingNotification(deps.db, data));
       case "booking.reminder":
+        // Confirmation calls (Phase 6) replace the reminder text when switched on.
+        if (await scheduleConfirmationFor(deps.db, data.tenantId, data.bookingId, data.language)) {
+          return { confirmationCall: true };
+        }
         return execute(job, data.tenantId, await planBookingReminder(deps.db, data));
       case "feedback.request":
         return execute(
@@ -105,8 +111,13 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
           data.tenantId,
           await planFeedbackRequest(deps.db, data, deps.webOrigin),
         );
-      case "staff.alert":
+      case "staff.alert": {
+        // A callback request: the assistant calls back too, when the business switched it on.
+        if (data.record === "ticket" || data.record === "message") {
+          await scheduleCallbackFor(deps.db, data.tenantId, { type: data.record, id: data.id });
+        }
         return execute(job, data.tenantId, await planStaffAlert(deps.db, data, deps.webOrigin));
+      }
       case "transfer.context":
         return execute(job, data.tenantId, await planTransferContext(deps.db, data));
     }

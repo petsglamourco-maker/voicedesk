@@ -1,7 +1,19 @@
-import { initialState, loadAgentContext, normalisePhone } from "@voicedesk/agent-brain";
+import {
+  initialState,
+  loadAgentContext,
+  normalisePhone,
+  scheduleCallbackFor,
+} from "@voicedesk/agent-brain";
 import { listAnswerers, recordAudit, setPresence } from "@voicedesk/core";
-import { contacts, conversations, phoneNumbers, tenants, withTenant } from "@voicedesk/db";
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import {
+  contacts,
+  conversations,
+  outboundCalls,
+  phoneNumbers,
+  tenants,
+  withTenant,
+} from "@voicedesk/db";
+import { and, asc, desc, eq, inArray, isNotNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -203,6 +215,127 @@ export function registerOutboundRoutes(app: FastifyInstance, deps: AppDeps): voi
         conversationId: conversation!.id,
         callee: contact?.fullName ?? to,
       };
+    },
+  );
+
+  // ---- Calls the assistant places (Phase 6, ADR 0019) ----
+
+  r.post(
+    "/api/tenants/:tenantId/ai-calls",
+    {
+      schema: {
+        tags,
+        summary: "Ask the assistant to call a customer back about a ticket or message",
+        params,
+        body: z.object({
+          sourceType: z.enum(["ticket", "message"]),
+          sourceId: z.string().uuid(),
+          /** When to call (the calling-hours rules still apply); default as soon as allowed. */
+          at: z.coerce.date().optional(),
+        }),
+      },
+    },
+    async (request, reply) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:write",
+      );
+      const row = await scheduleCallbackFor(
+        deps.db,
+        access.tenantId,
+        { type: request.body.sourceType, id: request.body.sourceId },
+        { force: true, notBefore: request.body.at, createdBy: access.session.user.id },
+      );
+      if (!row) {
+        throw new HttpError(
+          409,
+          "CANNOT_SCHEDULE",
+          "There's no phone number on this record, or a call is already planned",
+        );
+      }
+      await withTenant(deps.db, access.tenantId, (tx) =>
+        recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: access.session.user.id,
+          action: "ai_call.scheduled",
+          targetType: request.body.sourceType,
+          targetId: request.body.sourceId,
+        }),
+      );
+      return reply.code(201).send({ id: row.id, notBefore: row.notBefore, status: row.status });
+    },
+  );
+
+  r.get(
+    "/api/tenants/:tenantId/ai-calls",
+    { schema: { tags, summary: "Calls the assistant will make, and recent results", params } },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "calls:read",
+      );
+      const rows = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .select({ call: outboundCalls, contactName: contacts.fullName })
+          .from(outboundCalls)
+          .leftJoin(contacts, eq(contacts.id, outboundCalls.contactId))
+          .where(eq(outboundCalls.tenantId, access.tenantId))
+          .orderBy(desc(outboundCalls.createdAt))
+          .limit(50),
+      );
+      return {
+        calls: rows.map(({ call, contactName }) => ({
+          id: call.id,
+          purpose: call.purpose,
+          status: call.status,
+          outcome: call.outcome,
+          reason: call.reason,
+          name: contactName,
+          phone: call.phone,
+          notBefore: call.notBefore,
+          attempts: call.attempts,
+          conversationId: call.conversationId,
+        })),
+      };
+    },
+  );
+
+  r.delete(
+    "/api/tenants/:tenantId/ai-calls/:id",
+    {
+      schema: {
+        tags,
+        summary: "Cancel a call the assistant hasn't made yet",
+        params: params.extend({ id: z.string().uuid() }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:write",
+      );
+      const [row] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .update(outboundCalls)
+          .set({ status: "cancelled", outcome: "cancelled by staff", updatedAt: new Date() })
+          .where(
+            and(
+              eq(outboundCalls.id, request.params.id),
+              eq(outboundCalls.tenantId, access.tenantId),
+              inArray(outboundCalls.status, ["scheduled"]),
+            ),
+          )
+          .returning(),
+      );
+      if (!row) throw notFound();
+      return { status: row.status };
     },
   );
 

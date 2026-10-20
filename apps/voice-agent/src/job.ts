@@ -18,11 +18,29 @@ export interface JobIds {
 /** Dispatch metadata: browser test calls (apps/api voice.ts) or phone calls (apps/api sip.ts). */
 export type JobMetadata =
   | { kind: "browser"; tenantId: string; conversationId: string }
+  /** Phase 6: a call the assistant placed (the conversation and opening already exist). */
+  | {
+      kind: "outbound";
+      tenantId: string;
+      conversationId: string;
+      outboundCallId: string;
+      /** The business's number, left on voicemail. */
+      callbackNumber?: string;
+    }
   | { kind: "phone"; tenantId: string; phoneNumberId: string };
 
 export function parseJobMetadata(raw: string): JobMetadata {
   const value = JSON.parse(raw || "{}") as Record<string, unknown>;
   if (typeof value.tenantId !== "string") throw new Error("job metadata must include tenantId");
+  if (typeof value.outboundCallId === "string" && typeof value.conversationId === "string") {
+    return {
+      kind: "outbound",
+      tenantId: value.tenantId,
+      conversationId: value.conversationId,
+      outboundCallId: value.outboundCallId,
+      ...(typeof value.callbackNumber === "string" ? { callbackNumber: value.callbackNumber } : {}),
+    };
+  }
   if (typeof value.conversationId === "string") {
     return { kind: "browser", tenantId: value.tenantId, conversationId: value.conversationId };
   }

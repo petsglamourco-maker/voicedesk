@@ -36,6 +36,9 @@ interface Settings {
   feedbackAfterCalls: boolean;
   npsEvery: number;
   dailyBrief: boolean;
+  aiCallbacks: boolean;
+  confirmationCalls: boolean;
+  outboundDailyCap: number;
 }
 
 export interface AgentResponse {
@@ -60,6 +63,7 @@ export function AgentSettingsForm(props: {
   const tt = useTranslations("transfers");
   const tf = useTranslations("feedbackSettings");
   const tb = useTranslations("dailyBrief");
+  const to = useTranslations("aiCalls");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -416,6 +420,43 @@ export function AgentSettingsForm(props: {
                 <option value="10">{tf("npsEvery", { n: 10 })}</option>
               </Select>
             </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardTitle>{to("title")}</CardTitle>
+          <CardDescription>{to("hint")}</CardDescription>
+          <div className="mt-4 space-y-3 text-sm">
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.aiCallbacks}
+                onChange={(e) => update({ aiCallbacks: e.target.checked })}
+              />
+              <span>{to("callbacks")}</span>
+            </label>
+            <label className="flex items-start gap-2">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={settings.confirmationCalls}
+                onChange={(e) => update({ confirmationCalls: e.target.checked })}
+              />
+              <span>{to("confirmations")}</span>
+            </label>
+            <div className="max-w-xs">
+              <Label htmlFor="outboundDailyCap">{to("cap")}</Label>
+              <Input
+                id="outboundDailyCap"
+                type="number"
+                min={1}
+                max={500}
+                value={settings.outboundDailyCap}
+                onChange={(e) => update({ outboundDailyCap: Number(e.target.value) || 20 })}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">{to("rules")}</p>
           </div>
         </Card>
 
