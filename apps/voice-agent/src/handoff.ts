@@ -9,6 +9,8 @@
 
 /** Hold message while the console rings. */
 export const HOLD_EVERY_MS = 15_000;
+/** After someone answers, how long their browser has to actually join the call. */
+export const JOIN_GRACE_MS = 20_000;
 
 export type HandoffPhase = "idle" | "ringing" | "connected";
 
@@ -42,11 +44,13 @@ export class HandoffController {
   private fallback: string | undefined;
   private hold: ReturnType<typeof setInterval> | null = null;
   private timeout: ReturnType<typeof setTimeout> | null = null;
+  private joinGrace: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private readonly fx: HandoffEffects,
     private readonly ringMs: number,
     private readonly holdEveryMs: number = HOLD_EVERY_MS,
+    private readonly joinGraceMs: number = JOIN_GRACE_MS,
   ) {}
 
   get state(): HandoffPhase {
@@ -110,17 +114,39 @@ export class HandoffController {
     const id = this.handoffId;
     const phase = this.phase;
     this.reset();
-    if (id && phase === "ringing") await this.fx.markMissed(id).catch(() => false);
+    if (id && phase === "ringing") {
+      // Answered but never joined: close it as ended rather than leave it "answered".
+      const missed = await this.fx.markMissed(id).catch(() => false);
+      if (!missed) await this.fx.markEnded(id).catch(() => undefined);
+    }
     if (id && phase === "connected") await this.fx.markEnded(id).catch(() => undefined);
   }
 
   private async ringTimedOut(): Promise<void> {
     if (this.phase !== "ringing" || !this.handoffId) return;
     // Only if nobody answered in the meantime.
-    if (!(await this.fx.markMissed(this.handoffId))) return;
+    if (!(await this.fx.markMissed(this.handoffId))) {
+      // Someone answered: their browser should join any second. If it never does (closed
+      // tab, no microphone…), don't leave the caller on hold for ever.
+      const id = this.handoffId;
+      this.joinGrace = setTimeout(() => void this.joinNeverHappened(id), this.joinGraceMs);
+      return;
+    }
     this.fx.log("nobody answered the console");
     this.reset();
     await this.giveUp();
+  }
+
+  private async joinNeverHappened(id: string): Promise<void> {
+    if (this.phase !== "ringing" || this.handoffId !== id) return;
+    this.fx.log("the person who answered never joined the call");
+    this.reset();
+    await this.fx.markReturned(id).catch(() => undefined);
+    this.fx.note(
+      "A member of the team picked up but couldn't join the call, so the caller is still with you. Apologise briefly and offer to take a message so someone calls them back.",
+    );
+    this.fx.setHumanActive(false);
+    this.fx.sayNobodyFree();
   }
 
   private async giveUp(): Promise<void> {
@@ -142,8 +168,10 @@ export class HandoffController {
   private clearTimers(): void {
     if (this.hold) clearInterval(this.hold);
     if (this.timeout) clearTimeout(this.timeout);
+    if (this.joinGrace) clearTimeout(this.joinGrace);
     this.hold = null;
     this.timeout = null;
+    this.joinGrace = null;
   }
 
   private reset(): void {

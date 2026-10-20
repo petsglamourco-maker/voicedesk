@@ -66,6 +66,9 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   useEffect(() => {
     const room = new Room({ adaptiveStream: true, dynacast: true });
     roomRef.current = room;
+    // Set when this effect is cleaned up (unmount, or React's dev double-mount): our own
+    // disconnect must not look like the caller hanging up.
+    let disposed = false;
     room.on(RoomEvent.TrackSubscribed, (track) => {
       if (track.kind !== Track.Kind.Audio) return;
       audioRef.current?.appendChild(track.attach());
@@ -75,6 +78,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
     });
     // The caller hung up, or the call was ended.
     room.on(RoomEvent.Disconnected, () => {
+      if (disposed) return;
       // Outbound calls are logged as ended here too (it's idempotent).
       if (call.kind === "outbound") {
         void api(`/api/tenants/${call.tenantId}/outbound-calls/${call.handoffId}/end`, {
@@ -94,6 +98,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
       }
     })();
     return () => {
+      disposed = true;
       void room.disconnect();
     };
   }, [call.url, call.token, call.kind, call.tenantId, call.handoffId, t]);

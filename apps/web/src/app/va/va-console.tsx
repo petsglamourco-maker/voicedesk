@@ -290,6 +290,9 @@ export function VaConsole(props: { dial?: DialRequest | null }) {
       {presence !== "available" && !onCall ? (
         <Alert tone="info">{t("notAvailableHint")}</Alert>
       ) : null}
+      {presence === "available" && !onCall ? (
+        <p className="text-xs text-muted-foreground">{t("keepOpenHint")}</p>
+      ) : null}
 
       {onCall ? <Softphone call={onCall} onDone={callFinished} /> : null}
 

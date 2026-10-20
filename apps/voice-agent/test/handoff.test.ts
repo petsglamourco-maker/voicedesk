@@ -149,6 +149,32 @@ describe("HandoffController", () => {
     expect(calls.at(-1)).toBe("markEnded");
   });
 
+  it("someone answers but never joins: the assistant takes the caller back", async () => {
+    const { fx, calls, statuses } = fakes();
+    const c = new HandoffController(fx, 30_000, 100_000, 20_000);
+    await c.start({ reason: null, urgent: false });
+    statuses.set("h1", "answered");
+    await vi.advanceTimersByTimeAsync(30_001); // ring timeout: answered, so not missed
+    expect(c.state).toBe("ringing");
+    await vi.advanceTimersByTimeAsync(20_001); // nobody joined
+    expect(c.state).toBe("idle");
+    expect(calls.slice(-4)).toEqual([
+      "markReturned",
+      "note:A member of the team",
+      "human:false",
+      "say:nobodyFree",
+    ]);
+  });
+
+  it("the caller hanging up after an answer that never joined closes the handoff", async () => {
+    const { fx, calls, statuses } = fakes();
+    const c = new HandoffController(fx, 30_000);
+    await c.start({ reason: null, urgent: false });
+    statuses.set("h1", "answered");
+    await c.callEnded();
+    expect(calls.slice(-2)).toEqual(["missed:false", "markEnded"]);
+  });
+
   it("the caller hanging up while it rings marks it missed", async () => {
     const { fx, calls } = fakes();
     const c = new HandoffController(fx, 30_000);

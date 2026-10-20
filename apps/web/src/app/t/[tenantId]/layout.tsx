@@ -48,7 +48,7 @@ export default async function TenantLayout(props: {
             newLabel={t("newBusiness")}
           />
           <div className="ms-auto flex items-center gap-3 text-sm">
-            <Link href="/va" className="font-medium text-primary hover:underline">
+            <Link href="/va" target="_blank" className="font-medium text-primary hover:underline">
               {t("vaConsole")}
             </Link>
             {me.user.isPlatformOwner ? (

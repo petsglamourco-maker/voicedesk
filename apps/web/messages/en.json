@@ -842,6 +842,7 @@
     "dialCallback": "They asked us to call back",
     "dial": "Call",
     "dialling": "Calling…",
-    "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact."
+    "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact.",
+    "keepOpenHint": "Keep this tab open while you're available: leaving it (or closing the laptop) makes you offline within a minute, and calls then go to your backup number or the assistant takes a message."
   }
 }
