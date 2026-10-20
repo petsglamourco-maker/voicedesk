@@ -610,7 +610,7 @@
     "left": "Bottom left",
     "save": "Save",
     "snippetTitle": "Add it to your website",
-    "snippetHint": "Paste this just before </body> on every page (or in your website builder's \"custom code\" setting).",
+    "snippetHint": "Paste this just before the closing body tag on every page (or in your website builder's \"custom code\" setting).",
     "copy": "Copy",
     "copied": "Copied",
     "regenerate": "New key",
