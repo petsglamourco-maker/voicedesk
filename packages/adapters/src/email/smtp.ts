@@ -46,3 +46,39 @@ export class SmtpEmailProvider implements EmailProvider {
     }
   }
 }
+
+/**
+ * Domains that can never receive real mail (RFC 2606 / RFC 6761): example.com/.net/.org and
+ * the .test, .example, .invalid, .localhost and .local suffixes. Tests and demo data use them.
+ */
+export function isReservedAddress(address: string): boolean {
+  const domain = address.trim().replace(/>$/, "").split("@").pop()?.toLowerCase() ?? "";
+  return (
+    /^(example\.(com|net|org)|localhost)$/.test(domain) ||
+    /\.(test|example|invalid|localhost|local)$/.test(domain) ||
+    /(^|\.)example\.(com|net|org)$/.test(domain)
+  );
+}
+
+/**
+ * Sends real mail through `real`, but delivers reserved-domain recipients (tests, demo data,
+ * stand-in texts) to `local` (Mailpit) — they could only bounce, hurting the sender's reputation.
+ */
+export class ReservedDomainRouter implements EmailProvider {
+  readonly name = "smtp-routed";
+
+  constructor(
+    private readonly real: EmailProvider,
+    private readonly local: EmailProvider,
+  ) {}
+
+  async send(message: EmailMessage): Promise<{ id: string }> {
+    const to = Array.isArray(message.to) ? message.to : [message.to];
+    const reserved = to.filter(isReservedAddress);
+    const deliverable = to.filter((a) => !isReservedAddress(a));
+    let result: { id: string } | undefined;
+    if (reserved.length) result = await this.local.send({ ...message, to: reserved });
+    if (deliverable.length) result = await this.real.send({ ...message, to: deliverable });
+    return result ?? { id: "" };
+  }
+}
