@@ -21,7 +21,8 @@ export class SmtpEmailProvider implements EmailProvider {
     this.transport = nodemailer.createTransport({
       host: config.host,
       port: config.port,
-      secure: config.secure ?? false,
+      // Port 465 is TLS from the first byte; 587/25 upgrade with STARTTLS.
+      secure: config.secure ?? config.port === 465,
       ...(config.user ? { auth: { user: config.user, pass: config.password ?? "" } } : {}),
     });
   }

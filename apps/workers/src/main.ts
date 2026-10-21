@@ -46,6 +46,8 @@ const env = z
     WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4100),
     WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
     SMS_FROM: z.string().min(1).max(15).default("VoiceDesk"),
+    MAILPIT_SMTP_HOST: z.string().default("localhost"),
+    MAILPIT_SMTP_PORT: z.coerce.number().int().positive().default(1025),
   })
   .parse(process.env);
 
@@ -92,7 +94,17 @@ const whatsapp = process.env.WHATSAPP_ACCESS_TOKEN
       graphVersion: process.env.WHATSAPP_GRAPH_VERSION || undefined,
     })
   : null;
-const sms = await smsFromEnv(email);
+// Stand-in texts (SMS_PROVIDER=mailpit) always go to the local Mailpit, never through a real
+// email service: they'd bounce off made-up addresses and send customer messages to a third party.
+const smtpIsLocal = /^(localhost|127\.0\.0\.1|mailpit)$/i.test(env.SMTP_HOST);
+const localMail = smtpIsLocal
+  ? email
+  : new SmtpEmailProvider({
+      host: env.MAILPIT_SMTP_HOST,
+      port: env.MAILPIT_SMTP_PORT,
+      defaultFrom: env.EMAIL_FROM,
+    });
+const sms = await smsFromEnv(localMail);
 
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {
