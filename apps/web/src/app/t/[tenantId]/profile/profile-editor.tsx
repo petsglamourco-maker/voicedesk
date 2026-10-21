@@ -593,6 +593,9 @@ export function ProfileEditor(props: {
               type="number"
               className="tabular"
               min={0}
+              max={240}
+              step={5}
+              aria-describedby="buffer-hint"
               value={profile.bookingRules.bufferMinutes ?? ""}
               onChange={(e) =>
                 update({
@@ -603,6 +606,9 @@ export function ProfileEditor(props: {
                 })
               }
             />
+            <p id="buffer-hint" className="mt-1 text-xs text-muted-foreground">
+              {t("bufferHint")}
+            </p>
           </div>
         </div>
         <div>

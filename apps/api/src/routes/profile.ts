@@ -1,6 +1,7 @@
 import {
   approveVersion,
   businessProfileSchema,
+  MAX_BUFFER_MINUTES,
   emptyProfile,
   getProfiles,
   saveDraft,
@@ -96,7 +97,16 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
         tags,
         summary: "Save edits as the current draft",
         params,
-        body: businessProfileSchema,
+        body: businessProfileSchema.refine(
+          (p) => {
+            const b = p.bookingRules.bufferMinutes;
+            return b === null || (b >= 0 && b <= MAX_BUFFER_MINUTES);
+          },
+          {
+            message: `The gap between bookings must be 0 to ${MAX_BUFFER_MINUTES} minutes`,
+            path: ["bookingRules", "bufferMinutes"],
+          },
+        ),
         response: { 200: z.object({ version: z.number() }) },
       },
     },
