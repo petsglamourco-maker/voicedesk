@@ -9,8 +9,10 @@ import {
   CardTitle,
   Input,
   Label,
+  PageHero,
   Select,
 } from "@voicedesk/ui";
+import { Headset } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -261,31 +263,31 @@ export function VaConsole(props: { dial?: DialRequest | null }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("answeringFor", { businesses: me.businesses.map((b) => b.name).join(", ") })}
-          </p>
-        </div>
-        <div className="ms-auto flex items-center gap-2">
-          <label htmlFor="presence" className="text-sm font-medium">
-            {t("status")}
-          </label>
-          <Select
-            id="presence"
-            value={presence}
-            onChange={(e) => void changePresence(e.target.value as Presence)}
-            data-testid="va-presence"
-          >
-            <option value="available">{t("presence.available")}</option>
-            <option value="busy">{t("presence.busy")}</option>
-            <option value="away">{t("presence.away")}</option>
-            <option value="offline">{t("presence.offline")}</option>
-          </Select>
-        </div>
-      </div>
+    <div className="stagger space-y-6">
+      <PageHero
+        icon={<Headset />}
+        eyebrow={t(`presence.${presence}`)}
+        title={t("title")}
+        description={t("answeringFor", { businesses: me.businesses.map((b) => b.name).join(", ") })}
+        actions={
+          <div className="flex items-center gap-2">
+            <label htmlFor="presence" className="text-sm font-medium">
+              {t("status")}
+            </label>
+            <Select
+              id="presence"
+              value={presence}
+              onChange={(e) => void changePresence(e.target.value as Presence)}
+              data-testid="va-presence"
+            >
+              <option value="available">{t("presence.available")}</option>
+              <option value="busy">{t("presence.busy")}</option>
+              <option value="away">{t("presence.away")}</option>
+              <option value="offline">{t("presence.offline")}</option>
+            </Select>
+          </div>
+        }
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {presence !== "available" && !onCall ? (
         <Alert tone="info">{t("notAvailableHint")}</Alert>
@@ -355,9 +357,7 @@ export function VaConsole(props: { dial?: DialRequest | null }) {
               <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
                 <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-success" />
                 <Badge>{c.businessName}</Badge>
-                {c.urgent ? (
-                  <Badge className="border-danger/40 text-danger">{t("urgent")}</Badge>
-                ) : null}
+                {c.urgent ? <Badge tone="danger">{t("urgent")}</Badge> : null}
                 <span className="font-medium" dir="auto">
                   {c.callerName ?? c.callerPhone ?? t("unknownCaller")}
                 </span>

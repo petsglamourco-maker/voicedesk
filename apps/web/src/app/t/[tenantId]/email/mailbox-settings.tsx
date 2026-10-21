@@ -14,6 +14,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
+import { ScreenHero } from "@/components/screen-hero";
 
 interface MailServer {
   host: string;
@@ -49,6 +50,7 @@ export function MailboxSettings(props: {
   canEdit: boolean;
 }) {
   const t = useTranslations("email");
+  const shell = useTranslations("shell");
   const common = useTranslations("common");
   const base = `/api/tenants/${props.tenantId}/mailbox`;
   const [mailbox, setMailbox] = useState(props.initial.mailbox);
@@ -160,11 +162,13 @@ export function MailboxSettings(props: {
   );
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="email"
+        eyebrow={shell("groups.channels")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
       {!props.initial.encryptionReady ? <Alert tone="error">{t("noEncryptionKey")}</Alert> : null}
@@ -174,9 +178,9 @@ export function MailboxSettings(props: {
           <div className="flex items-center gap-2">
             <CardTitle>{mailbox.emailAddress}</CardTitle>
             {mailbox.status === "active" ? (
-              <Badge className="border-success/40 text-success">{t("statusActive")}</Badge>
+              <Badge tone="success">{t("statusActive")}</Badge>
             ) : (
-              <Badge className="border-danger/40 text-danger">{t("statusError")}</Badge>
+              <Badge tone="danger">{t("statusError")}</Badge>
             )}
           </div>
           <CardDescription>

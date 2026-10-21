@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
+import { ScreenHero } from "@/components/screen-hero";
 
 type Filter = "all" | "unread" | "needs_human" | "mine";
 
@@ -63,6 +64,7 @@ export function InboxView(props: {
   canReply: boolean;
 }) {
   const t = useTranslations("inbox");
+  const shell = useTranslations("shell");
   const common = useTranslations("common");
   const format = useFormatter();
   const base = `/api/tenants/${props.tenantId}/inbox`;
@@ -191,11 +193,13 @@ export function InboxView(props: {
   ];
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-4">
+      <ScreenHero
+        icon="inbox"
+        eyebrow={shell("groups.overview")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
         <Card className="flex h-[640px] flex-col p-0">
           <div className="flex flex-wrap gap-1 border-b border-border p-2" role="tablist">
@@ -243,13 +247,9 @@ export function InboxView(props: {
                     <span className="flex-1 truncate text-xs text-muted-foreground" dir="auto">
                       {th.subject ?? th.lastPreview}
                     </span>
-                    {th.needsHuman ? (
-                      <Badge className="border-warning/40 text-warning">{t("wantsPerson")}</Badge>
-                    ) : null}
+                    {th.needsHuman ? <Badge tone="warning">{t("wantsPerson")}</Badge> : null}
                     {th.mode === "human" ? <Badge>{t("human")}</Badge> : null}
-                    {th.unread > 0 ? (
-                      <Badge className="border-primary/40 text-primary">{th.unread}</Badge>
-                    ) : null}
+                    {th.unread > 0 ? <Badge tone="primary">{th.unread}</Badge> : null}
                   </div>
                 </button>
               </li>
@@ -297,9 +297,7 @@ export function InboxView(props: {
                     </>
                   ) : (
                     <>
-                      <Badge className="border-success/40 text-success">
-                        {t("assistantReplying")}
-                      </Badge>
+                      <Badge tone="success">{t("assistantReplying")}</Badge>
                       {props.canReply ? (
                         <Button size="sm" disabled={busy} onClick={() => void act("takeover")}>
                           {t("takeOver")}

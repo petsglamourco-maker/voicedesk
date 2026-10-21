@@ -6,6 +6,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
 import { AiCalls } from "./ai-calls";
 import { formatDuration, latencyTone, type CallRow } from "./format";
+import { ScreenHero } from "@/components/screen-hero";
 
 export const metadata: Metadata = { title: "Calls" };
 
@@ -45,15 +46,18 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
   ]);
   if (!data) notFound();
   const t = await getTranslations("calls");
+  const shell = await getTranslations("shell");
   const format = await getFormatter();
   const active = numbers?.numbers.filter((n) => n.status === "active") ?? [];
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="calls"
+        eyebrow={shell("groups.customers")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
 
       <AiCalls
         tenantId={tenantId}
@@ -173,7 +177,9 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
                       ) : null}
                       {c.carrier ? <Badge className="ms-2 capitalize">{c.carrier}</Badge> : null}
                       {c.status === "active" ? (
-                        <Badge className="ms-2 border-success/40 text-success">{t("live")}</Badge>
+                        <Badge tone="success" className="ms-2">
+                          {t("live")}
+                        </Badge>
                       ) : null}
                     </td>
                     <td className="px-4 py-2 whitespace-nowrap">

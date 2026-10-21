@@ -13,6 +13,7 @@ import {
 } from "@voicedesk/ui";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ScreenHero } from "@/components/screen-hero";
 import { api } from "@/lib/client-api";
 
 // Mirrors BusinessProfile in @voicedesk/agent-brain (validated by the API on save).
@@ -81,6 +82,7 @@ export function ProfileEditor(props: {
 }) {
   const t = useTranslations("profile");
   const common = useTranslations("common");
+  const shell = useTranslations("shell");
   const base = `/api/tenants/${props.tenantId}/profile`;
   const [state, setState] = useState(props.initial);
   const [profile, setProfile] = useState<Profile>(
@@ -152,55 +154,54 @@ export function ProfileEditor(props: {
   const disabled = !props.canEdit || busy !== null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start gap-4">
-        <div className="flex-1">
-          <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{t("subtitle")}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {state.approved ? (
-              <Badge className="border-success/40 text-success">
-                {t("liveVersion", { version: state.approved.version })}
-              </Badge>
-            ) : (
-              <Badge className="border-danger/40 text-danger">{t("notLive")}</Badge>
-            )}
-            {state.draft ? (
-              <Badge>
-                {t("draftVersion", { version: state.draft.version })}
-                {state.draft.generatedBy === "ai" ? ` · ${t("aiGenerated")}` : ""}
-              </Badge>
-            ) : null}
-            {dirty ? <Badge>{t("unsaved")}</Badge> : null}
-          </div>
-        </div>
-        {props.canEdit ? (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              disabled={disabled || !state.aiAvailable}
-              title={state.aiAvailable ? undefined : t("aiUnavailable")}
-              onClick={() => void act("generate")}
-            >
-              {busy === "generate" ? t("generating") : t("generate")}
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={disabled || !dirty}
-              onClick={() => void act("save")}
-            >
-              {busy === "save" ? common("working") : t("saveDraft")}
-            </Button>
-            <Button
-              disabled={disabled || (!dirty && !state.draft)}
-              onClick={() => void act("approve")}
-              data-testid="approve-profile"
-            >
-              {busy === "approve" ? common("working") : t("approve")}
-            </Button>
-          </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="profile"
+        eyebrow={shell("groups.assistant")}
+        title={t("title")}
+        description={t("subtitle")}
+        actions={
+          props.canEdit ? (
+            <>
+              <Button
+                variant="secondary"
+                disabled={disabled || !state.aiAvailable}
+                title={state.aiAvailable ? undefined : t("aiUnavailable")}
+                onClick={() => void act("generate")}
+              >
+                {busy === "generate" ? t("generating") : t("generate")}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={disabled || !dirty}
+                onClick={() => void act("save")}
+              >
+                {busy === "save" ? common("working") : t("saveDraft")}
+              </Button>
+              <Button
+                disabled={disabled || (!dirty && !state.draft)}
+                onClick={() => void act("approve")}
+                data-testid="approve-profile"
+              >
+                {busy === "approve" ? common("working") : t("approve")}
+              </Button>
+            </>
+          ) : undefined
+        }
+      >
+        {state.approved ? (
+          <Badge tone="success">{t("liveVersion", { version: state.approved.version })}</Badge>
+        ) : (
+          <Badge tone="danger">{t("notLive")}</Badge>
+        )}
+        {state.draft ? (
+          <Badge>
+            {t("draftVersion", { version: state.draft.version })}
+            {state.draft.generatedBy === "ai" ? ` · ${t("aiGenerated")}` : ""}
+          </Badge>
         ) : null}
-      </div>
+        {dirty ? <Badge>{t("unsaved")}</Badge> : null}
+      </ScreenHero>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
       {notice ? <Alert tone="success">{notice}</Alert> : null}
@@ -676,9 +677,7 @@ function Section(props: {
     <Card>
       <div className="flex flex-wrap items-center gap-2">
         <CardTitle>{props.title}</CardTitle>
-        {props.changed ? (
-          <Badge className="border-primary/40 text-primary">{props.changedLabel}</Badge>
-        ) : null}
+        {props.changed ? <Badge tone="primary">{props.changedLabel}</Badge> : null}
       </div>
       <fieldset disabled={props.disabled} className="mt-4 space-y-4">
         {props.children}

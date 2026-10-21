@@ -17,6 +17,7 @@ import { useTranslations } from "next-intl";
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
+import { ScreenHero } from "@/components/screen-hero";
 
 export interface ContactSummary {
   id: string;
@@ -59,6 +60,7 @@ export function ContactsPanel(props: {
   query: string;
 }) {
   const t = useTranslations("contacts");
+  const shell = useTranslations("shell");
   const common = useTranslations("common");
   const router = useRouter();
   const base = `/api/tenants/${props.tenantId}/contacts`;
@@ -123,11 +125,13 @@ export function ContactsPanel(props: {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="contacts"
+        eyebrow={shell("groups.customers")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>

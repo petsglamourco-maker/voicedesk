@@ -1,10 +1,11 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardTitle, Input, Label } from "@voicedesk/ui";
+import { Alert, Avatar, Badge, Button, Card, CardTitle, Input, Label } from "@voicedesk/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
+import { ScreenHero } from "@/components/screen-hero";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 
@@ -109,18 +110,21 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
 
   const d = props.initial;
   return (
-    <div className="space-y-6">
-      <div>
-        <Link
-          href={`/t/${props.tenantId}/contacts`}
-          className="text-sm text-primary hover:underline"
-        >
-          ← {t("back")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight" dir="auto">
-          {contact.fullName ?? contact.phone ?? contact.email}
-        </h1>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="contacts"
+        eyebrow={
+          <Link href={`/t/${props.tenantId}/contacts`} className="hover:underline">
+            <span aria-hidden className="rtl:hidden">
+              ←{" "}
+            </span>
+            {t("back")}
+          </Link>
+        }
+        title={contact.fullName ?? contact.phone ?? contact.email}
+        titleProps={{ dir: "auto" }}
+        actions={<Avatar name={contact.fullName ?? contact.phone ?? "?"} size="lg" />}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>
@@ -187,9 +191,7 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
             </dl>
             <div className="flex flex-wrap gap-1">
               <Badge>{contact.marketingConsent ? t("marketingYes") : t("marketingNo")}</Badge>
-              {contact.doNotCall ? (
-                <Badge className="border-danger/40 text-danger">{t("doNotCall")}</Badge>
-              ) : null}
+              {contact.doNotCall ? <Badge tone="danger">{t("doNotCall")}</Badge> : null}
               {contact.source ? (
                 <Badge>{t(`source.${contact.source}` as "source.manual")}</Badge>
               ) : null}

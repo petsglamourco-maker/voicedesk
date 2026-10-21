@@ -11,7 +11,9 @@ import {
   Input,
   Label,
   Select,
+  PageHero,
 } from "@voicedesk/ui";
+import { Cpu } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -85,11 +87,13 @@ export function AiProvidersPanel({ initial }: { initial: ProvidersResponse }) {
   const active = providers.filter((p) => p.enabled && p.ready);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("aiProviders")}</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <PageHero
+        icon={<Cpu />}
+        eyebrow={t("badge")}
+        title={t("aiProviders")}
+        description={t("subtitle")}
+      />
 
       {error ? <Alert tone="error">{error}</Alert> : null}
       {!initial.encryptionConfigured ? <Alert tone="error">{t("noEncryption")}</Alert> : null}
@@ -202,9 +206,9 @@ function ProviderCard(props: {
           <CardTitle>{p.name}</CardTitle>
           <div className="mt-1 flex flex-wrap gap-2">
             {p.ready ? (
-              <Badge className="border-success/40 text-success">{t("ready")}</Badge>
+              <Badge tone="success">{t("ready")}</Badge>
             ) : (
-              <Badge className="border-danger/40 text-danger">{p.missing}</Badge>
+              <Badge tone="danger">{p.missing}</Badge>
             )}
             {p.lastTest ? (
               <Badge

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { apiGetOrNull } from "@/lib/api";
+import { ScreenHero } from "@/components/screen-hero";
 
 export const metadata: Metadata = { title: "WhatsApp" };
 
@@ -14,12 +15,15 @@ export default async function WhatsAppPage(props: { params: Promise<{ tenantId: 
   const info = await apiGetOrNull<WhatsAppInfo>(`/api/tenants/${tenantId}/whatsapp`);
   if (!info) notFound();
   const t = await getTranslations("whatsapp");
+  const shell = await getTranslations("shell");
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="whatsapp"
+        eyebrow={shell("groups.channels")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {!info.connected ? (
         <Card>
           <CardTitle>{t("notConnected")}</CardTitle>

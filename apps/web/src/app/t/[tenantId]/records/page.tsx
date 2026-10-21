@@ -5,6 +5,7 @@ import { getFormatter, getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
 import { KnowledgeGaps, type Gap } from "./knowledge-gaps";
 import { AiCallBack, BookingCancel, MessageDone, TicketStatus } from "./record-actions";
+import { ScreenHero } from "@/components/screen-hero";
 
 export const metadata: Metadata = { title: "Records" };
 
@@ -60,6 +61,7 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
   ]);
   if (!detail || !records) notFound();
   const t = await getTranslations("records");
+  const shell = await getTranslations("shell");
   const format = await getFormatter();
   const tz = detail.tenant.timezone;
   const when = (iso: string) =>
@@ -69,11 +71,13 @@ export default async function RecordsPage(props: { params: Promise<{ tenantId: s
   const empty = <p className="mt-3 text-sm text-muted-foreground">{t("empty")}</p>;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="records"
+        eyebrow={shell("groups.customers")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
 
       <Card>
         <CardTitle>{t("signups")}</CardTitle>

@@ -57,8 +57,7 @@ export function MessageDone(props: {
   const t = useTranslations("records");
   const [status, setStatus] = useState(props.status);
   const [busy, setBusy] = useState(false);
-  if (status === "done")
-    return <Badge className="border-success/40 text-success">{t("done")}</Badge>;
+  if (status === "done") return <Badge tone="success">{t("done")}</Badge>;
   if (!props.canEdit) return <Badge>{t("new")}</Badge>;
   return (
     <Button
@@ -98,7 +97,7 @@ export function BookingCancel(props: {
   }
   return (
     <span className="flex items-center gap-2">
-      <Badge className="border-success/40 text-success">{t("bookingStatus.confirmed")}</Badge>
+      <Badge tone="success">{t("bookingStatus.confirmed")}</Badge>
       <Button
         variant="ghost"
         size="sm"

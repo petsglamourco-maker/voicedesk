@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
 import { LOCALES } from "@/i18n/locales";
+import { ScreenHero } from "@/components/screen-hero";
 
 interface Settings {
   personaId: string;
@@ -58,6 +59,7 @@ export function AgentSettingsForm(props: {
   canEdit: boolean;
 }) {
   const t = useTranslations("agent");
+  const shell = useTranslations("shell");
   const tv = useTranslations("voice");
   const tn = useTranslations("notifications");
   const tt = useTranslations("transfers");
@@ -119,11 +121,13 @@ export function AgentSettingsForm(props: {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="agent"
+        eyebrow={shell("groups.assistant")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {saved ? <Alert tone="success">{t("saved")}</Alert> : null}
 

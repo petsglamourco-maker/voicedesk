@@ -10,7 +10,9 @@ import {
   Input,
   Label,
   Select,
+  PageHero,
 } from "@voicedesk/ui";
+import { Headset } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
@@ -33,6 +35,7 @@ export interface VaResponse {
 /** Platform admin: who answers handed-off calls for which business (Phase 5). */
 export function VaAssignments({ initial }: { initial: VaResponse }) {
   const t = useTranslations("vas");
+  const platform = useTranslations("platform");
   const common = useTranslations("common");
   const [data, setData] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -75,11 +78,13 @@ export function VaAssignments({ initial }: { initial: VaResponse }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <PageHero
+        icon={<Headset />}
+        eyebrow={platform("badge")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>

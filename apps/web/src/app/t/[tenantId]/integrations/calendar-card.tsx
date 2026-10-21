@@ -118,11 +118,11 @@ export function CalendarCard(props: {
           <>
             <Badge>{providerName(connection.provider)}</Badge>
             {connection.status === "active" ? (
-              <Badge className="border-success/40 text-success">{t("statusActive")}</Badge>
+              <Badge tone="success">{t("statusActive")}</Badge>
             ) : connection.status === "revoked" ? (
-              <Badge className="border-danger/40 text-danger">{t("statusRevoked")}</Badge>
+              <Badge tone="danger">{t("statusRevoked")}</Badge>
             ) : (
-              <Badge className="border-warning/40 text-warning">{t("statusError")}</Badge>
+              <Badge tone="warning">{t("statusError")}</Badge>
             )}
           </>
         ) : null}

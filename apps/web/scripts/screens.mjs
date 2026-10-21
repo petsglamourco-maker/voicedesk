@@ -62,8 +62,11 @@ async function signIn(page) {
 }
 
 const browser = await chromium.launch();
-for (const scheme of ["dark", "light"]) {
-  for (const width of [375, 768, 1440]) {
+// SHOTS_SCHEMES=dark SHOTS_WIDTHS=1440 narrow a run.
+const schemes = (process.env.SHOTS_SCHEMES ?? "dark,light").split(",");
+const widths = (process.env.SHOTS_WIDTHS ?? "375,768,1440").split(",").map(Number);
+for (const scheme of schemes) {
+  for (const width of widths) {
     const anon = await browser.newContext({
       viewport: { width, height: 900 },
       colorScheme: scheme,

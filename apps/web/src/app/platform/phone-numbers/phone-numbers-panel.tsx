@@ -10,7 +10,9 @@ import {
   Input,
   Label,
   Select,
+  PageHero,
 } from "@voicedesk/ui";
+import { PhoneCall } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
@@ -35,6 +37,7 @@ export interface PhoneNumbersResponse {
 /** Register numbers bought in Twilio or Telnyx and route them to a business (Phase 2b, ADR 0013). */
 export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }) {
   const t = useTranslations("phoneNumbers");
+  const platform = useTranslations("platform");
   const common = useTranslations("common");
   const [numbers, setNumbers] = useState(initial.numbers);
   const [busy, setBusy] = useState(false);
@@ -91,11 +94,13 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <PageHero
+        icon={<PhoneCall />}
+        eyebrow={platform("badge")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {!initial.sipConfigured ? <Alert tone="error">{t("notConfigured")}</Alert> : null}
       {error ? <Alert tone="error">{error}</Alert> : null}
 
@@ -154,9 +159,9 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
                 {n.label ? <span className="text-muted-foreground">{n.label}</span> : null}
                 {n.status === "active" ? (
                   n.routed ? (
-                    <Badge className="border-success/40 text-success">{t("routed")}</Badge>
+                    <Badge tone="success">{t("routed")}</Badge>
                   ) : (
-                    <Badge className="border-warning/40 text-warning">{t("notRouted")}</Badge>
+                    <Badge tone="warning">{t("notRouted")}</Badge>
                   )
                 ) : (
                   <Badge>{t("disabled")}</Badge>

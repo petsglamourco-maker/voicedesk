@@ -13,6 +13,7 @@ import {
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
+import { ScreenHero } from "@/components/screen-hero";
 
 type MappedField = "name" | "email" | "phone" | "message" | "consent";
 const MAPPED_FIELDS: MappedField[] = ["name", "email", "phone", "message", "consent"];
@@ -30,6 +31,7 @@ export interface FormView {
 /** Form capture: the hosted enquiry form, and the webhook for forms the business already has. */
 export function FormSettings(props: { tenantId: string; initial: FormView; canEdit: boolean }) {
   const t = useTranslations("forms");
+  const shell = useTranslations("shell");
   const common = useTranslations("common");
   const base = `/api/tenants/${props.tenantId}/forms`;
   const [form, setForm] = useState(props.initial);
@@ -78,22 +80,20 @@ export function FormSettings(props: { tenantId: string; initial: FormView; canEd
     : form.webhookPath.replace(/secret=.*/, "secret=••••••••");
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="forms"
+        eyebrow={shell("groups.channels")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {saved ? <Alert tone="success">{t("saved")}</Alert> : null}
 
       <Card>
         <div className="flex items-center gap-2">
           <CardTitle>{t("status")}</CardTitle>
-          {form.enabled ? (
-            <Badge className="border-success/40 text-success">{t("on")}</Badge>
-          ) : (
-            <Badge>{t("off")}</Badge>
-          )}
+          {form.enabled ? <Badge tone="success">{t("on")}</Badge> : <Badge>{t("off")}</Badge>}
         </div>
         <CardDescription>{t("statusHint")}</CardDescription>
         {props.canEdit ? (

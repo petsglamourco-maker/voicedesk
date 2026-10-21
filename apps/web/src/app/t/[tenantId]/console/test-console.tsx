@@ -8,6 +8,7 @@ import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 import { postSse } from "@/lib/sse";
 import { VoiceCall, type VoiceSession } from "./voice-call";
+import { ScreenHero } from "@/components/screen-hero";
 
 interface View {
   flow: string;
@@ -49,6 +50,7 @@ export function TestConsole({
   defaultLanguage: string;
 }) {
   const t = useTranslations("console");
+  const shell = useTranslations("shell");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const base = `/api/tenants/${tenantId}/conversations`;
@@ -190,11 +192,13 @@ export function TestConsole({
       : null;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="console"
+        eyebrow={shell("groups.assistant")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
 
       <Card>
         <form onSubmit={(e) => void start(e)} className="flex flex-wrap items-end gap-3">

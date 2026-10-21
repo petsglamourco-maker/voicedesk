@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { ScreenHero } from "@/components/screen-hero";
 import { apiGetOrNull } from "@/lib/api";
 import { formatDuration, latencyTone, type CallRow } from "../format";
 
@@ -51,21 +52,27 @@ export default async function CallPage(props: {
   const format = await getFormatter();
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href={`/t/${tenantId}/calls`} className="text-sm text-primary hover:underline">
-          ← {t("back")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {format.dateTime(new Date(call.startedAt), { dateStyle: "full", timeStyle: "short" })}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {call.callerPhone ?? (call.callerWithheld ? t("withheld") : "—")}
-          {call.calledNumber ? ` → ${call.calledNumber}` : ""} ·{" "}
-          {formatDuration(call.durationSeconds)}
-          {call.test ? ` · ${t("test")}` : ""}
-        </p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="calls"
+        eyebrow={
+          <Link href={`/t/${tenantId}/calls`} className="hover:underline">
+            <span aria-hidden className="rtl:hidden">
+              ←{" "}
+            </span>
+            {t("back")}
+          </Link>
+        }
+        title={format.dateTime(new Date(call.startedAt), { dateStyle: "full", timeStyle: "short" })}
+        description={
+          <>
+            {call.callerPhone ?? (call.callerWithheld ? t("withheld") : "—")}
+            {call.calledNumber ? ` → ${call.calledNumber}` : ""} ·{" "}
+            {formatDuration(call.durationSeconds)}
+            {call.test ? ` · ${t("test")}` : ""}
+          </>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
@@ -156,9 +163,7 @@ export default async function CallPage(props: {
                     ))}
                   </ul>
                 ) : null}
-                {call.summary.followUpNeeded ? (
-                  <Badge className="border-warning/40 text-warning">{t("followUp")}</Badge>
-                ) : null}
+                {call.summary.followUpNeeded ? <Badge tone="warning">{t("followUp")}</Badge> : null}
               </div>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">{t("noSummary")}</p>
