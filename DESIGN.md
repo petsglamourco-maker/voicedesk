@@ -105,6 +105,31 @@ Spacing follows an 8-pt rhythm.
 - notifications (waiting chats, ringing calls);
 - account menu with the theme switch.
 
+## Building a screen
+
+Every screen follows the same recipe, so the app feels like one product:
+
+1. **Header:** `ScreenHero` (`apps/web/src/components/screen-hero.tsx`) with the page's menu icon and its menu group as the eyebrow. It's the signature `PageHero`: aurora edge, corner light, star dots and a glowing icon orb. Put page-level numbers in it as `HeroStat` chips, and period switches or main buttons in `actions`. Use one hero per screen.
+2. **Root:** `<div className="stagger space-y-6">`, so sections rise in one after another.
+3. **Cards:** `Card` with `CardHead` (a tinted icon chip, title and hint) instead of a bare title. Tint by meaning:
+   - channel pages use their channel colour;
+   - warnings use `warning`;
+   - assistant features use `accent`.
+4. **Channels:** `ChannelDot` (`apps/web/src/components/channels.tsx`), never emoji. Labels come from `dashboard.touchpoint.*`.
+5. **People:** `Avatar`. **Status:** `StatusPill` with an icon (`live` for things happening now) or `Badge tone`. Never hand-colour a badge.
+6. **Empty lists:** `EmptyState` with one next step.
+7. **Grids** that hold charts or tables get `[&>*]:min-w-0`.
+8. **Relative times** in client components use `useNow()`; in server components pass `new Date()`.
+
+**Frames:**
+
+- `AppShell` for business screens;
+- `StandaloneShell` for the VA console and Platform admin;
+- `AuthShell` for sign-in, sign-up, onboarding and invites;
+- `PublicCard` for pages customers see (hosted form, rating). It carries no VoiceDesk brand, because the business is the brand there.
+
+`loading.tsx` and `error.tsx` under `t/[tenantId]` give every business screen a content-shaped skeleton and a friendly retry.
+
 ## Checks
 
 - `pnpm verify`, which includes the contrast test.

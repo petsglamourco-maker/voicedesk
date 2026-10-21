@@ -140,7 +140,9 @@
     "nameHint": "Shown to your team. When you take a call in the VA console, the caller hears your first name (\"You're through to Sam now\").",
     "name": "Full name",
     "saveName": "Save name",
-    "nameSaved": "Name saved."
+    "nameSaved": "Name saved.",
+    "on": "On",
+    "off": "Off"
   },
   "knowledge": {
     "title": "Knowledge",
@@ -697,7 +699,9 @@
     "cancelEdit": "Cancel",
     "discarded": "Draft not sent",
     "email": "Email",
-    "noEmail": "This customer didn't leave an email address. Call them back instead."
+    "noEmail": "This customer didn't leave an email address. Call them back instead.",
+    "shortcutMove": "move",
+    "shortcutReply": "reply"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -1165,7 +1169,10 @@
       "chats": "{n} conversations waiting for a person",
       "calls": "{n} calls ringing at the VA console",
       "none": "You're all caught up."
-    }
+    },
+    "errorTitle": "This page didn't load",
+    "errorBody": "It's usually a brief connection problem. Try again; if it keeps happening, check that VoiceDesk's servers are running.",
+    "retry": "Try again"
   },
   "design": {
     "title": "Design system",

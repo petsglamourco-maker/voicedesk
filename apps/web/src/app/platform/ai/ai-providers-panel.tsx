@@ -2,18 +2,33 @@
 
 import {
   Alert,
-  Badge,
   Button,
   Card,
   CardDescription,
-  CardTitle,
+  CardHead,
   cn,
   Input,
   Label,
   Select,
   PageHero,
+  StatusPill,
+  Switch,
 } from "@voicedesk/ui";
-import { Cpu } from "lucide-react";
+import {
+  Activity,
+  ArrowDown,
+  ArrowUp,
+  CheckCircle2,
+  ChevronRight,
+  Cpu,
+  KeyRound,
+  Save,
+  Search,
+  Server,
+  Sparkles,
+  XCircle,
+  Zap,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -197,70 +212,94 @@ function ProviderCard(props: {
 
   return (
     <Card
-      className={cn(p.enabled && p.ready ? "border-success/50" : undefined)}
+      className={cn(
+        "relative overflow-hidden",
+        p.enabled && p.ready
+          ? "border-success/40 shadow-[0_0_36px_-12px_color-mix(in_srgb,var(--color-success)_50%,transparent)]"
+          : undefined,
+      )}
       data-testid={`provider-${p.key}`}
     >
-      <div className="flex flex-wrap items-start gap-3">
-        <span className="mt-1 text-sm font-medium text-muted-foreground">#{props.position}</span>
-        <div className="min-w-56 flex-1">
-          <CardTitle>{p.name}</CardTitle>
-          <div className="mt-1 flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-3">
+        <span
+          className={cn(
+            "tabular flex size-9 shrink-0 items-center justify-center rounded-full border font-display text-sm font-semibold",
+            p.enabled && p.ready
+              ? "border-primary/40 bg-primary/12 text-primary shadow-[0_0_16px_-4px_var(--color-glow)]"
+              : "border-border bg-muted text-muted-foreground",
+          )}
+        >
+          #{props.position}
+        </span>
+        <div className="min-w-0 flex-1 basis-56">
+          <CardHead
+            icon={p.kind === "anthropic" ? <Sparkles /> : p.key === "local" ? <Server /> : <Cpu />}
+            title={p.name}
+            color={p.kind === "anthropic" ? "var(--color-accent)" : "var(--color-secondary)"}
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
             {p.ready ? (
-              <Badge tone="success">{t("ready")}</Badge>
+              <StatusPill tone="success" icon={CheckCircle2} label={t("ready")} />
             ) : (
-              <Badge tone="danger">{p.missing}</Badge>
+              <StatusPill tone="danger" icon={KeyRound} label={p.missing} />
             )}
             {p.lastTest ? (
-              <Badge
-                className={
-                  p.lastTest.ok ? "border-success/40 text-success" : "border-danger/40 text-danger"
+              <StatusPill
+                tone={p.lastTest.ok ? "success" : "danger"}
+                icon={p.lastTest.ok ? Activity : XCircle}
+                label={
+                  <span className="tabular">
+                    {p.lastTest.ok
+                      ? t("testOk", {
+                          ms: p.lastTest.latencyMs,
+                          tools: p.lastTest.toolCalls ? "✓" : "✗",
+                        })
+                      : t("testFailed")}
+                  </span>
                 }
-              >
-                {p.lastTest.ok
-                  ? t("testOk", {
-                      ms: p.lastTest.latencyMs,
-                      tools: p.lastTest.toolCalls ? "✓" : "✗",
-                    })
-                  : t("testFailed")}
-              </Badge>
+              />
             ) : null}
           </div>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={t("moveUp")}
-            disabled={!props.canMoveUp}
-            onClick={() => props.onMove(-1)}
-          >
-            ↑
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label={t("moveDown")}
-            disabled={!props.canMoveDown}
-            onClick={() => props.onMove(1)}
-          >
-            ↓
-          </Button>
-          <label className="ms-2 flex cursor-pointer items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              role="switch"
-              className="h-5 w-5"
+        <div className="flex items-center gap-3">
+          <div className="glass flex items-center rounded-full p-0.5">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              shape="pill"
+              aria-label={t("moveUp")}
+              disabled={!props.canMoveUp}
+              onClick={() => props.onMove(-1)}
+            >
+              <ArrowUp aria-hidden />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              shape="pill"
+              aria-label={t("moveDown")}
+              disabled={!props.canMoveDown}
+              onClick={() => props.onMove(1)}
+            >
+              <ArrowDown aria-hidden />
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Switch
+              id={`${id}-enabled`}
               checked={p.enabled}
               disabled={busy !== null}
-              onChange={(e) => void put({ enabled: e.target.checked }, "toggle")}
+              onCheckedChange={(checked) => void put({ enabled: checked }, "toggle")}
               data-testid={`toggle-${p.key}`}
             />
-            {p.enabled ? t("on") : t("off")}
-          </label>
+            <label htmlFor={`${id}-enabled`} className="cursor-pointer">
+              {p.enabled ? t("on") : t("off")}
+            </label>
+          </div>
         </div>
       </div>
 
-      {p.notes ? <CardDescription className="mt-3">{p.notes}</CardDescription> : null}
+      {p.notes ? <CardDescription className="mt-4">{p.notes}</CardDescription> : null}
       {p.lastTest && !p.lastTest.ok ? (
         <Alert tone="error" className="mt-3">
           {p.lastTest.error}
@@ -277,11 +316,11 @@ function ProviderCard(props: {
         </Alert>
       ) : null}
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
         {openAi ? (
           <div className="sm:col-span-2">
             <Label htmlFor={`${id}-url`}>{t("baseUrl")}</Label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2 sm:flex-nowrap">
               <Input
                 id={`${id}-url`}
                 value={form.baseUrl}
@@ -293,6 +332,7 @@ function ProviderCard(props: {
                 disabled={busy !== null}
                 onClick={() => void findModels()}
               >
+                <Search aria-hidden />
                 {t("findModels")}
               </Button>
             </div>
@@ -352,6 +392,7 @@ function ProviderCard(props: {
               })
             }
           >
+            <KeyRound aria-hidden />
             {t("saveKey")}
           </Button>
           {p.apiKeyHint ? (
@@ -366,18 +407,26 @@ function ProviderCard(props: {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="mt-4 text-sm font-medium text-primary hover:underline"
+      <Button
+        variant="link"
+        className="mt-4 h-auto gap-1 px-0"
         aria-expanded={showAdvanced}
         onClick={() => setShowAdvanced((s) => !s)}
       >
-        {showAdvanced ? "▾" : "▸"} {t("advanced")}
-      </button>
+        <ChevronRight
+          aria-hidden
+          className={cn(
+            "transition-transform duration-200 rtl:rotate-180",
+            showAdvanced && "rotate-90 rtl:rotate-90",
+          )}
+        />
+        {t("advanced")}
+      </Button>
       {showAdvanced ? (
-        <div className="mt-3 grid gap-4 rounded-md border border-border p-4 sm:grid-cols-2">
+        <div className="mt-3 grid gap-4 rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_45%,transparent)] p-4 sm:grid-cols-2 [&>*]:min-w-0">
           <label className="flex items-center gap-2 text-sm">
             <input
+              className="size-4 accent-primary"
               type="checkbox"
               checked={form.options.thinking.realtime}
               onChange={(e) =>
@@ -388,6 +437,7 @@ function ProviderCard(props: {
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input
+              className="size-4 accent-primary"
               type="checkbox"
               checked={form.options.thinking.reasoning}
               onChange={(e) =>
@@ -473,7 +523,7 @@ function ProviderCard(props: {
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
         <Button
           disabled={busy !== null}
           onClick={() =>
@@ -488,6 +538,7 @@ function ProviderCard(props: {
             )
           }
         >
+          <Save aria-hidden />
           {busy === "save" ? t("saving") : t("save")}
         </Button>
         <Button
@@ -495,6 +546,7 @@ function ProviderCard(props: {
           disabled={busy !== null || !p.ready}
           onClick={() => void test()}
         >
+          <Zap aria-hidden />
           {busy === "test" ? t("testing") : t("test")}
         </Button>
       </div>

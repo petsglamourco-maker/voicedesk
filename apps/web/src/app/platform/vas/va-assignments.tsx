@@ -2,17 +2,18 @@
 
 import {
   Alert,
+  Avatar,
   Badge,
   Button,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
+  EmptyState,
   Input,
   Label,
   Select,
   PageHero,
 } from "@voicedesk/ui";
-import { Headset } from "lucide-react";
+import { Building2, Headset, UserPlus, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
@@ -88,16 +89,18 @@ export function VaAssignments({ initial }: { initial: VaResponse }) {
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>
-        <CardTitle>{t("addTitle")}</CardTitle>
-        <CardDescription>{t("addHint")}</CardDescription>
-        <form onSubmit={add} className="mt-4 flex flex-wrap items-end gap-3">
+        <CardHead icon={<UserPlus />} title={t("addTitle")} hint={t("addHint")} />
+        <form
+          onSubmit={add}
+          className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-end [&>*]:min-w-0"
+        >
           <div>
             <Label htmlFor="va-email">{t("email")}</Label>
-            <Input id="va-email" name="email" type="email" required className="w-64" />
+            <Input id="va-email" name="email" type="email" required />
           </div>
           <div>
             <Label htmlFor="va-tenant">{t("business")}</Label>
-            <Select id="va-tenant" name="tenantId" required className="w-56">
+            <Select id="va-tenant" name="tenantId" required>
               {data.tenants.map((x) => (
                 <option key={x.id} value={x.id}>
                   {x.name}
@@ -106,6 +109,7 @@ export function VaAssignments({ initial }: { initial: VaResponse }) {
             </Select>
           </div>
           <Button type="submit" disabled={busy}>
+            <UserPlus aria-hidden />
             {busy ? common("working") : t("add")}
           </Button>
         </form>
@@ -113,41 +117,52 @@ export function VaAssignments({ initial }: { initial: VaResponse }) {
 
       <Card className="p-0">
         {people.size === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">{t("empty")}</p>
+          <EmptyState icon={Headset} title={t("empty")} />
         ) : (
           <ul className="divide-y divide-border" data-testid="va-list">
             {[...people.entries()].map(([userId, person]) => (
-              <li key={userId} className="px-4 py-3 text-sm">
-                <p className="font-medium">
-                  {person.name} <span className="text-muted-foreground">{person.email}</span>
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {person.items.map((a) => (
-                    <span
-                      key={a.tenantId}
-                      className="flex items-center gap-1 rounded-md border border-border px-2 py-1"
-                    >
-                      {a.tenantName}
-                      {a.source === "business" ? <Badge>{t("ownStaff")}</Badge> : null}
-                      {a.source === "platform" ? (
-                        <button
-                          type="button"
-                          className="ms-1 text-danger hover:underline"
-                          aria-label={t("remove", { business: a.tenantName })}
-                          disabled={busy}
-                          onClick={() =>
-                            void run(async () => {
-                              await api(`/api/platform/vas/${a.tenantId}/${userId}`, {
-                                method: "DELETE",
-                              });
-                            })
-                          }
-                        >
-                          ×
-                        </button>
-                      ) : null}
+              <li key={userId} className="flex gap-4 px-5 py-4 text-sm">
+                <Avatar name={person.name} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">
+                    <span dir="auto">{person.name}</span>{" "}
+                    <span className="font-normal break-all text-muted-foreground">
+                      {person.email}
                     </span>
-                  ))}
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {person.items.map((a) => (
+                      <span
+                        key={a.tenantId}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-[color-mix(in_srgb,var(--color-surface)_55%,transparent)] py-1 ps-2.5 pe-1.5 text-xs font-medium"
+                      >
+                        <Building2 className="size-3.5 text-secondary" aria-hidden />
+                        <span dir="auto">{a.tenantName}</span>
+                        {a.source === "business" ? (
+                          <Badge tone="primary">{t("ownStaff")}</Badge>
+                        ) : null}
+                        {a.source === "platform" ? (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            shape="pill"
+                            className="size-6 text-danger hover:bg-danger/12 [&_svg]:size-3.5"
+                            aria-label={t("remove", { business: a.tenantName })}
+                            disabled={busy}
+                            onClick={() =>
+                              void run(async () => {
+                                await api(`/api/platform/vas/${a.tenantId}/${userId}`, {
+                                  method: "DELETE",
+                                });
+                              })
+                            }
+                          >
+                            <X aria-hidden />
+                          </Button>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </li>
             ))}

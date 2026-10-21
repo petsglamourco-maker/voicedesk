@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Input, Label } from "@voicedesk/ui";
+import { Info, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -36,7 +37,7 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="space-y-5">
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="name">{t("name")}</Label>
@@ -57,11 +58,16 @@ export function SignUpForm({ redirectTo }: { redirectTo: string }) {
           minLength={10}
           aria-describedby="password-hint"
         />
-        <p id="password-hint" className="mt-1 text-xs text-muted-foreground">
+        <p
+          id="password-hint"
+          className="mt-1.5 flex items-start gap-1.5 text-xs text-muted-foreground"
+        >
+          <Info className="mt-px size-3.5 shrink-0" aria-hidden />
           {t("passwordHint")}
         </p>
       </div>
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>
+        <UserPlus aria-hidden />
         {pending ? common("working") : t("signUp")}
       </Button>
     </form>

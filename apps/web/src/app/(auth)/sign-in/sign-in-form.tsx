@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Input, Label } from "@voicedesk/ui";
+import { LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -38,7 +39,7 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate={false}>
+    <form onSubmit={onSubmit} className="space-y-5" noValidate={false}>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="email">{t("email")}</Label>
@@ -54,7 +55,8 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           required
         />
       </div>
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>
+        <LogIn aria-hidden />
         {pending ? common("working") : t("signIn")}
       </Button>
     </form>

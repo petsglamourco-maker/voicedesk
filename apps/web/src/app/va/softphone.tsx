@@ -2,6 +2,19 @@
 
 import { Alert, Badge, Button, Card, CardTitle, cn } from "@voicedesk/ui";
 import { Room, RoomEvent, Track } from "livekit-client";
+import {
+  Bot,
+  Building2,
+  FileText,
+  Info,
+  Mic,
+  MicOff,
+  PhoneCall,
+  PhoneOff,
+  PhoneOutgoing,
+  StickyNote,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -156,97 +169,205 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   const ss = String(seconds % 60).padStart(2, "0");
 
   return (
-    <Card className="border-success/50" data-testid="softphone">
-      <div className="flex flex-wrap items-center gap-3">
-        <span
-          className={cn(
-            "inline-block h-3 w-3 rounded-full",
-            connected ? "bg-success" : "animate-pulse bg-warning",
-          )}
-          aria-hidden
-        />
-        <CardTitle className="text-lg" dir="auto">
-          {name}
-        </CardTitle>
-        <Badge>{call.businessName}</Badge>
-        {context?.contact?.phone && context.contact.fullName ? (
-          <span className="text-sm text-muted-foreground">{context.contact.phone}</span>
-        ) : null}
-        <span className="ms-auto font-mono text-sm tabular-nums" aria-label={t("callTime")}>
-          {connected ? `${mm}:${ss}` : t("connecting")}
-        </span>
-      </div>
-      {error ? (
-        <Alert tone="error" className="mt-3">
-          {error}
-        </Alert>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button variant="secondary" onClick={() => void toggleMute()} disabled={!connected}>
-          {muted ? t("unmute") : t("mute")}
-        </Button>
-        {outbound ? null : (
-          <Button variant="secondary" onClick={() => void finish("return")} disabled={busy}>
-            {t("handBack")}
-          </Button>
-        )}
-        <Button
-          className="bg-danger text-white hover:bg-danger/90"
-          onClick={() => void finish("end")}
-          disabled={busy}
-        >
-          {t("hangUp")}
-        </Button>
-        {context?.contact ? (
-          <Link
-            href={`/t/${call.tenantId}/contacts/${context.contact.id}`}
-            target="_blank"
-            className="ms-auto self-center text-sm text-primary hover:underline"
+    <Card
+      variant="hero"
+      className="border-success/40 p-0 shadow-[0_0_48px_-10px_color-mix(in_srgb,var(--color-success)_45%,transparent)]"
+      data-testid="softphone"
+    >
+      <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
+      <div className="relative p-5 sm:p-6">
+        <div className="flex flex-wrap items-center gap-4">
+          <span aria-hidden className="relative flex size-14 shrink-0 items-center justify-center">
+            <span
+              className={cn(
+                "absolute inset-0 rounded-full blur-md",
+                connected ? "animate-glow-pulse bg-success/45" : "animate-pulse bg-warning/40",
+              )}
+            />
+            <span
+              className={cn(
+                "relative flex size-14 items-center justify-center rounded-full border",
+                connected
+                  ? "border-success/50 bg-success/15 text-success"
+                  : "border-warning/50 bg-warning/15 text-warning",
+              )}
+            >
+              {outbound ? <PhoneOutgoing className="size-6" /> : <PhoneCall className="size-6" />}
+            </span>
+          </span>
+          <div className="min-w-0 flex-1 basis-48">
+            <CardTitle className="truncate text-xl" dir="auto">
+              {name}
+            </CardTitle>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <Badge tone="secondary">
+                <Building2 aria-hidden />
+                <span dir="auto">{call.businessName}</span>
+              </Badge>
+              {context?.contact?.phone && context.contact.fullName ? (
+                <span className="tabular text-sm text-muted-foreground" dir="ltr">
+                  {context.contact.phone}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <span
+            className={cn(
+              "tabular rounded-full border px-4 py-1.5 font-display font-semibold",
+              connected
+                ? "border-success/40 bg-success/10 text-2xl text-success shadow-[0_0_24px_-6px_var(--color-success)]"
+                : "animate-pulse border-border bg-muted text-sm text-muted-foreground",
+            )}
+            aria-label={t("callTime")}
           >
-            {t("openContact")}
-          </Link>
-        ) : null}
-      </div>
-
-      {outbound ? <p className="mt-4 text-xs text-muted-foreground">{t("outboundNote")}</p> : null}
-      <div className={cn("mt-4 grid gap-4 lg:grid-cols-[1fr_260px]", outbound && "hidden")}>
-        <div
-          className="h-72 space-y-2 overflow-y-auto rounded-md border border-border p-3"
-          data-testid="softphone-transcript"
-        >
-          {(context?.transcript ?? []).map((m, i) => (
-            <p key={i} className="text-sm" dir="auto">
-              <span className="me-1 text-xs font-medium text-muted-foreground">
-                {m.role === "caller" ? t("callerLabel") : t("assistantLabel")}
-              </span>
-              {m.text}
-            </p>
-          ))}
-          <div ref={bottom} />
+            {connected ? `${mm}:${ss}` : t("connecting")}
+          </span>
         </div>
-        <div className="space-y-3 text-sm">
-          {context?.records.length ? (
-            <div>
-              <p className="text-xs text-muted-foreground">{t("records")}</p>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {context.records.map((r) => (
-                  <Badge key={r.reference} className="font-mono">
-                    {r.reference}
-                  </Badge>
-                ))}
+        {error ? (
+          <Alert tone="error" className="mt-4">
+            {error}
+          </Alert>
+        ) : null}
+
+        <div className="mt-6 flex flex-wrap items-start justify-center gap-6 sm:justify-start">
+          <div className="flex flex-col items-center gap-1.5">
+            <Button
+              variant="secondary"
+              shape="pill"
+              size="icon"
+              className={cn("size-14 [&_svg]:size-6", muted && "border-warning/50 text-warning")}
+              onClick={() => void toggleMute()}
+              disabled={!connected}
+              aria-label={muted ? t("unmute") : t("mute")}
+            >
+              {muted ? <MicOff /> : <Mic />}
+            </Button>
+            <span aria-hidden className="text-xs text-muted-foreground">
+              {muted ? t("unmute") : t("mute")}
+            </span>
+          </div>
+          {outbound ? null : (
+            <div className="flex flex-col items-center gap-1.5">
+              <Button
+                variant="secondary"
+                shape="pill"
+                size="icon"
+                className="size-14 [&_svg]:size-6"
+                onClick={() => void finish("return")}
+                disabled={busy}
+                aria-label={t("handBack")}
+              >
+                <Bot />
+              </Button>
+              <span aria-hidden className="max-w-28 text-center text-xs text-muted-foreground">
+                {t("handBack")}
+              </span>
+            </div>
+          )}
+          <div className="flex flex-col items-center gap-1.5">
+            <Button
+              variant="danger"
+              shape="pill"
+              size="icon"
+              className="size-14 [&_svg]:size-6"
+              onClick={() => void finish("end")}
+              disabled={busy}
+              aria-label={t("hangUp")}
+            >
+              <PhoneOff />
+            </Button>
+            <span aria-hidden className="text-xs text-muted-foreground">
+              {t("hangUp")}
+            </span>
+          </div>
+          {context?.contact ? (
+            <Link
+              href={`/t/${call.tenantId}/contacts/${context.contact.id}`}
+              target="_blank"
+              className="inline-flex items-center gap-1.5 self-center text-sm font-semibold text-secondary hover:underline sm:ms-auto"
+            >
+              <UserRound className="size-4" aria-hidden />
+              {t("openContact")}
+            </Link>
+          ) : null}
+        </div>
+
+        {outbound ? (
+          <Alert tone="info" className="mt-5">
+            {t("outboundNote")}
+          </Alert>
+        ) : null}
+        <div
+          className={cn(
+            "mt-6 grid gap-4 lg:grid-cols-[1fr_260px] [&>*]:min-w-0",
+            outbound && "hidden",
+          )}
+        >
+          <div
+            className="h-72 space-y-2.5 overflow-y-auto rounded-xl border border-border bg-[color-mix(in_srgb,var(--color-surface)_55%,transparent)] p-3"
+            data-testid="softphone-transcript"
+          >
+            {(context?.transcript ?? []).map((m, i) => {
+              const caller = m.role === "caller";
+              return (
+                <div key={i} className={cn("flex", caller ? "justify-start" : "justify-end")}>
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
+                      caller
+                        ? "rounded-ss-sm border border-border bg-surface-raised"
+                        : "rounded-se-sm border border-primary/30 bg-primary/12",
+                    )}
+                  >
+                    <p
+                      className={cn(
+                        "mb-0.5 text-[11px] font-semibold",
+                        caller ? "text-muted-foreground" : "text-primary",
+                      )}
+                    >
+                      {caller ? t("callerLabel") : t("assistantLabel")}
+                    </p>
+                    <p dir="auto" className="whitespace-pre-wrap">
+                      {m.text}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={bottom} />
+          </div>
+          <div className="space-y-4 text-sm">
+            {context?.records.length ? (
+              <div>
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <FileText className="size-3.5" aria-hidden />
+                  {t("records")}
+                </p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {context.records.map((r) => (
+                    <Badge key={r.reference} tone="primary" className="font-mono">
+                      {r.reference}
+                    </Badge>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
-          {context?.contact?.notes ? (
-            <div>
-              <p className="text-xs text-muted-foreground">{t("notes")}</p>
-              <p className="mt-1 whitespace-pre-wrap" dir="auto">
-                {context.contact.notes}
-              </p>
-            </div>
-          ) : null}
-          <p className="text-xs text-muted-foreground">{t("handBackHint")}</p>
+            ) : null}
+            {context?.contact?.notes ? (
+              <div className="rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_55%,transparent)] p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <StickyNote className="size-3.5" aria-hidden />
+                  {t("notes")}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap" dir="auto">
+                  {context.contact.notes}
+                </p>
+              </div>
+            ) : null}
+            <p className="flex gap-2 text-xs text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>{t("handBackHint")}</span>
+            </p>
+          </div>
         </div>
       </div>
       <div ref={audioRef} hidden />
