@@ -1,6 +1,35 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardTitle, Input, Label, Select } from "@voicedesk/ui";
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHead,
+  EmptyState,
+  Input,
+  Label,
+  Select,
+  Switch,
+  type StatusTone,
+} from "@voicedesk/ui";
+import {
+  Clock,
+  Crown,
+  Headset,
+  MailOpen,
+  MailPlus,
+  PhoneIncoming,
+  Send,
+  ShieldCheck,
+  User,
+  UserMinus,
+  UserPlus,
+  Users,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
@@ -140,9 +169,9 @@ export function MembersPanel(props: {
 
       {props.canManage ? (
         <Card>
-          <CardTitle>{t("inviteTitle")}</CardTitle>
-          <form onSubmit={onInvite} className="mt-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-64 flex-1">
+          <CardHead icon={<UserPlus />} title={t("inviteTitle")} />
+          <form onSubmit={onInvite} className="mt-5 flex flex-wrap items-end gap-3">
+            <div className="min-w-0 flex-1 basis-64">
               <Label htmlFor="invite-email">{t("inviteEmail")}</Label>
               <Input id="invite-email" name="email" type="email" required />
             </div>
@@ -157,6 +186,7 @@ export function MembersPanel(props: {
               </Select>
             </div>
             <Button type="submit" disabled={pending}>
+              <Send aria-hidden />
               {pending ? common("working") : t("sendInvite")}
             </Button>
           </form>
@@ -166,77 +196,103 @@ export function MembersPanel(props: {
       )}
 
       <Card>
-        <CardTitle>{t("current")}</CardTitle>
+        <CardHead
+          icon={<Users />}
+          title={t("current")}
+          color="var(--color-secondary)"
+          aside={
+            members.length ? (
+              <Badge tone="secondary" className="tabular">
+                {members.length}
+              </Badge>
+            ) : null
+          }
+        />
         <ul className="mt-4 divide-y divide-border" data-testid="member-list">
           {members.map((m) => {
             const isSelf = m.userId === props.currentUserId;
             const editable = props.canManage && !isSelf && m.role !== "owner";
             return (
-              <li key={m.id} className="flex flex-wrap items-center gap-3 py-3">
-                <div className="min-w-48 flex-1">
-                  <p className="text-sm font-medium">
-                    {m.user.name}{" "}
-                    {isSelf ? <span className="text-muted-foreground">({t("you")})</span> : null}
-                  </p>
-                  <p className="text-xs text-muted-foreground">{m.user.email}</p>
+              <li key={m.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 py-3.5">
+                <div className="flex min-w-0 flex-1 basis-60 items-center gap-3">
+                  <Avatar name={m.user.name} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold">
+                      <span dir="auto">{m.user.name}</span>{" "}
+                      {isSelf ? (
+                        <span className="font-normal text-muted-foreground">({t("you")})</span>
+                      ) : null}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground" dir="auto">
+                      {m.user.email}
+                    </p>
+                  </div>
                 </div>
-                {answerers.get(m.userId) === "platform" ? (
-                  <Badge title={t("vaHint")}>{t("va")}</Badge>
-                ) : props.canManage ? (
-                  <label className="flex items-center gap-1.5 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={answerers.has(m.userId)}
-                      disabled={pending}
-                      onChange={(e) => void toggleAnswers(m.userId, e.target.checked)}
-                    />
-                    {t("answersCalls")}
-                  </label>
-                ) : answerers.has(m.userId) ? (
-                  <Badge>{t("answersCalls")}</Badge>
-                ) : null}
-                {editable ? (
-                  <>
-                    <Select
-                      aria-label={t("changeRoleFor", { name: m.user.name })}
-                      className="h-9 w-32"
-                      value={m.role}
-                      disabled={pending}
-                      onChange={(e) =>
-                        void run(() =>
-                          authClient.organization.updateMemberRole({
-                            memberId: m.id,
-                            role: e.target.value,
-                            organizationId: tenantId,
-                          }),
-                        )
-                      }
-                    >
-                      {props.assignableRoles.map((r) => (
-                        <option key={r} value={r}>
-                          {roles(r)}
-                        </option>
-                      ))}
-                    </Select>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={pending}
-                      onClick={() =>
-                        void run(() =>
-                          authClient.organization.removeMember({
-                            memberIdOrEmail: m.id,
-                            organizationId: tenantId,
-                          }),
-                        )
-                      }
-                    >
-                      {t("remove")}
-                    </Button>
-                  </>
-                ) : (
-                  <Badge>{roles(m.role as Role)}</Badge>
-                )}
+                <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+                  {answerers.get(m.userId) === "platform" ? (
+                    <Badge tone="info" title={t("vaHint")}>
+                      <Headset aria-hidden />
+                      {t("va")}
+                    </Badge>
+                  ) : props.canManage ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                      <Switch
+                        checked={answerers.has(m.userId)}
+                        disabled={pending}
+                        onCheckedChange={(on) => void toggleAnswers(m.userId, on)}
+                      />
+                      {t("answersCalls")}
+                    </label>
+                  ) : answerers.has(m.userId) ? (
+                    <Badge tone="success">
+                      <PhoneIncoming aria-hidden />
+                      {t("answersCalls")}
+                    </Badge>
+                  ) : null}
+                  {editable ? (
+                    <>
+                      <Select
+                        aria-label={t("changeRoleFor", { name: m.user.name })}
+                        className="h-9 w-32"
+                        value={m.role}
+                        disabled={pending}
+                        onChange={(e) =>
+                          void run(() =>
+                            authClient.organization.updateMemberRole({
+                              memberId: m.id,
+                              role: e.target.value,
+                              organizationId: tenantId,
+                            }),
+                          )
+                        }
+                      >
+                        {props.assignableRoles.map((r) => (
+                          <option key={r} value={r}>
+                            {roles(r)}
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        onClick={() =>
+                          void run(() =>
+                            authClient.organization.removeMember({
+                              memberIdOrEmail: m.id,
+                              organizationId: tenantId,
+                            }),
+                          )
+                        }
+                      >
+                        <UserMinus aria-hidden />
+                        {t("remove")}
+                      </Button>
+                    </>
+                  ) : (
+                    <RoleBadge role={m.role} label={roles(m.role as Role)} />
+                  )}
+                </div>
               </li>
             );
           })}
@@ -245,15 +301,37 @@ export function MembersPanel(props: {
 
       {props.canManage ? (
         <Card>
-          <CardTitle>{t("pending")}</CardTitle>
+          <CardHead
+            icon={<MailPlus />}
+            title={t("pending")}
+            color="var(--color-accent)"
+            aside={
+              invitations.length ? (
+                <Badge tone="accent" className="tabular">
+                  {invitations.length}
+                </Badge>
+              ) : null
+            }
+          />
           {invitations.length === 0 ? (
-            <p className="mt-4 text-sm text-muted-foreground">{t("noPending")}</p>
+            <EmptyState icon={MailOpen} title={t("noPending")} className="py-8" />
           ) : (
             <ul className="mt-4 divide-y divide-border" data-testid="invitation-list">
               {invitations.map((inv) => (
-                <li key={inv.id} className="flex items-center gap-3 py-3">
-                  <span className="flex-1 text-sm">{inv.email}</span>
-                  <Badge>{roles((inv.role ?? "staff") as Role)}</Badge>
+                <li key={inv.id} className="flex flex-wrap items-center gap-3 py-3">
+                  <span
+                    aria-hidden
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed border-input text-muted-foreground"
+                  >
+                    <Clock className="size-4" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-sm" dir="auto">
+                    {inv.email}
+                  </span>
+                  <RoleBadge
+                    role={inv.role ?? "staff"}
+                    label={roles((inv.role ?? "staff") as Role)}
+                  />
                   <Button
                     variant="ghost"
                     size="sm"
@@ -264,6 +342,7 @@ export function MembersPanel(props: {
                       )
                     }
                   >
+                    <X aria-hidden />
                     {t("cancelInvite")}
                   </Button>
                 </li>
@@ -273,5 +352,24 @@ export function MembersPanel(props: {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+const ROLE_TONE: Record<string, StatusTone> = {
+  owner: "accent",
+  admin: "secondary",
+  staff: "neutral",
+};
+
+const ROLE_ICON: Record<string, LucideIcon> = { owner: Crown, admin: ShieldCheck, staff: User };
+
+/** Role with its own tone and icon (colour is never the only signal). */
+function RoleBadge(props: { role: string; label: string }) {
+  const Icon = ROLE_ICON[props.role] ?? User;
+  return (
+    <Badge tone={ROLE_TONE[props.role] ?? "neutral"}>
+      <Icon aria-hidden />
+      {props.label}
+    </Badge>
   );
 }

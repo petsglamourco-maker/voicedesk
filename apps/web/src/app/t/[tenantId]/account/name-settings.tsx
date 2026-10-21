@@ -1,6 +1,7 @@
 "use client";
 
-import { Alert, Button, Card, CardDescription, CardTitle, Input, Label } from "@voicedesk/ui";
+import { Alert, Button, Card, CardHead, Input, Label } from "@voicedesk/ui";
+import { UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -35,20 +36,19 @@ export function NameSettings(props: { name: string }) {
 
   return (
     <Card>
-      <CardTitle>{t("nameTitle")}</CardTitle>
-      <CardDescription>{t("nameHint")}</CardDescription>
+      <CardHead icon={<UserCog />} title={t("nameTitle")} hint={t("nameHint")} />
       {error ? (
-        <Alert tone="error" className="mt-3">
+        <Alert tone="error" className="mt-4">
           {error}
         </Alert>
       ) : null}
       {saved ? (
-        <Alert tone="success" className="mt-3">
+        <Alert tone="success" className="mt-4">
           {t("nameSaved")}
         </Alert>
       ) : null}
-      <form onSubmit={(e) => void save(e)} className="mt-4 flex flex-wrap items-end gap-3">
-        <div>
+      <form onSubmit={(e) => void save(e)} className="mt-5 flex flex-wrap items-end gap-3">
+        <div className="min-w-0 basis-64">
           <Label htmlFor="display-name">{t("name")}</Label>
           <Input
             id="display-name"
@@ -57,7 +57,8 @@ export function NameSettings(props: { name: string }) {
             maxLength={100}
             defaultValue={props.name}
             autoComplete="name"
-            className="w-64"
+            className="w-full sm:w-64"
+            dir="auto"
           />
         </div>
         <Button type="submit" disabled={busy}>
