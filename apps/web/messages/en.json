@@ -264,7 +264,8 @@
     "offerDetails": "Details",
     "offerUntil": "Valid until (optional)",
     "newCustomerSteps": "How a new customer signs up / enrols",
-    "signupUrl": "Sign-up link (optional)"
+    "signupUrl": "Sign-up link (optional)",
+    "bufferHint": "Minutes kept free between appointments, 0 to 240 (for example 10)."
   },
   "agent": {
     "title": "Assistant",
@@ -555,7 +556,8 @@
       "google": "Google Calendar",
       "microsoft": "Outlook / Microsoft 365"
     },
-    "connectWith": "Connect {provider}"
+    "connectWith": "Connect {provider}",
+    "statusPickCalendar": "Choose a calendar"
   },
   "contacts": {
     "title": "Contacts",
