@@ -2,14 +2,31 @@
 
 import {
   Alert,
-  Badge,
   Button,
+  buttonVariants,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
+  cn,
+  EmptyState,
   Label,
   Select,
+  StatusPill,
+  useConfirm,
 } from "@voicedesk/ui";
+import {
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Link2,
+  Lock,
+  PlugZap,
+  RefreshCw,
+  TriangleAlert,
+  Unplug,
+  UserRound,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client-api";
@@ -35,6 +52,29 @@ export interface IntegrationsResponse {
   };
 }
 
+const PROVIDER_META: Record<Provider, { icon: LucideIcon; color: string }> = {
+  google: { icon: CalendarDays, color: "var(--color-secondary)" },
+  microsoft: { icon: CalendarRange, color: "var(--color-info)" },
+};
+
+/** The provider's icon in a tinted, softly glowing tile. */
+function ProviderIcon(props: { provider: Provider; glow?: boolean }) {
+  const { icon: Icon, color } = PROVIDER_META[props.provider];
+  return (
+    <span
+      aria-hidden
+      className="flex size-11 shrink-0 items-center justify-center rounded-xl [&_svg]:size-5"
+      style={{
+        color,
+        background: "color-mix(in srgb, " + color + " 14%, transparent)",
+        boxShadow: props.glow ? "0 0 18px -4px " + color : undefined,
+      }}
+    >
+      <Icon />
+    </span>
+  );
+}
+
 const RESULTS = ["connected", "cancelled", "failed", "no_refresh_token"] as const;
 
 /** Connect Google Calendar or Microsoft 365, choose the booking calendar (ADR 0014). */
@@ -45,6 +85,7 @@ export function CalendarCard(props: {
 }) {
   const t = useTranslations("integrations");
   const common = useTranslations("common");
+  const confirm = useConfirm();
   const [connection, setConnection] = useState(props.initial.connection);
   const [calendars, setCalendars] = useState<Array<{ id: string; name: string; primary: boolean }>>(
     [],
@@ -85,7 +126,7 @@ export function CalendarCard(props: {
   }
 
   async function disconnect() {
-    if (!window.confirm(t("confirmDisconnect"))) return;
+    if (!(await confirm({ title: t("confirmDisconnect"), destructive: true }))) return;
     setBusy(true);
     try {
       await api(`${base}/calendar`, { method: "DELETE" });
@@ -100,34 +141,28 @@ export function CalendarCard(props: {
 
   const providerName = (p: Provider) => t(`provider.${p}`);
   const connectLink = (p: Provider) => (
-    <a
+    <li
       key={p}
-      href={`${base}/${p}/start`}
-      className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90"
+      className="glass flex flex-wrap items-center gap-3 rounded-xl p-4 transition-[border-color,box-shadow] duration-300 hover:border-input hover:shadow-[0_8px_30px_-14px_var(--color-glow)]"
     >
-      {t("connectWith", { provider: providerName(p) })}
-    </a>
+      <ProviderIcon provider={p} />
+      <span className="min-w-0 flex-1 basis-40 font-display font-semibold">{providerName(p)}</span>
+      <a href={`${base}/${p}/start`} className={buttonVariants({ size: "sm", shape: "pill" })}>
+        <Link2 aria-hidden />
+        {t("connectWith", { provider: providerName(p) })}
+      </a>
+    </li>
   );
   const available = (["google", "microsoft"] as const).filter((p) => props.initial.available[p]);
 
   return (
     <Card data-testid="calendar-integration">
-      <div className="flex flex-wrap items-center gap-2">
-        <CardTitle>{t("calendarTitle")}</CardTitle>
-        {connection ? (
-          <>
-            <Badge>{providerName(connection.provider)}</Badge>
-            {connection.status === "active" ? (
-              <Badge tone="success">{t("statusActive")}</Badge>
-            ) : connection.status === "revoked" ? (
-              <Badge tone="danger">{t("statusRevoked")}</Badge>
-            ) : (
-              <Badge tone="warning">{t("statusError")}</Badge>
-            )}
-          </>
-        ) : null}
-      </div>
-      <CardDescription>{t("calendarHint")}</CardDescription>
+      <CardHead
+        icon={<CalendarDays />}
+        title={t("calendarTitle")}
+        hint={t("calendarHint")}
+        color="var(--color-secondary)"
+      />
 
       {result ? (
         <Alert className="mt-4" tone={result === "connected" ? "success" : "error"}>
@@ -147,62 +182,117 @@ export function CalendarCard(props: {
 
       {!connection ? (
         available.length === 0 ? (
-          <p className="mt-4 text-sm text-muted-foreground">{t("notConfigured")}</p>
+          <EmptyState
+            icon={PlugZap}
+            title={t("notConfigured")}
+            className="py-8 [&>p]:max-w-xl [&>p]:text-sm [&>p]:font-medium"
+          />
         ) : canManage ? (
-          <div className="mt-4 flex flex-wrap gap-2">{available.map(connectLink)}</div>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+            {available.map(connectLink)}
+          </ul>
         ) : (
-          <p className="mt-4 text-sm text-muted-foreground">{t("askOwner")}</p>
+          <EmptyState
+            icon={Lock}
+            title={t("askOwner")}
+            className="py-8 [&>p]:max-w-xl [&>p]:text-sm [&>p]:font-medium"
+          />
         )
       ) : (
-        <div className="mt-4 space-y-4 text-sm">
-          <p>
-            {t("account")}: <span className="font-medium">{connection.accountEmail ?? "—"}</span>
-          </p>
-          {canManage ? (
-            <div className="max-w-sm">
-              <Label htmlFor="calendar">{t("calendar")}</Label>
-              <Select
-                id="calendar"
-                value={connection.calendarId ?? ""}
-                disabled={busy || calendars.length === 0}
-                onChange={(e) => void choose(e.target.value)}
-              >
-                <option value="" disabled>
-                  {calendars.length ? t("chooseCalendar") : common("working")}
-                </option>
-                {calendars.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                    {c.primary ? ` (${t("primary")})` : ""}
-                  </option>
-                ))}
-              </Select>
-              {!connection.calendarId ? (
-                <p className="mt-2 text-xs text-warning">{t("pickToFinish")}</p>
-              ) : (
-                <p className="mt-2 text-xs text-muted-foreground">{t("howItWorks")}</p>
-              )}
-            </div>
-          ) : (
-            <p>
-              {t("calendar")}: {connection.calendarName ?? "—"}
-            </p>
+        <div
+          className={cn(
+            "mt-5 rounded-xl border p-4 text-sm sm:p-5",
+            connection.status === "active"
+              ? "border-success/35 bg-success/5"
+              : connection.status === "revoked"
+                ? "border-danger/35 bg-danger/5"
+                : "border-warning/35 bg-warning/5",
           )}
-          {canManage ? (
-            <div className="flex gap-2">
-              {connection.status === "revoked" ? (
-                <a
-                  href={`${base}/${connection.provider}/start`}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  {t("reconnect")}
-                </a>
-              ) : null}
-              <Button variant="ghost" size="sm" disabled={busy} onClick={() => void disconnect()}>
-                {t("disconnect")}
-              </Button>
+        >
+          <div className="flex flex-wrap items-center gap-3">
+            <ProviderIcon provider={connection.provider} glow={connection.status === "active"} />
+            <div className="min-w-0 flex-1 basis-40">
+              <p className="font-display text-base font-semibold">
+                {providerName(connection.provider)}
+              </p>
+              <p className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+                <UserRound className="size-3.5 shrink-0" aria-hidden />
+                <span>{t("account")}:</span>
+                <span className="truncate font-medium text-foreground">
+                  {connection.accountEmail ?? "—"}
+                </span>
+              </p>
             </div>
-          ) : null}
+            {connection.status === "active" ? (
+              <StatusPill tone="success" icon={CheckCircle2} label={t("statusActive")} />
+            ) : connection.status === "revoked" ? (
+              <StatusPill tone="danger" icon={XCircle} label={t("statusRevoked")} />
+            ) : (
+              <StatusPill tone="warning" icon={TriangleAlert} label={t("statusError")} />
+            )}
+          </div>
+
+          <div className="mt-4 space-y-4 border-t border-border pt-4">
+            {canManage ? (
+              <div className="max-w-sm">
+                <Label htmlFor="calendar">{t("calendar")}</Label>
+                <Select
+                  id="calendar"
+                  value={connection.calendarId ?? ""}
+                  disabled={busy || calendars.length === 0}
+                  onChange={(e) => void choose(e.target.value)}
+                >
+                  <option value="" disabled>
+                    {calendars.length ? t("chooseCalendar") : common("working")}
+                  </option>
+                  {calendars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.primary ? ` (${t("primary")})` : ""}
+                    </option>
+                  ))}
+                </Select>
+                {!connection.calendarId ? (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-warning">
+                    <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+                    {t("pickToFinish")}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-muted-foreground">{t("howItWorks")}</p>
+                )}
+              </div>
+            ) : (
+              <p>
+                {t("calendar")}:{" "}
+                <span className="font-medium" dir="auto">
+                  {connection.calendarName ?? "—"}
+                </span>
+              </p>
+            )}
+            {canManage ? (
+              <div className="flex flex-wrap gap-2">
+                {connection.status === "revoked" ? (
+                  <a
+                    href={`${base}/${connection.provider}/start`}
+                    className={buttonVariants({ size: "sm", shape: "pill" })}
+                  >
+                    <RefreshCw aria-hidden />
+                    {t("reconnect")}
+                  </a>
+                ) : null}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-danger"
+                  disabled={busy}
+                  onClick={() => void disconnect()}
+                >
+                  <Unplug aria-hidden />
+                  {t("disconnect")}
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
     </Card>

@@ -5,12 +5,30 @@ import {
   Badge,
   Button,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
+  cn,
   Input,
   Label,
   Select,
+  Textarea,
 } from "@voicedesk/ui";
+import {
+  Building2,
+  CalendarCheck,
+  CheckCircle2,
+  Clock,
+  FilePen,
+  MapPin,
+  MessageCircleQuestion,
+  Pencil,
+  ShieldCheck,
+  Sparkles,
+  Tags,
+  Trash2,
+  TrendingUp,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ScreenHero } from "@/components/screen-hero";
@@ -68,9 +86,6 @@ export interface ProfileResponse {
   template: Profile;
   aiAvailable: boolean;
 }
-
-const textareaClass =
-  "block w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring";
 
 const orNull = (v: string) => (v.trim() === "" ? null : v);
 const numOrNull = (v: string) => (v.trim() === "" ? null : Number(v));
@@ -190,17 +205,29 @@ export function ProfileEditor(props: {
         }
       >
         {state.approved ? (
-          <Badge tone="success">{t("liveVersion", { version: state.approved.version })}</Badge>
+          <Badge tone="success">
+            <CheckCircle2 aria-hidden />
+            {t("liveVersion", { version: state.approved.version })}
+          </Badge>
         ) : (
-          <Badge tone="danger">{t("notLive")}</Badge>
+          <Badge tone="danger">
+            <TriangleAlert aria-hidden />
+            {t("notLive")}
+          </Badge>
         )}
         {state.draft ? (
-          <Badge>
+          <Badge tone={state.draft.generatedBy === "ai" ? "accent" : "info"}>
+            {state.draft.generatedBy === "ai" ? <Sparkles aria-hidden /> : <FilePen aria-hidden />}
             {t("draftVersion", { version: state.draft.version })}
             {state.draft.generatedBy === "ai" ? ` · ${t("aiGenerated")}` : ""}
           </Badge>
         ) : null}
-        {dirty ? <Badge>{t("unsaved")}</Badge> : null}
+        {dirty ? (
+          <Badge tone="warning">
+            <Pencil aria-hidden />
+            {t("unsaved")}
+          </Badge>
+        ) : null}
       </ScreenHero>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
@@ -208,6 +235,8 @@ export function ProfileEditor(props: {
       {!state.aiAvailable && props.canEdit ? <Alert>{t("aiUnavailable")}</Alert> : null}
 
       <Section
+        icon={<Building2 />}
+        color="var(--color-primary)"
         title={t("basics")}
         changed={changed("summary")}
         changedLabel={t("changed")}
@@ -223,9 +252,10 @@ export function ProfileEditor(props: {
         </div>
         <div>
           <Label htmlFor="summary">{t("summary")}</Label>
-          <textarea
+          <Textarea
             id="summary"
-            className={textareaClass}
+            className="min-h-0"
+            dir="auto"
             rows={3}
             value={profile.summary}
             onChange={(e) => update({ summary: e.target.value })}
@@ -234,12 +264,14 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<Clock />}
+        color="var(--color-info)"
         title={t("hours")}
         changed={changed("openingHours")}
         changedLabel={t("changed")}
         disabled={disabled}
       >
-        <div className="grid gap-2">
+        <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
           {profile.openingHours.map((h, i) => {
             const set = (patch: Partial<Profile["openingHours"][number]>) =>
               update({
@@ -248,35 +280,48 @@ export function ProfileEditor(props: {
                 ),
               });
             return (
-              <div key={h.day} className="flex flex-wrap items-center gap-3">
-                <span className="w-28 text-sm font-medium">{t(`days.${h.day}`)}</span>
-                <label className="flex items-center gap-2 text-sm">
+              <div
+                key={h.day}
+                className={cn(
+                  "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:grid-cols-[8rem_7rem_minmax(0,1fr)] sm:px-4",
+                  h.closed && "bg-muted/40",
+                )}
+              >
+                <span className="text-sm font-semibold">{t(`days.${h.day}`)}</span>
+                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
                   <input
                     type="checkbox"
+                    className="size-4 accent-primary"
                     checked={h.closed}
                     onChange={(e) => set({ closed: e.target.checked })}
                   />
                   {t("closed")}
                 </label>
                 {!h.closed ? (
-                  <>
+                  <div className="col-span-2 flex items-center gap-2 sm:col-span-1">
                     <Input
                       type="time"
                       aria-label={t("opensAt", { day: t(`days.${h.day}`) })}
-                      className="w-32"
+                      className="tabular h-9 w-32"
                       value={h.open ?? ""}
                       onChange={(e) => set({ open: orNull(e.target.value) })}
                     />
-                    <span aria-hidden>–</span>
+                    <span aria-hidden className="text-muted-foreground">
+                      –
+                    </span>
                     <Input
                       type="time"
                       aria-label={t("closesAt", { day: t(`days.${h.day}`) })}
-                      className="w-32"
+                      className="tabular h-9 w-32"
                       value={h.close ?? ""}
                       onChange={(e) => set({ close: orNull(e.target.value) })}
                     />
-                  </>
-                ) : null}
+                  </div>
+                ) : (
+                  <span aria-hidden className="hidden text-muted-foreground sm:block">
+                    —
+                  </span>
+                )}
               </div>
             );
           })}
@@ -292,6 +337,8 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<Tags />}
+        color="var(--color-accent)"
         title={t("services")}
         changed={changed("services")}
         changedLabel={t("changed")}
@@ -311,7 +358,7 @@ export function ProfileEditor(props: {
             sourceUrl: null,
           }}
           render={(s, set) => (
-            <div className="grid flex-1 gap-2 sm:grid-cols-[2fr_1fr_1fr_auto]">
+            <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[2fr_1fr_1fr_auto] [&>*]:min-w-0">
               <Input
                 aria-label={t("serviceName")}
                 placeholder={t("serviceName")}
@@ -328,13 +375,15 @@ export function ProfileEditor(props: {
                 aria-label={t("duration")}
                 placeholder={t("duration")}
                 type="number"
+                className="tabular"
                 min={0}
                 value={s.durationMinutes ?? ""}
                 onChange={(e) => set({ durationMinutes: numOrNull(e.target.value) })}
               />
-              <label className="flex items-center gap-2 text-sm">
+              <label className="flex cursor-pointer items-center gap-2 px-1 text-sm">
                 <input
                   type="checkbox"
+                  className="size-4 accent-primary"
                   checked={s.bookable}
                   onChange={(e) => set({ bookable: e.target.checked })}
                 />
@@ -353,12 +402,14 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<MapPin />}
+        color="var(--color-secondary)"
         title={t("locationContact")}
         changed={changed("location")}
         changedLabel={t("changed")}
         disabled={disabled}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
           {(["address", "area", "directions", "parking"] as const).map((key) => (
             <div key={key}>
               <Label htmlFor={key}>{t(key)}</Label>
@@ -387,13 +438,15 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<TrendingUp />}
+        color="var(--color-success)"
         title={t("sales")}
+        hint={t("salesHint")}
         changed={changed("sales")}
         changedLabel={t("changed")}
         disabled={disabled}
       >
-        <CardDescription>{t("salesHint")}</CardDescription>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
           <div>
             <Label htmlFor="primaryGoal">{t("primaryGoal")}</Label>
             <Select
@@ -428,9 +481,10 @@ export function ProfileEditor(props: {
         </div>
         <div>
           <Label htmlFor="whoWeServe">{t("whoWeServe")}</Label>
-          <textarea
+          <Textarea
             id="whoWeServe"
-            className={textareaClass}
+            className="min-h-0"
+            dir="auto"
             rows={2}
             value={profile.sales.whoWeServe ?? ""}
             onChange={(e) =>
@@ -440,9 +494,10 @@ export function ProfileEditor(props: {
         </div>
         <div>
           <Label htmlFor="newCustomerSteps">{t("newCustomerSteps")}</Label>
-          <textarea
+          <Textarea
             id="newCustomerSteps"
-            className={textareaClass}
+            className="min-h-0"
+            dir="auto"
             rows={3}
             value={profile.sales.newCustomerSteps ?? ""}
             onChange={(e) =>
@@ -479,7 +534,7 @@ export function ProfileEditor(props: {
             removeLabel={t("remove")}
             blank={{ title: "", details: "", validUntil: null }}
             render={(o, set) => (
-              <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_2fr_1fr]">
+              <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_2fr_1fr] [&>*]:min-w-0">
                 <Input
                   aria-label={t("offerTitle")}
                   placeholder={t("offerTitle")}
@@ -505,17 +560,20 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<CalendarCheck />}
+        color="var(--color-warning)"
         title={t("bookingRules")}
         changed={changed("bookingRules")}
         changedLabel={t("changed")}
         disabled={disabled}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
           <div>
             <Label htmlFor="minNotice">{t("minNotice")}</Label>
             <Input
               id="minNotice"
               type="number"
+              className="tabular"
               min={0}
               value={profile.bookingRules.minNoticeHours ?? ""}
               onChange={(e) =>
@@ -533,6 +591,7 @@ export function ProfileEditor(props: {
             <Input
               id="buffer"
               type="number"
+              className="tabular"
               min={0}
               value={profile.bookingRules.bufferMinutes ?? ""}
               onChange={(e) =>
@@ -548,9 +607,10 @@ export function ProfileEditor(props: {
         </div>
         <div>
           <Label htmlFor="cancellation">{t("cancellation")}</Label>
-          <textarea
+          <Textarea
             id="cancellation"
-            className={textareaClass}
+            className="min-h-0"
+            dir="auto"
             rows={2}
             value={profile.bookingRules.cancellationPolicy ?? ""}
             onChange={(e) =>
@@ -566,6 +626,8 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<ShieldCheck />}
+        color="var(--color-info)"
         title={t("policies")}
         changed={changed("policies")}
         changedLabel={t("changed")}
@@ -578,17 +640,18 @@ export function ProfileEditor(props: {
           removeLabel={t("remove")}
           blank={{ topic: "", details: "", sourceUrl: null }}
           render={(p, set) => (
-            <div className="grid flex-1 gap-2">
+            <div className="grid min-w-0 flex-1 gap-2">
               <Input
                 aria-label={t("topic")}
                 placeholder={t("topic")}
                 value={p.topic}
                 onChange={(e) => set({ topic: e.target.value })}
               />
-              <textarea
+              <Textarea
                 aria-label={t("details")}
                 placeholder={t("details")}
-                className={textareaClass}
+                className="min-h-0"
+                dir="auto"
                 rows={2}
                 value={p.details}
                 onChange={(e) => set({ details: e.target.value })}
@@ -599,12 +662,14 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<MessageCircleQuestion />}
+        color="var(--color-accent)"
         title={t("faqs")}
+        hint={t("faqsHint")}
         changed={changed("faqs")}
         changedLabel={t("changed")}
         disabled={disabled}
       >
-        <CardDescription>{t("faqsHint")}</CardDescription>
         <ListEditor
           items={profile.faqs}
           onChange={(faqs) => update({ faqs })}
@@ -612,17 +677,18 @@ export function ProfileEditor(props: {
           removeLabel={t("remove")}
           blank={{ question: "", answer: "", sourceUrl: null }}
           render={(f, set) => (
-            <div className="grid flex-1 gap-2">
+            <div className="grid min-w-0 flex-1 gap-2">
               <Input
                 aria-label={t("question")}
                 placeholder={t("question")}
                 value={f.question}
                 onChange={(e) => set({ question: e.target.value })}
               />
-              <textarea
+              <Textarea
                 aria-label={t("answer")}
                 placeholder={t("answer")}
-                className={textareaClass}
+                className="min-h-0"
+                dir="auto"
                 rows={2}
                 value={f.answer}
                 onChange={(e) => set({ answer: e.target.value })}
@@ -633,6 +699,8 @@ export function ProfileEditor(props: {
       </Section>
 
       <Section
+        icon={<Users />}
+        color="var(--color-secondary)"
         title={t("staff")}
         changed={changed("staff")}
         changedLabel={t("changed")}
@@ -645,7 +713,7 @@ export function ProfileEditor(props: {
           removeLabel={t("remove")}
           blank={{ name: "", role: null }}
           render={(s, set) => (
-            <div className="grid flex-1 gap-2 sm:grid-cols-2">
+            <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 [&>*]:min-w-0">
               <Input
                 aria-label={t("staffName")}
                 placeholder={t("staffName")}
@@ -668,6 +736,9 @@ export function ProfileEditor(props: {
 
 function Section(props: {
   title: string;
+  hint?: string;
+  icon?: ReactNode;
+  color?: string;
   changed: boolean;
   changedLabel: string;
   disabled: boolean;
@@ -675,11 +746,21 @@ function Section(props: {
 }) {
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-2">
-        <CardTitle>{props.title}</CardTitle>
-        {props.changed ? <Badge tone="primary">{props.changedLabel}</Badge> : null}
-      </div>
-      <fieldset disabled={props.disabled} className="mt-4 space-y-4">
+      <CardHead
+        icon={props.icon}
+        color={props.color}
+        title={props.title}
+        hint={props.hint}
+        aside={
+          props.changed ? (
+            <Badge tone="primary">
+              <Pencil aria-hidden />
+              {props.changedLabel}
+            </Badge>
+          ) : null
+        }
+      />
+      <fieldset disabled={props.disabled} className="mt-5 min-w-0 space-y-4">
         {props.children}
       </fieldset>
     </Card>
@@ -697,15 +778,20 @@ function ListEditor<T>(props: {
   return (
     <div className="space-y-3">
       {props.items.map((item, i) => (
-        <div key={i} className="flex items-start gap-2 rounded-md border border-border p-3">
+        <div
+          key={i}
+          className="flex flex-col gap-2 rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_45%,transparent)] p-3 sm:flex-row sm:items-start"
+        >
           {props.render(item, (patch) =>
             props.onChange(props.items.map((x, j) => (j === i ? { ...x, ...patch } : x))),
           )}
           <Button
             variant="ghost"
             size="sm"
+            className="self-end text-danger sm:self-auto"
             onClick={() => props.onChange(props.items.filter((_, j) => j !== i))}
           >
+            <Trash2 aria-hidden />
             {props.removeLabel}
           </Button>
         </div>
@@ -713,6 +799,7 @@ function ListEditor<T>(props: {
       <Button
         variant="secondary"
         size="sm"
+        shape="pill"
         onClick={() => props.onChange([...props.items, props.blank])}
       >
         + {props.addLabel}

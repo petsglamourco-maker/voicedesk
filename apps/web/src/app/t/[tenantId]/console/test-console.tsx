@@ -1,13 +1,40 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardTitle, cn, Input, Label, Select } from "@voicedesk/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHead,
+  Input,
+  Label,
+  Select,
+  Skeleton,
+} from "@voicedesk/ui";
+import {
+  ArrowLeftRight,
+  Check,
+  CircleCheck,
+  Cpu,
+  FileText,
+  Languages,
+  Play,
+  RotateCcw,
+  SendHorizontal,
+  Square,
+  Star,
+  Timer,
+  Workflow,
+  Wrench,
+  X,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LOCALES } from "@/i18n/locales";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 import { postSse } from "@/lib/sse";
-import { VoiceCall, type VoiceSession } from "./voice-call";
+import { ChatBubble, TypingDots, VoiceCall, type VoiceSession } from "./voice-call";
 import { ScreenHero } from "@/components/screen-hero";
 
 interface View {
@@ -201,10 +228,18 @@ export function TestConsole({
       />
 
       <Card>
-        <form onSubmit={(e) => void start(e)} className="flex flex-wrap items-end gap-3">
+        <form
+          onSubmit={(e) => void start(e)}
+          className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end [&>*]:min-w-0"
+        >
           <div>
             <Label htmlFor="language">{t("startLanguage")}</Label>
-            <Select id="language" name="language" defaultValue={defaultLanguage} className="w-48">
+            <Select
+              id="language"
+              name="language"
+              defaultValue={defaultLanguage}
+              className="lg:w-48"
+            >
               {LOCALES.map((code) => (
                 <option key={code} value={code}>
                   {languages(code)}
@@ -214,7 +249,7 @@ export function TestConsole({
           </div>
           <div>
             <Label htmlFor="style">{t("style")}</Label>
-            <Select id="style" name="style" defaultValue="chat" className="w-48">
+            <Select id="style" name="style" defaultValue="chat" className="lg:w-56">
               <option value="chat">{t("styleChat")}</option>
               <option value="voice">{t("styleVoice")}</option>
               <option value="call">{t("styleCall")}</option>
@@ -226,152 +261,208 @@ export function TestConsole({
               id="callerPhone"
               name="callerPhone"
               placeholder="07700 900123"
-              className="w-44"
+              className="tabular lg:w-44"
             />
           </div>
-          <Button type="submit" disabled={busy}>
-            {conversationId ? t("restart") : t("start")}
-          </Button>
-          {conversationId && !ended && !voice ? (
-            <Button variant="secondary" onClick={() => void end()} disabled={busy}>
-              {t("end")}
+          <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-1">
+            <Button type="submit" disabled={busy}>
+              {conversationId ? <RotateCcw aria-hidden /> : <Play aria-hidden />}
+              {conversationId ? t("restart") : t("start")}
             </Button>
-          ) : null}
+            {conversationId && !ended && !voice ? (
+              <Button variant="secondary" onClick={() => void end()} disabled={busy}>
+                <Square aria-hidden />
+                {t("end")}
+              </Button>
+            ) : null}
+          </div>
         </form>
       </Card>
 
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {warning ? <Alert>{warning}</Alert> : null}
+      {warning ? <Alert tone="warning">{warning}</Alert> : null}
 
       {voice ? (
         <div className="space-y-4">
           <VoiceCall key={voice.conversationId} session={voice} onEnded={voiceEnded} />
           {ended ? (
-            <Card className="p-4" data-testid="summary">
-              <CardTitle className="text-base">{t("summary")}</CardTitle>
-              <p className="mt-2 text-sm">{summary?.summary ?? t("summarising")}</p>
-              {summary ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {summary.intent} · {summary.outcome} · {summary.sentiment}
-                </p>
-              ) : null}
+            <Card className="p-5" data-testid="summary">
+              <CardHead
+                icon={<FileText />}
+                title={t("summary")}
+                color="var(--color-success)"
+                as="h3"
+              />
+              <p className="mt-3 text-sm" dir="auto">
+                {summary?.summary ?? t("summarising")}
+              </p>
+              {summary ? <SummaryChips summary={summary} /> : null}
             </Card>
           ) : null}
         </div>
       ) : conversationId ? (
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-          <Card className="flex h-[560px] flex-col p-0">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] [&>*]:min-w-0">
+          <Card className="flex h-[560px] flex-col overflow-hidden p-0">
             <div
               className="flex-1 space-y-3 overflow-y-auto p-4"
               aria-live="polite"
               data-testid="transcript"
             >
               {lines.map((line, i) => (
-                <div
+                <ChatBubble
                   key={i}
-                  className={cn("flex", line.role === "caller" ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    dir="auto"
-                    className={cn(
-                      "max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                      line.role === "caller"
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-muted",
-                    )}
-                  >
-                    <span className="sr-only">
-                      {line.role === "caller" ? t("you") : t("agent")}:{" "}
-                    </span>
-                    {line.text || <span className="text-muted-foreground">…</span>}
-                    {line.meta ? (
-                      <span className="mt-1 block text-[11px] opacity-70">
+                  role={line.role}
+                  label={`${line.role === "caller" ? t("you") : t("agent")}:`}
+                  meta={
+                    line.meta ? (
+                      <span className="tabular mt-1.5 flex w-fit items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                        <Timer className="size-3" aria-hidden />
                         {line.meta.latencyMs} ms · ${line.meta.costUsd.toFixed(4)}
                       </span>
-                    ) : null}
-                  </div>
-                </div>
+                    ) : null
+                  }
+                >
+                  {line.text || <TypingDots />}
+                </ChatBubble>
               ))}
               <div ref={bottom} />
             </div>
-            <form onSubmit={(e) => void send(e)} className="flex gap-2 border-t border-border p-3">
+            <form
+              onSubmit={(e) => void send(e)}
+              className="flex gap-2 border-t border-border bg-[color-mix(in_srgb,var(--color-surface)_50%,transparent)] p-3"
+            >
               <Input
                 name="text"
                 dir="auto"
+                className="min-w-0"
                 aria-label={t("messageLabel")}
                 placeholder={ended ? t("ended") : t("placeholder")}
                 disabled={busy || ended}
                 autoComplete="off"
               />
               <Button type="submit" disabled={busy || ended}>
+                <SendHorizontal aria-hidden className="rtl:-scale-x-100" />
                 {t("send")}
               </Button>
             </form>
           </Card>
 
           <div className="space-y-4">
-            <Card className="p-4">
-              <CardTitle className="text-base">{t("engine")}</CardTitle>
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <Card className="p-5">
+              <CardHead icon={<Cpu />} title={t("engine")} color="var(--color-secondary)" as="h3" />
+              <dl className="mt-4 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-sm">
                 <dt className="text-muted-foreground">{t("flow")}</dt>
-                <dd data-testid="flow">{view?.flow}</dd>
+                <dd data-testid="flow">
+                  {view?.flow ? (
+                    <Badge tone="info">
+                      <Workflow aria-hidden />
+                      {view.flow}
+                    </Badge>
+                  ) : null}
+                </dd>
                 <dt className="text-muted-foreground">{t("language")}</dt>
-                <dd>{view ? languages(view.language as "en") : ""}</dd>
+                <dd>
+                  {view ? (
+                    <Badge tone="secondary">
+                      <Languages aria-hidden />
+                      {languages(view.language as "en")}
+                    </Badge>
+                  ) : (
+                    ""
+                  )}
+                </dd>
               </dl>
               {slots && Object.keys(slots).length ? (
                 <pre
                   dir="auto"
-                  className="mt-3 max-h-48 overflow-auto rounded bg-muted p-2 text-xs"
+                  className="mt-4 max-h-48 overflow-auto rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_65%,transparent)] p-3 font-mono text-xs leading-relaxed"
                 >
                   {JSON.stringify(slots, null, 2)}
                 </pre>
               ) : null}
               {view?.records.length ? (
-                <div className="mt-3 space-y-1" data-testid="records">
+                <div className="mt-4 flex flex-wrap gap-1.5" data-testid="records">
                   {view.records.map((r) => (
-                    <Badge key={r.reference} className="mr-1 border-success/40 text-success">
+                    <Badge key={r.reference} tone="success">
+                      <Star aria-hidden />
                       {t(`record.${r.type}`)} {r.reference}
                     </Badge>
                   ))}
                 </div>
               ) : null}
             </Card>
-            <Card className="p-4">
-              <CardTitle className="text-base">{t("toolLog")}</CardTitle>
-              <ul className="mt-2 max-h-56 space-y-1 overflow-auto text-xs">
+            <Card className="p-5">
+              <CardHead
+                icon={<Wrench />}
+                title={t("toolLog")}
+                color="var(--color-accent)"
+                as="h3"
+                aside={
+                  events.length ? (
+                    <Badge tone="accent" className="tabular">
+                      {events.length}
+                    </Badge>
+                  ) : null
+                }
+              />
+              <ul className="mt-3 flex max-h-56 flex-wrap content-start gap-1.5 overflow-auto text-xs">
                 {events.length === 0 ? <li className="text-muted-foreground">—</li> : null}
                 {events.map((e, i) => (
-                  <li key={i} className={e.ok === false ? "text-danger" : undefined}>
-                    {e.type === "tool"
-                      ? `${e.ok ? "✓" : "✗"} ${e.name}`
-                      : e.type === "record"
-                        ? `★ ${e.record?.type} ${e.record?.reference}`
-                        : e.type === "language"
-                          ? `↔ ${e.language}`
-                          : e.type}
+                  <li key={i} className="animate-rise">
+                    {e.type === "tool" ? (
+                      <Badge tone={e.ok ? "primary" : "danger"} className="font-mono">
+                        {e.ok ? <Check aria-hidden /> : <X aria-hidden />}
+                        {e.name}
+                      </Badge>
+                    ) : e.type === "record" ? (
+                      <Badge tone="success">
+                        <Star aria-hidden />
+                        {`${e.record?.type} ${e.record?.reference}`}
+                      </Badge>
+                    ) : e.type === "language" ? (
+                      <Badge tone="secondary">
+                        <ArrowLeftRight aria-hidden />
+                        {e.language}
+                      </Badge>
+                    ) : (
+                      <Badge tone={e.ok === false ? "danger" : "neutral"}>{e.type}</Badge>
+                    )}
                   </li>
                 ))}
               </ul>
             </Card>
             {ended ? (
-              <Card className="p-4" data-testid="summary">
-                <CardTitle className="text-base">{t("summary")}</CardTitle>
+              <Card className="p-5" data-testid="summary">
+                <CardHead
+                  icon={<FileText />}
+                  title={t("summary")}
+                  color="var(--color-success)"
+                  as="h3"
+                />
                 {summary ? (
-                  <div className="mt-2 space-y-2 text-sm">
-                    <p>{summary.summary}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {summary.intent} · {summary.outcome} · {summary.sentiment}
-                    </p>
+                  <div className="mt-3 space-y-3 text-sm">
+                    <p dir="auto">{summary.summary}</p>
+                    <SummaryChips summary={summary} />
                     {summary.actionItems?.length ? (
-                      <ul className="list-disc ps-5 text-xs">
+                      <ul className="space-y-1 text-xs">
                         {summary.actionItems.map((a, i) => (
-                          <li key={i}>{a}</li>
+                          <li key={i} className="flex items-start gap-1.5" dir="auto">
+                            <CircleCheck
+                              className="mt-px size-3.5 shrink-0 text-primary"
+                              aria-hidden
+                            />
+                            {a}
+                          </li>
                         ))}
                       </ul>
                     ) : null}
                   </div>
                 ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">{t("summarising")}</p>
+                  <div className="mt-3 space-y-2">
+                    <p className="text-sm text-muted-foreground">{t("summarising")}</p>
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-4/5" />
+                  </div>
                 )}
               </Card>
             ) : null}
@@ -379,5 +470,19 @@ export function TestConsole({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** Intent · outcome · sentiment as small chips (same text, joined by dots for readers). */
+function SummaryChips(props: { summary: Summary }) {
+  const { intent, outcome, sentiment } = props.summary;
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+      <Badge tone="info">{intent}</Badge>
+      <span aria-hidden>·</span>
+      <Badge tone="primary">{outcome}</Badge>
+      <span aria-hidden>·</span>
+      <Badge tone="accent">{sentiment}</Badge>
+    </p>
   );
 }
