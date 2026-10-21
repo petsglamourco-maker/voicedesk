@@ -274,6 +274,26 @@
     );
   }
 
+  /* Page sections rise in one after another (instant with reduced motion). */
+  .stagger > * {
+    animation: rise 0.55s var(--ease-spring) both;
+  }
+  .stagger > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger > :nth-child(n + 6) {
+    animation-delay: 300ms;
+  }
+
   /* Film grain over the aurora: keeps large gradients from banding and feels less flat. */
   .grain {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -283,6 +303,19 @@
   [data-theme="light"] .grain {
     opacity: 0.05;
     mix-blend-mode: multiply;
+  }
+}
+
+@layer base {
+  /* Native controls that remain take the brand colour. */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--color-primary);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
   }
 }
 

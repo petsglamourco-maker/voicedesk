@@ -392,6 +392,143 @@ export function EmptyState(props: {
   );
 }
 
+/**
+ * The signature page header: a glass banner with the turning aurora edge, corner light, star
+ * dots and a glowing icon orb. One per screen. `children` is an optional row of HeroStat chips.
+ */
+export function PageHero(props: {
+  icon?: ReactNode;
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+  /** Extra attributes for the h1 (e.g. dir="auto" for user-provided names). */
+  titleProps?: HTMLAttributes<HTMLHeadingElement>;
+}) {
+  return (
+    <header
+      className={cn(
+        "glass aurora-border relative animate-rise overflow-hidden rounded-xl px-5 py-6 sm:px-7",
+        props.className,
+      )}
+    >
+      <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
+      <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
+      <div className="relative flex flex-wrap items-center gap-x-5 gap-y-4">
+        {props.icon ? (
+          <span aria-hidden className="relative flex size-14 shrink-0 items-center justify-center">
+            <span className="absolute inset-0 animate-glow-pulse rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary)_60%,var(--color-accent))] opacity-60 blur-lg" />
+            <span className="relative flex size-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary)_60%,var(--color-accent))] text-primary-foreground shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35)] [&_svg]:size-6">
+              {props.icon}
+            </span>
+          </span>
+        ) : null}
+        <div className="min-w-0 flex-1 basis-60">
+          {props.eyebrow ? (
+            <p className="mb-1 flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-primary uppercase">
+              <span className="relative flex size-1.5">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60" />
+                <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
+              </span>
+              {props.eyebrow}
+            </p>
+          ) : null}
+          <h1
+            {...props.titleProps}
+            className={cn(
+              "font-display text-[28px] leading-tight font-semibold tracking-tight sm:text-[34px]",
+              props.titleProps?.className,
+            )}
+          >
+            {props.title}
+          </h1>
+          {props.description ? (
+            <p className="mt-1.5 max-w-2xl text-[15px] text-muted-foreground">
+              {props.description}
+            </p>
+          ) : null}
+        </div>
+        {props.actions ? (
+          <div className="flex flex-wrap items-center gap-2">{props.actions}</div>
+        ) : null}
+      </div>
+      {props.children ? (
+        <div className="relative mt-5 flex flex-wrap gap-2">{props.children}</div>
+      ) : null}
+    </header>
+  );
+}
+
+/** A small number chip for a PageHero (e.g. "12 calls", "1.4 s median"). */
+export function HeroStat(props: {
+  icon?: ReactNode;
+  label: ReactNode;
+  value: ReactNode;
+  color?: string;
+}) {
+  const color = props.color ?? "var(--color-primary)";
+  return (
+    <div className="flex items-center gap-2.5 rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_55%,transparent)] px-3 py-2">
+      {props.icon ? (
+        <span
+          aria-hidden
+          className="flex size-7 shrink-0 items-center justify-center rounded-full [&_svg]:size-3.5"
+          style={{
+            color,
+            background: `color-mix(in srgb, ${color} 16%, transparent)`,
+            boxShadow: `0 0 14px -4px ${color}`,
+          }}
+        >
+          {props.icon}
+        </span>
+      ) : null}
+      <span>
+        <span className="block text-[11px] text-muted-foreground">{props.label}</span>
+        <span className="tabular font-display text-base leading-tight font-semibold">
+          {props.value}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/** Card header: tinted icon chip, title and hint, optional actions on the end. */
+export function CardHead(props: {
+  icon?: ReactNode;
+  title: ReactNode;
+  hint?: ReactNode;
+  color?: string;
+  aside?: ReactNode;
+  className?: string;
+  /** Heading level; defaults to h2. */
+  as?: "h2" | "h3";
+}) {
+  const color = props.color ?? "var(--color-primary)";
+  const Heading = props.as ?? "h2";
+  return (
+    <div className={cn("flex items-start gap-3", props.className)}>
+      {props.icon ? (
+        <span
+          aria-hidden
+          className="flex size-9 shrink-0 items-center justify-center rounded-xl [&_svg]:size-[18px]"
+          style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+        >
+          {props.icon}
+        </span>
+      ) : null}
+      <div className="min-w-0 flex-1">
+        <Heading className="font-display text-base font-semibold tracking-tight">
+          {props.title}
+        </Heading>
+        {props.hint ? <p className="mt-0.5 text-sm text-muted-foreground">{props.hint}</p> : null}
+      </div>
+      {props.aside ? <div className="flex shrink-0 items-center gap-2">{props.aside}</div> : null}
+    </div>
+  );
+}
+
 /** Slow-drifting aurora behind the app (static when reduced motion is on). */
 export function AuroraBackground(props: { className?: string; intensity?: "soft" | "vivid" }) {
   const opacity = props.intensity === "vivid" ? "opacity-[0.45]" : "opacity-[0.3]";
