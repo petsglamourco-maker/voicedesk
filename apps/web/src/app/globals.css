@@ -65,6 +65,8 @@
   --animate-shimmer: shimmer 1.6s linear infinite;
   --animate-draw: draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
   --animate-bar-grow: bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-gauge: gauge-fill 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Light: pale aurora washes, crisp ink. */
@@ -217,14 +219,96 @@
     background-clip: text;
     color: transparent;
   }
-  [data-theme="light"] .text-aurora {
-    background: linear-gradient(100deg, #0b1220 0%, #0f766e 60%, #1d4ed8 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-  }
 
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Signature: a slowly turning aurora edge for hero surfaces (static with reduced motion). */
+  .aurora-border {
+    position: relative;
+    isolation: isolate;
+  }
+  .aurora-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--aurora-angle),
+      var(--color-primary),
+      var(--color-secondary),
+      var(--color-accent),
+      transparent 70%,
+      var(--color-primary)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    animation: aurora-spin 12s linear infinite;
+    pointer-events: none;
+  }
+
+  /* Faint star-dot texture that fades out from one corner. */
+  .dot-grid {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--color-foreground) 16%, transparent) 1px,
+      transparent 1.4px
+    );
+    background-size: 18px 18px;
+    mask-image: radial-gradient(ellipse at 85% 0%, #000 0%, transparent 65%);
+  }
+
+  /* Soft light from the top corner of a card. */
+  .spotlight {
+    background: radial-gradient(
+      600px circle at 0% 0%,
+      color-mix(in srgb, var(--color-primary) 16%, transparent),
+      transparent 60%
+    );
+  }
+
+  /* Film grain over the aurora: keeps large gradients from banding and feels less flat. */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+  }
+  [data-theme="light"] .grain {
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+  }
+}
+
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes aurora-spin {
+  to {
+    --aurora-angle: 360deg;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* The gauge arc fills from empty; --gauge-from is the arc length (pathLength 100). */
+@keyframes gauge-fill {
+  from {
+    stroke-dashoffset: var(--gauge-from);
   }
 }
 
@@ -282,6 +366,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }

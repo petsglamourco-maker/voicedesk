@@ -418,6 +418,7 @@ export function AuroraBackground(props: { className?: string; intensity?: "soft"
           opacity,
         )}
       />
+      <div className="grain absolute inset-0" />
     </div>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 // Calm, spring-based motion (Motion / Framer Motion). Everything respects reduced motion.
-import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { animate, motion, useInView, useReducedMotion } from "motion/react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { cn } from "./cn";
 
 /** Counts up to `value` when it comes into view (instantly with reduced motion). */
@@ -90,21 +90,28 @@ export function Celebrate(props: { show: boolean; className?: string }) {
 }
 
 /**
- * A key number: label, count-up value, optional trend and chart. Plain props only, so server
- * pages can render it. `trend.delta` is a percentage change; `goodWhen` says which direction
- * is good (e.g. "down" for response time). The arrow and sign carry the meaning, not colour.
+ * A key number: label, count-up value, optional trend, hint and chart. Serializable props only
+ * (pass the icon as an element, e.g. `icon={<Users />}`), so server pages can render it.
+ * `trend.delta` is a percentage change; `goodWhen` says which direction is good (e.g. "down"
+ * for response time). The arrow and sign carry the meaning, not just colour.
  */
 export function KpiCard(props: {
   label: ReactNode;
-  value: number;
+  value: number | null;
+  /** Shown when there is no value yet. */
+  placeholder?: string;
   decimals?: number;
   prefix?: string;
   suffix?: string;
-  trend?: { delta: number; label?: ReactNode; goodWhen?: "up" | "down" };
-  icon?: LucideIcon;
+  trend?: { delta: number; label?: ReactNode; goodWhen?: "up" | "down" } | null;
+  hint?: ReactNode;
+  icon?: ReactNode;
+  /** Accent for the icon chip, as a CSS colour (e.g. "var(--color-ch-voice)"). */
+  color?: string;
   chart?: ReactNode;
   hero?: boolean;
   className?: string;
+  style?: CSSProperties;
 }) {
   const decimals = props.decimals ?? 0;
   const format = (v: number) =>
@@ -112,52 +119,72 @@ export function KpiCard(props: {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     })}${props.suffix ?? ""}`;
-  const Icon = props.icon;
   const trend = props.trend;
   const up = trend ? trend.delta >= 0 : true;
   const good = trend ? (trend.goodWhen === "down" ? !up : up) || trend.delta === 0 : true;
   const Arrow = up ? ArrowUpRight : ArrowDownRight;
+  const color = props.color ?? "var(--color-primary)";
   return (
     <div
       className={cn(
-        "glass relative flex flex-col gap-3 overflow-hidden rounded-xl p-5",
+        "glass group relative flex flex-col gap-2 overflow-hidden rounded-xl p-5 transition-[border-color,box-shadow,transform] duration-300 ease-[var(--ease-spring)] hover:-translate-y-0.5 hover:border-[color-mix(in_srgb,var(--kpi)_40%,transparent)] hover:shadow-[0_12px_40px_-16px_var(--kpi)]",
         props.hero && "border-primary/30 p-6 shadow-[0_0_40px_-8px_var(--color-glow)]",
         props.className,
       )}
+      style={{ ...props.style, ["--kpi" as string]: color }}
     >
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        {Icon ? (
-          <span className="flex size-7 items-center justify-center rounded-lg bg-primary/12 text-primary">
-            <Icon className="size-4" aria-hidden />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-12 -end-12 size-32 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-40"
+        style={{ background: color }}
+      />
+      <div className="flex items-center gap-2.5 text-sm font-medium text-muted-foreground">
+        {props.icon ? (
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg [&_svg]:size-4"
+            style={{ color, background: `color-mix(in srgb, ${color} 14%, transparent)` }}
+            aria-hidden
+          >
+            {props.icon}
           </span>
         ) : null}
-        <span className="truncate">{props.label}</span>
+        <span className="leading-tight">{props.label}</span>
       </div>
-      <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
-        <NumberTicker
-          value={props.value}
-          format={format}
-          className={cn(
-            "font-display leading-none font-semibold tracking-tight",
-            props.hero ? "text-aurora text-[48px] sm:text-[56px]" : "text-[32px] sm:text-[40px]",
-          )}
-        />
+      <div className="mt-1 flex flex-wrap items-end gap-x-3 gap-y-1">
+        {props.value === null ? (
+          <span
+            className={cn(
+              "font-display leading-none font-semibold tracking-tight text-muted-foreground",
+              props.hero ? "text-[48px] sm:text-[56px]" : "text-[32px] sm:text-[36px]",
+            )}
+          >
+            {props.placeholder ?? "–"}
+          </span>
+        ) : (
+          <NumberTicker
+            value={props.value}
+            format={format}
+            className={cn(
+              "font-display leading-none font-semibold tracking-tight",
+              props.hero ? "text-aurora text-[48px] sm:text-[56px]" : "text-[32px] sm:text-[36px]",
+            )}
+          />
+        )}
         {trend ? (
           <span
             className={cn(
-              "mb-1 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular",
+              "tabular mb-0.5 inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold",
               good ? "bg-success/12 text-success" : "bg-danger/12 text-danger",
             )}
           >
             <Arrow className="size-3.5" aria-hidden />
             {`${up ? "+" : "−"}${Math.abs(Math.round(trend.delta))}%`}
-            {trend.label ? (
-              <span className="ms-1 font-medium text-muted-foreground">{trend.label}</span>
-            ) : null}
+            {trend.label ? <span className="sr-only"> {trend.label}</span> : null}
           </span>
         ) : null}
       </div>
-      {props.chart ? <div className="-mx-1 mt-auto">{props.chart}</div> : null}
+      {props.hint ? <p className="text-xs text-muted-foreground">{props.hint}</p> : null}
+      {props.chart ? <div className="-mx-1 mt-auto pt-2">{props.chart}</div> : null}
     </div>
   );
 }

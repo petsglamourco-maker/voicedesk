@@ -21,6 +21,48 @@ const gid = (...parts: string[]) =>
     .slice(0, 60)}`;
 const stroke = (color: string) => ({ stroke: color });
 
+/**
+ * Smooth line through points (monotone cubic, Fritsch–Carlson): curves never overshoot the
+ * data, so counts don't dip below zero between points.
+ */
+function smoothPath(pts: ReadonlyArray<readonly [number, number]>): string {
+  const n = pts.length;
+  const f = (v: number) => v.toFixed(1);
+  if (n < 3) return pts.map(([x, y], i) => `${i ? "L" : "M"}${f(x)},${f(y)}`).join(" ");
+  const dx: number[] = [];
+  const m: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx.push(pts[i + 1]![0] - pts[i]![0]);
+    m.push((pts[i + 1]![1] - pts[i]![1]) / (dx[i] || 1));
+  }
+  const t: number[] = [m[0]!];
+  for (let i = 1; i < n - 1; i++) t.push(m[i - 1]! * m[i]! <= 0 ? 0 : (m[i - 1]! + m[i]!) / 2);
+  t.push(m[n - 2]!);
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) {
+      t[i] = 0;
+      t[i + 1] = 0;
+      continue;
+    }
+    const a = t[i]! / m[i]!;
+    const b = t[i + 1]! / m[i]!;
+    const h = a * a + b * b;
+    if (h > 9) {
+      const k = 3 / Math.sqrt(h);
+      t[i] = k * a * m[i]!;
+      t[i + 1] = k * b * m[i]!;
+    }
+  }
+  let d = `M${f(pts[0]![0])},${f(pts[0]![1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i]!;
+    const [x1, y1] = pts[i + 1]!;
+    const h = dx[i]! / 3;
+    d += ` C${f(x0 + h)},${f(y0 + t[i]! * h)} ${f(x1 - h)},${f(y1 - t[i + 1]! * h)} ${f(x1)},${f(y1)}`;
+  }
+  return d;
+}
+
 /** A tidy axis maximum: four equal whole-number steps (1, 2, 5 × 10ⁿ each) above the data. */
 function niceMax(value: number): number {
   const raw = Math.max(1, value / 4);
@@ -135,7 +177,7 @@ export function StackedBars(props: {
                   {totals[i]}
                 </text>
               ) : null}
-              {i % labelEvery === 0 || (i === n - 1 && (n - 1) % labelEvery >= labelEvery / 2) ? (
+              {(n - 1 - i) % labelEvery === 0 ? (
                 <text
                   x={x + barW / 2}
                   y={height - 10}
@@ -170,7 +212,7 @@ export function Sparkline(props: {
   const max = Math.max(1, ...values);
   const step = values.length > 1 ? w / (values.length - 1) : w;
   const pts = values.map((v, i) => [i * step, h - 3 - (v / max) * (h - 6)] as const);
-  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const line = smoothPath(pts);
   const id = gid("spark", props.color, values.join("."));
   return (
     <svg
@@ -429,9 +471,7 @@ export function LineChart(props: {
   const points = props.values
     .map((v, i) => (v === null ? null : ([x(i), y(v), v, props.labels[i]!] as const)))
     .filter((p): p is readonly [number, number, number, string] => p !== null);
-  const line = points
-    .map(([px, py], i) => `${i ? "L" : "M"}${px.toFixed(1)},${py.toFixed(1)}`)
-    .join(" ");
+  const line = smoothPath(points.map(([px, py]) => [px, py] as const));
   return (
     <div className="relative">
       <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img">
@@ -551,6 +591,237 @@ export function ShareBar(props: {
           </li>
         ))}
       </ul>
+    </div>
+  );
+}
+
+/**
+ * The hero chart: a smooth area with an aurora-gradient trail that draws in, a glowing latest
+ * point and a tooltip per period.
+ */
+export function AreaChart(props: {
+  labels: string[];
+  values: number[];
+  emptyText: string;
+  height?: number;
+  /** Tooltip suffix, e.g. " conversations". */
+  unit?: string;
+  /** Drawing width: smaller for phones, so the axis text stays readable. */
+  width?: number;
+  className?: string;
+}) {
+  const width = props.width ?? 760;
+  const height = props.height ?? 220;
+  const pad = { top: 16, right: 12, bottom: 28, left: 34 };
+  const n = props.values.length;
+  const max = niceMax(Math.max(0, ...props.values));
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const x = (i: number) => pad.left + (n > 1 ? (i / (n - 1)) * innerW : innerW / 2);
+  const y = (v: number) => pad.top + innerH - (v / max) * innerH;
+  const pts = props.values.map((v, i) => [x(i), y(v)] as const);
+  const line = smoothPath(pts);
+  const total = props.values.reduce((a, b) => a + b, 0);
+  const id = gid("area", String(width), String(n), props.values.join("."));
+  const every = Math.max(1, Math.ceil(n / (width < 500 ? 4 : 7)));
+  return (
+    <div className={cn("relative", props.className)}>
+      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible" role="img">
+        <defs>
+          <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.32} />
+            <stop offset="60%" stopColor="var(--color-secondary)" stopOpacity={0.08} />
+            <stop offset="100%" stopColor="var(--color-secondary)" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient
+            id={`${id}-line`}
+            gradientUnits="userSpaceOnUse"
+            x1={pad.left}
+            x2={width - pad.right}
+            y1="0"
+            y2="0"
+          >
+            <stop offset="0%" stopColor="var(--color-primary)" />
+            <stop offset="55%" stopColor="var(--color-secondary)" />
+            <stop offset="100%" stopColor="var(--color-accent)" />
+          </linearGradient>
+        </defs>
+        {[0, 0.25, 0.5, 0.75, 1].map((f) => (
+          <g key={f}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y(max * f)}
+              y2={y(max * f)}
+              className="stroke-border"
+              strokeDasharray={f ? "2 6" : undefined}
+            />
+            {f === 0 || f === 0.5 || f === 1 ? (
+              <text
+                x={pad.left - 8}
+                y={y(max * f) + 4}
+                textAnchor="end"
+                className="fill-muted-foreground text-[11px]"
+              >
+                {Math.round(max * f)}
+              </text>
+            ) : null}
+          </g>
+        ))}
+        {n > 1 ? (
+          <path
+            d={`${line} L${x(n - 1)},${y(0)} L${x(0)},${y(0)} Z`}
+            fill={`url(#${id}-fill)`}
+            className="animate-rise"
+          />
+        ) : null}
+        {n ? (
+          <path
+            d={line}
+            fill="none"
+            stroke={`url(#${id}-line)`}
+            strokeWidth={3}
+            strokeLinecap="round"
+            pathLength={1}
+            className="animate-draw [stroke-dasharray:1]"
+            style={{ filter: "drop-shadow(0 0 8px var(--color-glow))" }}
+          />
+        ) : null}
+        {n ? (
+          <g>
+            <circle
+              cx={x(n - 1)}
+              cy={y(props.values[n - 1]!)}
+              r={10}
+              className="animate-glow-pulse"
+              style={{ fill: "var(--color-accent)", opacity: 0.25 }}
+            />
+            <circle
+              cx={x(n - 1)}
+              cy={y(props.values[n - 1]!)}
+              r={4.5}
+              className="stroke-background"
+              strokeWidth={2}
+              style={{ fill: "var(--color-accent)" }}
+            />
+          </g>
+        ) : null}
+        {props.values.map((v, i) => (
+          <g key={props.labels[i] ?? i} className="group">
+            <rect
+              x={x(i) - innerW / Math.max(1, n - 1) / 2}
+              y={pad.top}
+              width={innerW / Math.max(1, n - 1)}
+              height={innerH}
+              className="fill-transparent"
+            >
+              <title>{`${props.labels[i]}: ${v}${props.unit ?? ""}`}</title>
+            </rect>
+            <line
+              x1={x(i)}
+              x2={x(i)}
+              y1={pad.top}
+              y2={y(0)}
+              className="stroke-primary opacity-0 transition-opacity group-hover:opacity-60"
+              strokeDasharray="3 4"
+            />
+            <circle
+              cx={x(i)}
+              cy={y(v)}
+              r={4}
+              className="opacity-0 transition-opacity group-hover:opacity-100"
+              style={{ fill: "var(--color-primary)" }}
+            />
+            {(n - 1 - i) % every === 0 ? (
+              <text
+                x={x(i)}
+                y={height - 6}
+                textAnchor={i === n - 1 ? "end" : i === 0 ? "start" : "middle"}
+                className="fill-muted-foreground text-[11px]"
+              >
+                {props.labels[i]}
+              </text>
+            ) : null}
+          </g>
+        ))}
+      </svg>
+      {total === 0 ? (
+        <p className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">
+          {props.emptyText}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** A ring that fills to a percentage with an aurora gradient (e.g. handled by the assistant). */
+export function RadialGauge(props: { value: number | null; label: string; className?: string }) {
+  const size = 168;
+  const r = 68;
+  const v = props.value === null ? 0 : Math.max(0, Math.min(100, props.value));
+  const id = gid("gauge", String(v));
+  return (
+    <div className={cn("relative mx-auto aspect-square w-full max-w-[188px]", props.className)}>
+      <svg
+        viewBox={`0 0 ${size} ${size}`}
+        className="size-full -rotate-90"
+        role="img"
+        aria-label={`${props.label}: ${props.value === null ? "–" : `${v}%`}`}
+      >
+        <defs>
+          <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2={size} y2={size}>
+            <stop offset="0%" stopColor="var(--color-primary)" />
+            <stop offset="55%" stopColor="var(--color-secondary)" />
+            <stop offset="100%" stopColor="var(--color-accent)" />
+          </linearGradient>
+        </defs>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={12}
+          className="stroke-muted"
+        />
+        {Array.from({ length: 40 }, (_, i) => {
+          const a = (i / 40) * Math.PI * 2;
+          return (
+            <line
+              key={i}
+              x1={size / 2 + Math.cos(a) * (r - 14)}
+              y1={size / 2 + Math.sin(a) * (r - 14)}
+              x2={size / 2 + Math.cos(a) * (r - 11)}
+              y2={size / 2 + Math.sin(a) * (r - 11)}
+              className="stroke-border"
+              strokeWidth={1.5}
+            />
+          );
+        })}
+        {v > 0 ? (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={`url(#${id})`}
+            strokeWidth={12}
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${v} 100`}
+            className="animate-gauge"
+            style={{
+              ["--gauge-from" as string]: v,
+              filter: "drop-shadow(0 0 10px var(--color-glow))",
+            }}
+          />
+        ) : null}
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="tabular font-display text-[40px] leading-none font-semibold tracking-tight">
+          {props.value === null ? "–" : v}
+          {props.value === null ? null : <span className="text-xl text-muted-foreground">%</span>}
+        </span>
+      </div>
     </div>
   );
 }
