@@ -64,11 +64,13 @@ import {
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import {
+  AreaChart,
   BarList,
   Donut,
   Funnel,
   Heatmap,
   LineChart,
+  RadialGauge,
   ShareBar,
   Sparkline,
   StackedBars,
@@ -312,7 +314,7 @@ export function Gallery(props: { labels: GalleryLabels; initialMode: "dark" | "l
               className="sm:col-span-2"
               label="Conversations this week"
               value={1284}
-              icon={MessageSquareText}
+              icon={<MessageSquareText />}
               trend={{ delta: 18, label: "vs last week" }}
               chart={<Sparkline values={[8, 12, 9, 15, 18, 14, 22]} color={v("primary")} />}
             />
@@ -321,15 +323,40 @@ export function Gallery(props: { labels: GalleryLabels; initialMode: "dark" | "l
               value={1.5}
               decimals={1}
               suffix=" s"
-              icon={Clock}
+              icon={<Clock />}
               trend={{ delta: -12, goodWhen: "down" }}
             />
-            <KpiCard label="Rating" value={4.8} decimals={1} icon={Star} trend={{ delta: -3 }} />
+            <KpiCard
+              label="Rating"
+              value={4.8}
+              decimals={1}
+              icon={<Star />}
+              trend={{ delta: -3 }}
+            />
           </div>
         </Section>
 
         <Section title={l.charts}>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-3 [&>*]:min-w-0">
+            <div className="glass aurora-border relative overflow-hidden rounded-xl p-6 lg:col-span-2">
+              <div aria-hidden className="spotlight pointer-events-none absolute inset-0" />
+              <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
+              <p className="text-aurora relative font-display text-[56px] leading-none font-semibold">
+                128
+              </p>
+              <AreaChart
+                className="relative mt-4"
+                labels={DAYS}
+                values={[14, 18, 12, 22, 26, 19, 17]}
+                unit=" conversations"
+                emptyText="No data"
+              />
+            </div>
+            <Card className="flex items-center">
+              <RadialGauge value={72} label="Handled by the assistant" />
+            </Card>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
             <Card>
               <StackedBars labels={DAYS} series={SERIES} emptyText="No data" />
             </Card>

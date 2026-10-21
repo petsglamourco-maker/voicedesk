@@ -70,9 +70,12 @@ Spacing follows an 8-pt rhythm.
 **Effects.**
 
 - `.glass`: frosted surface;
+- `.aurora-border`: the signature, a slowly turning aurora edge for hero surfaces (one per screen at most);
+- `.spotlight` and `.dot-grid`: light from a corner and a faint star-dot texture, for hero cards;
+- `.grain`: film grain over the aurora background, so big gradients don't band;
 - `.glow`: teal halo;
 - `.text-aurora`;
-- animations: `animate-aurora`, `animate-glow-pulse`, `animate-shimmer`, `animate-draw` (chart lines) and `animate-bar-grow`.
+- animations: `animate-aurora`, `animate-glow-pulse`, `animate-shimmer`, `animate-draw` (chart lines), `animate-bar-grow`, `animate-gauge` and `animate-rise` (staggered entrance of bento tiles). Reduced motion also cancels animation delays, so nothing stays hidden.
 
 ## Components (`@voicedesk/ui`)
 
@@ -88,8 +91,10 @@ Spacing follows an 8-pt rhythm.
 
 **Charts** (`apps/web/src/components/charts.tsx`):
 
-- server-rendered SVG: `StackedBars`, `LineChart`, `Sparkline`, `Donut`, `Heatmap`, `BarList`, `Funnel`, `ShareBar`;
-- styling: gradient fills, rounded bars that grow in, lines that draw in with a glow, a pulsing latest point;
+- server-rendered SVG: `AreaChart` (hero), `RadialGauge`, `StackedBars`, `LineChart`, `Sparkline`, `Donut`, `Heatmap`, `BarList`, `Funnel`, `ShareBar`;
+- styling: gradient fills, rounded bars that grow in, smooth monotone curves (never dip below zero) that draw in with a glow, a pulsing latest point;
+- pass a smaller `width` for phones (render a `sm:hidden` copy) so axis text stays readable; gradient ids include the width, because Chrome ignores gradients defined in a hidden copy;
+- put `[&>*]:min-w-0` on grids that hold charts, or wide charts push the page sideways on phones;
 - gradient ids are derived from the data (server components can't use `useId`).
 
 **App shell** (`apps/web/src/components/shell/`):
