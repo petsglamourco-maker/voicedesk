@@ -16,6 +16,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
       badge={t("badge")}
       navLabel={t("title")}
       nav={[
+        { href: "/platform/setup", label: t("setup") },
         { href: "/platform/ai", label: t("aiProviders") },
         { href: "/platform/phone-numbers", label: t("phoneNumbers") },
         { href: "/platform/vas", label: t("vas") },

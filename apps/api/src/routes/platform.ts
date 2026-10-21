@@ -12,6 +12,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { setupStatus } from "../lib/setup";
 import { requireSession } from "./guards";
 
 /** Platform-owner-only settings. Everyone else gets 404 (the routes don't "exist" for them). */
@@ -35,6 +36,25 @@ export function registerPlatformRoutes(app: FastifyInstance, deps: AppDeps): voi
     async (request) => {
       await requirePlatformOwner(deps, request);
       return { providers: await views(), encryptionConfigured: deps.secrets.box !== null };
+    },
+  );
+
+  r.get(
+    "/api/platform/setup",
+    {
+      schema: {
+        tags,
+        summary: "Which features are ready on this server and which settings each still needs",
+      },
+    },
+    async (request) => {
+      await requirePlatformOwner(deps, request);
+      const providers = await views();
+      return {
+        items: setupStatus(process.env, {
+          enabledReady: providers.filter((p) => p.enabled && p.ready).length,
+        }),
+      };
     },
   );
 

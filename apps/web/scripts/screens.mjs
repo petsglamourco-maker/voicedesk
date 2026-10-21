@@ -47,6 +47,7 @@ const screens = [
   ["account", t("/account")],
   ["va-console", "/va"],
   ["onboarding", "/onboarding"],
+  ["platform-setup", "/platform/setup"],
   ["platform-ai", "/platform/ai"],
   ["platform-numbers", "/platform/phone-numbers"],
   ["platform-vas", "/platform/vas"],

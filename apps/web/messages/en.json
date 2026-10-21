@@ -400,7 +400,8 @@
     "testing": "Testing…",
     "failed": "Something went wrong.",
     "phoneNumbers": "Phone numbers",
-    "vas": "VAs"
+    "vas": "VAs",
+    "setup": "Setup"
   },
   "voice": {
     "ended": "Call ended",
@@ -1192,5 +1193,79 @@
     "table": "Data table",
     "dark": "Dark",
     "light": "Light"
+  },
+  "setup": {
+    "title": "Setup",
+    "subtitle": "What works on this server today, and exactly what each feature still needs. Settings go in the .env file; restart VoiceDesk after changing it.",
+    "readyCount": "Ready",
+    "localCount": "This computer only",
+    "offCount": "Not set up",
+    "state": {
+      "ready": "Ready",
+      "local": "This computer only",
+      "off": "Not set up"
+    },
+    "free": "Free",
+    "paid": "Costs money to use",
+    "needs": "Needs",
+    "how": "How to set it up",
+    "aiProviderOn": "an AI provider switched on",
+    "items": {
+      "ai": {
+        "name": "AI provider",
+        "unlocks": "The assistant's brain: chat, calls, summaries and Ask VoiceDesk.",
+        "how": "Platform admin → AI providers: switch on DeepSeek or Claude and add its API key."
+      },
+      "voice": {
+        "name": "Voice",
+        "unlocks": "Talking to the assistant: speech recognition, natural voices and live calls in the browser.",
+        "how": "Add the LiveKit, Deepgram and ElevenLabs keys to .env."
+      },
+      "phone": {
+        "name": "Phone calls",
+        "unlocks": "Customers ringing a business's phone number and reaching the assistant.",
+        "how": "Set SIP_AUTH_USERNAME and SIP_AUTH_PASSWORD in .env, then add the number under Phone numbers."
+      },
+      "email": {
+        "name": "Real emails",
+        "unlocks": "Sign-up verification, invitations, call summaries, the daily brief and email replies reach real inboxes. Until then they appear in Mailpit (localhost:8025).",
+        "how": "Use an email-sending service (Brevo or Resend have free tiers, or Gmail with an app password). Put its SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and an EMAIL_FROM address you own in .env."
+      },
+      "sms": {
+        "name": "Text messages",
+        "unlocks": "Booking confirmations, reminders and feedback links by SMS. Until then texts appear in Mailpit.",
+        "how": "Set SMS_PROVIDER=twilio (or telnyx), that carrier's API keys, and SMS_FROM: a number that can send texts."
+      },
+      "googleCalendar": {
+        "name": "Google Calendar",
+        "unlocks": "Bookings check a business's Google Calendar for free times and add events to it.",
+        "how": "In Google Cloud Console create an OAuth client (Web application) with the redirect URI {origin}/api/integrations/google/callback, then set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+      },
+      "microsoftCalendar": {
+        "name": "Outlook / Microsoft 365",
+        "unlocks": "The same as Google Calendar, for businesses on Outlook.",
+        "how": "In Microsoft Entra (Azure) register an app with the redirect URI {origin}/api/integrations/microsoft/callback and a client secret, then set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET."
+      },
+      "mailbox": {
+        "name": "Email inbox",
+        "unlocks": "The assistant reads a business's mailbox, answers simple emails and drafts the rest for approval.",
+        "how": "Each business connects its own mailbox on its Email page, using an app password. The server only needs SETTINGS_ENCRYPTION_KEY."
+      },
+      "whatsapp": {
+        "name": "WhatsApp",
+        "unlocks": "Customers chat with the assistant on WhatsApp.",
+        "how": "Create a Meta developer app with the WhatsApp product, then set WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN. While VoiceDesk runs on this computer, run pnpm tunnel so Meta can reach it."
+      },
+      "outbound": {
+        "name": "Outbound calls",
+        "unlocks": "The assistant calls customers back, confirms bookings by phone, and VAs dial out.",
+        "how": "Create a SIP trunk for outgoing calls (Twilio Elastic SIP Trunking, or a Telnyx credentials connection) and set its SIP_OUTBOUND_* login in .env."
+      },
+      "publicAddress": {
+        "name": "Public web address",
+        "unlocks": "Website chat on real websites, and hosted forms and rating links that customers can open.",
+        "how": "Host VoiceDesk on a server with your own domain (part of Phase 7). Until then it runs on this computer only."
+      }
+    }
   }
 }
