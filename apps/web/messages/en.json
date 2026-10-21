@@ -1045,7 +1045,93 @@
     "messages": "Messages",
     "empty": "No activity yet in this period",
     "noRatings": "No ratings yet",
-    "noCalls": "No calls yet"
+    "noCalls": "No calls yet",
+    "ofAll": "{n}% of all",
+    "assistantHint": "Conversations the assistant finished without a person stepping in",
+    "team": "Your team",
+    "teamHint": "{answered} calls taken · {missed} missed",
+    "latencyShort": "Voice reply",
+    "latencyShortHint": "Median, end of speech to reply",
+    "noActivity": "Nothing has happened yet. Activity shows up here as it happens.",
+    "activity": {
+      "agent": {
+        "settings_updated": "Assistant settings changed"
+      },
+      "ai_call": {
+        "scheduled": "AI call scheduled"
+      },
+      "answerer": {
+        "added": "Call answerer added",
+        "removed": "Call answerer removed"
+      },
+      "auth": {
+        "session_created": "Someone signed in"
+      },
+      "booking": {
+        "cancelled": "Booking cancelled"
+      },
+      "call": {
+        "outbound": "Outbound call placed"
+      },
+      "contact": {
+        "deleted": "Contact deleted"
+      },
+      "contacts": {
+        "imported": "Contacts imported"
+      },
+      "conversation": {
+        "human_requested": "A customer asked for a person"
+      },
+      "email": {
+        "draft_sent": "Email reply sent"
+      },
+      "forms": {
+        "key_regenerated": "Form key renewed",
+        "settings_updated": "Form settings changed"
+      },
+      "handoff": {
+        "answered": "Your team took a call",
+        "returned": "Call handed back to the assistant",
+        "ended": "Your team ended a call"
+      },
+      "integration": {
+        "calendar_connected": "Calendar connected",
+        "calendar_disconnected": "Calendar disconnected"
+      },
+      "knowledge": {
+        "source_added": "Knowledge added",
+        "source_deleted": "Knowledge removed"
+      },
+      "mailbox": {
+        "disconnected": "Mailbox disconnected"
+      },
+      "member": {
+        "invitation_cancelled": "Invitation cancelled",
+        "invited": "Teammate invited",
+        "joined": "Teammate joined",
+        "removed": "Teammate removed",
+        "role_changed": "A teammate's role changed"
+      },
+      "platform": {
+        "access": "VoiceDesk support opened this business"
+      },
+      "profile": {
+        "approved": "Business profile approved"
+      },
+      "tenant": {
+        "created": "Business created"
+      },
+      "va": {
+        "assigned": "Virtual assistant assigned",
+        "removed": "Virtual assistant removed"
+      },
+      "widget": {
+        "settings_updated": "Website chat settings changed"
+      }
+    },
+    "busiest": "Busiest time: {day} around {hour}",
+    "fewer": "Fewer",
+    "moreLegend": "More"
   },
   "shell": {
     "groups": {
