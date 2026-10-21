@@ -2,15 +2,28 @@
 
 import {
   Alert,
-  Badge,
+  Avatar,
   Button,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
+  EmptyState,
   Input,
   Label,
   Select,
+  StatusPill,
+  type StatusTone,
 } from "@voicedesk/ui";
+import {
+  Bot,
+  FileSpreadsheet,
+  FileUp,
+  MailCheck,
+  PenLine,
+  Search,
+  SearchX,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -33,6 +46,12 @@ export interface ContactListResponse {
   contacts: ContactSummary[];
   total: number;
 }
+
+const SOURCE_LOOK: Record<string, { tone: StatusTone; icon: LucideIcon }> = {
+  assistant: { tone: "accent", icon: Bot },
+  import: { tone: "secondary", icon: FileUp },
+  manual: { tone: "neutral", icon: PenLine },
+};
 
 const FIELDS = ["fullName", "phone", "email", "notes", "marketingConsent"] as const;
 type Field = (typeof FIELDS)[number];
@@ -135,17 +154,24 @@ export function ContactsPanel(props: {
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>
-        <CardTitle className="text-base">{t("importTitle")}</CardTitle>
-        <CardDescription>{t("importHint")}</CardDescription>
-        <div className="mt-3">
-          <Label htmlFor="csv-file">{t("chooseFile")}</Label>
+        <CardHead
+          icon={<FileSpreadsheet />}
+          title={t("importTitle")}
+          hint={t("importHint")}
+          color="var(--color-secondary)"
+        />
+        <div className="mt-4 rounded-lg border border-dashed border-input/60 bg-[color-mix(in_srgb,var(--color-muted)_35%,transparent)] p-4">
+          <Label htmlFor="csv-file" className="flex items-center gap-2">
+            <FileUp className="size-4 shrink-0 text-secondary" aria-hidden />
+            {t("chooseFile")}
+          </Label>
           <Input
             id="csv-file"
             type="file"
             accept=".csv,text/csv"
             onChange={(e) => void chooseFile(e)}
             disabled={busy}
-            className="max-w-sm"
+            className="mt-2 max-w-sm"
           />
         </div>
         {preview ? (
@@ -158,7 +184,7 @@ export function ContactsPanel(props: {
                 </span>
               ) : null}
             </p>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-3 [&>*]:min-w-0">
               {FIELDS.map((field) => (
                 <div key={field}>
                   <Label htmlFor={`map-${field}`}>{t(`field.${field}`)}</Label>
@@ -182,12 +208,12 @@ export function ContactsPanel(props: {
                 </div>
               ))}
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-border">
               <table className="w-full text-xs">
-                <thead className="text-muted-foreground">
+                <thead className="bg-[color-mix(in_srgb,var(--color-muted)_50%,transparent)] text-muted-foreground">
                   <tr>
                     {preview.headers.map((h, i) => (
-                      <th key={i} className="px-2 py-1 text-start font-normal">
+                      <th key={i} className="px-3 py-2 text-start font-semibold whitespace-nowrap">
                         {h}
                       </th>
                     ))}
@@ -195,9 +221,12 @@ export function ContactsPanel(props: {
                 </thead>
                 <tbody>
                   {preview.sample.map((row, r) => (
-                    <tr key={r} className="border-t border-border">
+                    <tr
+                      key={r}
+                      className="border-t border-border transition-colors hover:bg-muted/50"
+                    >
                       {preview.headers.map((_, c) => (
-                        <td key={c} className="px-2 py-1" dir="auto">
+                        <td key={c} className="px-3 py-2" dir="auto">
                           {row[c]}
                         </td>
                       ))}
@@ -245,12 +274,19 @@ export function ContactsPanel(props: {
       </Card>
 
       <form onSubmit={search} className="flex max-w-md gap-2">
-        <Input
-          name="q"
-          defaultValue={props.query}
-          placeholder={t("searchPlaceholder")}
-          aria-label={t("search")}
-        />
+        <div className="relative min-w-0 flex-1">
+          <Search
+            className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            name="q"
+            defaultValue={props.query}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("search")}
+            className="ps-9"
+          />
+        </div>
         <Button type="submit" variant="secondary">
           {t("search")}
         </Button>
@@ -258,31 +294,48 @@ export function ContactsPanel(props: {
 
       <Card className="p-0">
         {props.initial.contacts.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">
-            {props.query ? t("noMatches") : t("empty")}
-          </p>
+          <EmptyState
+            icon={props.query ? SearchX : Users}
+            title={props.query ? t("noMatches") : t("empty")}
+          />
         ) : (
-          <ul className="divide-y divide-border" data-testid="contacts">
-            {props.initial.contacts.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-                <Link
-                  href={`/t/${props.tenantId}/contacts/${c.id}`}
-                  className="font-medium text-primary hover:underline"
-                  dir="auto"
+          <ul className="space-y-2 p-3 sm:p-4" data-testid="contacts">
+            {props.initial.contacts.map((c) => {
+              const source = c.source ? (SOURCE_LOOK[c.source] ?? SOURCE_LOOK.manual!) : null;
+              return (
+                <li
+                  key={c.id}
+                  className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:border-primary/40"
                 >
-                  {c.fullName ?? c.phone ?? c.email}
-                </Link>
-                <span className="text-muted-foreground">{c.phone}</span>
-                <span className="text-muted-foreground">{c.email}</span>
-                <span className="ms-auto flex gap-1">
-                  {c.marketingConsent ? <Badge>{t("marketingYes")}</Badge> : null}
-                  {c.source ? <Badge>{t(`source.${c.source}` as "source.manual")}</Badge> : null}
-                </span>
-              </li>
-            ))}
+                  <Avatar name={c.fullName ?? c.phone ?? c.email ?? "?"} size="sm" />
+                  <Link
+                    href={`/t/${props.tenantId}/contacts/${c.id}`}
+                    className="font-medium text-primary hover:underline"
+                    dir="auto"
+                  >
+                    {c.fullName ?? c.phone ?? c.email}
+                  </Link>
+                  <span className="tabular text-muted-foreground">{c.phone}</span>
+                  <span className="min-w-0 truncate text-muted-foreground">{c.email}</span>
+                  <span className="ms-auto flex flex-wrap gap-1">
+                    {c.marketingConsent ? (
+                      <StatusPill tone="success" icon={MailCheck} label={t("marketingYes")} />
+                    ) : null}
+                    {c.source && source ? (
+                      <StatusPill
+                        tone={source.tone}
+                        icon={source.icon}
+                        label={t(`source.${c.source}` as "source.manual")}
+                      />
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
-        <p className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
+        <p className="tabular flex items-center gap-1.5 border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
+          <Users className="size-3.5 shrink-0" aria-hidden />
           {t("total", { count: props.initial.total })}
         </p>
       </Card>
