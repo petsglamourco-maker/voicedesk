@@ -89,7 +89,7 @@ describe("Google Calendar connection", () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it("connects, lets the owner pick a calendar, and disconnects", async () => {
+  it("connects with the main calendar chosen, lets the owner pick another, and disconnects", async () => {
     const { state, nonceCookie } = await startFlow(owner.cookie);
     const done = await h.app.inject({
       method: "GET",
@@ -107,7 +107,7 @@ describe("Google Calendar connection", () => {
         connection: {
           provider: "google",
           accountEmail: "owner@bright.example",
-          calendarId: null,
+          calendarId: "primary",
           status: "active",
         },
       },

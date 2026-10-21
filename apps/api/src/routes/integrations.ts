@@ -199,6 +199,15 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
           refreshToken: tokens.refreshToken,
           accountEmail: tokens.email,
         });
+        // Use the account's main calendar straight away, so bookings work without an extra
+        // step (it can still be changed on the Integrations page). Never fails the connection.
+        try {
+          const { provider: cal } = await connectedCalendar(parsed.tenantId);
+          const primary = ((await cal.listCalendars?.()) ?? []).find((c) => c.primary);
+          if (primary) await chooseCalendar(deps.db, parsed.tenantId, primary);
+        } catch (error) {
+          request.log.warn({ err: error, provider }, "choosing the primary calendar failed");
+        }
         await withTenant(deps.db, parsed.tenantId, (tx) =>
           recordAudit(tx, {
             tenantId: parsed.tenantId,

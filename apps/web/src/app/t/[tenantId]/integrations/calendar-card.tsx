@@ -223,7 +223,9 @@ export function CalendarCard(props: {
                 </span>
               </p>
             </div>
-            {connection.status === "active" ? (
+            {connection.status === "active" && !connection.calendarId ? (
+              <StatusPill tone="warning" icon={TriangleAlert} label={t("statusPickCalendar")} />
+            ) : connection.status === "active" ? (
               <StatusPill tone="success" icon={CheckCircle2} label={t("statusActive")} />
             ) : connection.status === "revoked" ? (
               <StatusPill tone="danger" icon={XCircle} label={t("statusRevoked")} />
