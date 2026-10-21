@@ -1,11 +1,38 @@
 "use client";
 
-import { Alert, Badge, Button, Card, cn, Input } from "@voicedesk/ui";
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  cn,
+  EmptyState,
+  HeroStat,
+  Input,
+  Kbd,
+  StatusPill,
+  Textarea,
+} from "@voicedesk/ui";
+import {
+  Bot,
+  Hand,
+  Headset,
+  Inbox as InboxIcon,
+  Keyboard,
+  MailOpen,
+  MessagesSquare,
+  PenLine,
+  Send,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
+import { ChannelDot } from "@/components/channels";
 import { ScreenHero } from "@/components/screen-hero";
 
 type Filter = "all" | "unread" | "needs_human" | "mine";
@@ -50,13 +77,6 @@ interface ThreadDetail {
   }>;
 }
 
-const CHANNEL_ICON: Record<string, string> = {
-  web_chat: "💬",
-  whatsapp: "🟢",
-  email: "✉️",
-  web_form: "📝",
-};
-
 /** Unified inbox: every customer thread, live; take over from the assistant and reply. */
 export function InboxView(props: {
   tenantId: string;
@@ -65,8 +85,10 @@ export function InboxView(props: {
 }) {
   const t = useTranslations("inbox");
   const shell = useTranslations("shell");
+  const channels = useTranslations("dashboard.touchpoint");
   const common = useTranslations("common");
   const format = useFormatter();
+  const now = useNow({ updateInterval: 60_000 });
   const base = `/api/tenants/${props.tenantId}/inbox`;
   const [filter, setFilter] = useState<Filter>("all");
   const [threads, setThreads] = useState<ThreadSummary[]>([]);
@@ -78,6 +100,7 @@ export function InboxView(props: {
   /** The draft being edited before sending. */
   const [draftEdit, setDraftEdit] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const replyInput = useRef<HTMLInputElement>(null);
 
   const loadList = useCallback(async () => {
     const res = await api<{ threads: ThreadSummary[]; counts: typeof counts }>(
@@ -184,12 +207,42 @@ export function InboxView(props: {
     }
   }
 
+  // Keyboard (desktop): J / K move between threads, R jumps to the reply box.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey ||
+        (target &&
+          (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)))
+      )
+        return;
+      const key = e.key.toLowerCase();
+      if (key === "j" || key === "k") {
+        if (threads.length === 0) return;
+        const at = threads.findIndex((th) => th.id === selected);
+        const next =
+          at === -1 ? 0 : Math.min(threads.length - 1, Math.max(0, at + (key === "j" ? 1 : -1)));
+        setSelected(threads[next]!.id);
+        e.preventDefault();
+      } else if (key === "r" && replyInput.current) {
+        replyInput.current.focus();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [threads, selected]);
+
   const label = (th: ThreadSummary) => th.name ?? th.externalId ?? t("visitor");
-  const filters: Array<[Filter, string]> = [
-    ["all", t("all")],
-    ["unread", `${t("unread")}${counts.unread ? ` (${counts.unread})` : ""}`],
-    ["needs_human", `${t("needsHuman")}${counts.needsHuman ? ` (${counts.needsHuman})` : ""}`],
-    ["mine", t("mine")],
+  const channelName = (c: string) => (channels.has(c) ? channels(c as "voice") : c);
+  const filters: Array<[Filter, string, number]> = [
+    ["all", t("all"), 0],
+    ["unread", t("unread"), counts.unread],
+    ["needs_human", t("needsHuman"), counts.needsHuman],
+    ["mine", t("mine"), 0],
   ];
 
   return (
@@ -199,91 +252,195 @@ export function InboxView(props: {
         eyebrow={shell("groups.overview")}
         title={t("title")}
         description={t("subtitle")}
-      />
-      <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-        <Card className="flex h-[640px] flex-col p-0">
-          <div className="flex flex-wrap gap-1 border-b border-border p-2" role="tablist">
-            {filters.map(([f, text]) => (
-              <button
-                key={f}
-                role="tab"
-                aria-selected={filter === f}
-                onClick={() => setFilter(f)}
-                className={cn(
-                  "rounded-md px-2 py-1 text-xs font-medium",
-                  filter === f ? "bg-primary text-primary-foreground" : "hover:bg-muted",
-                )}
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-          <ul className="flex-1 divide-y divide-border overflow-y-auto" data-testid="inbox-threads">
-            {threads.length === 0 ? (
-              <li className="p-4 text-sm text-muted-foreground">{t("empty")}</li>
-            ) : null}
-            {threads.map((th) => (
-              <li key={th.id}>
+      >
+        <HeroStat
+          icon={<MailOpen />}
+          label={t("unread")}
+          value={counts.unread}
+          color="var(--color-primary)"
+        />
+        <HeroStat
+          icon={<Hand />}
+          label={t("needsHuman")}
+          value={counts.needsHuman}
+          color="var(--color-warning)"
+        />
+      </ScreenHero>
+      <div className="grid gap-4 lg:grid-cols-[360px_1fr] [&>*]:min-w-0">
+        <Card className="flex max-h-[440px] flex-col overflow-hidden p-0 lg:h-[680px] lg:max-h-none">
+          <div className="border-b border-border p-2">
+            <div className="flex gap-1 rounded-full bg-muted/60 p-1" role="tablist">
+              {filters.map(([f, text, n]) => (
                 <button
-                  onClick={() => setSelected(th.id)}
+                  key={f}
+                  role="tab"
+                  aria-selected={filter === f}
+                  onClick={() => setFilter(f)}
                   className={cn(
-                    "w-full px-3 py-2 text-start hover:bg-muted",
-                    selected === th.id && "bg-muted",
+                    "flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-1.5 text-xs font-semibold whitespace-nowrap transition-[background-color,color,box-shadow] duration-200",
+                    filter === f
+                      ? "bg-primary text-primary-foreground shadow-[0_0_14px_0_var(--color-glow)]"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <div className="flex items-center gap-2 text-sm">
-                    <span aria-hidden>{CHANNEL_ICON[th.channel] ?? "•"}</span>
+                  {text}
+                  {n ? (
                     <span
-                      className={cn("flex-1 truncate", th.unread > 0 && "font-semibold")}
-                      dir="auto"
+                      className={cn(
+                        "tabular rounded-full px-1.5 text-[10px]",
+                        filter === f ? "bg-primary-foreground/20" : "bg-primary/15 text-primary",
+                      )}
                     >
-                      {label(th)}
+                      {n}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {format.relativeTime(new Date(th.lastMessageAt))}
-                    </span>
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1">
-                    <span className="flex-1 truncate text-xs text-muted-foreground" dir="auto">
-                      {th.subject ?? th.lastPreview}
-                    </span>
-                    {th.needsHuman ? <Badge tone="warning">{t("wantsPerson")}</Badge> : null}
-                    {th.mode === "human" ? <Badge>{t("human")}</Badge> : null}
-                    {th.unread > 0 ? <Badge tone="primary">{th.unread}</Badge> : null}
-                  </div>
+                  ) : null}
                 </button>
+              ))}
+            </div>
+          </div>
+          <ul className="flex-1 space-y-1 overflow-y-auto p-2" data-testid="inbox-threads">
+            {threads.length === 0 ? (
+              <li>
+                <EmptyState icon={InboxIcon} title={t("empty")} className="py-16" />
               </li>
-            ))}
+            ) : null}
+            {threads.map((th) => {
+              const active = selected === th.id;
+              return (
+                <li key={th.id}>
+                  <button
+                    onClick={() => setSelected(th.id)}
+                    aria-current={active ? "true" : undefined}
+                    className={cn(
+                      "relative flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-start transition-[background-color,border-color,box-shadow] duration-200",
+                      active
+                        ? "border-primary/40 bg-primary/10 shadow-[0_0_24px_-10px_var(--color-glow)]"
+                        : "border-transparent hover:border-border hover:bg-muted/60",
+                      th.needsHuman && !active && "border-warning/30",
+                    )}
+                  >
+                    {active ? (
+                      <span
+                        aria-hidden
+                        className="absolute inset-y-2 start-0 w-0.5 rounded-full bg-primary shadow-[0_0_8px_var(--color-primary)]"
+                      />
+                    ) : null}
+                    <span className="relative shrink-0">
+                      <Avatar name={label(th)} />
+                      <ChannelDot
+                        channel={th.channel}
+                        size="sm"
+                        glow={false}
+                        className="absolute -end-1.5 -bottom-1.5 size-5 border-2 border-surface [&_svg]:size-2.5"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 text-sm">
+                        <span
+                          className={cn("flex-1 truncate", th.unread > 0 && "font-semibold")}
+                          dir="auto"
+                        >
+                          {label(th)}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          {format.relativeTime(new Date(th.lastMessageAt), now)}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "mt-0.5 block truncate text-xs",
+                          th.unread > 0 ? "text-foreground/80" : "text-muted-foreground",
+                        )}
+                        dir="auto"
+                      >
+                        {th.subject ?? th.lastPreview}
+                      </span>
+                      {th.needsHuman || th.mode === "human" || th.unread > 0 ? (
+                        <span className="mt-1.5 flex flex-wrap items-center gap-1">
+                          {th.needsHuman ? (
+                            <StatusPill tone="warning" icon={Hand} label={t("wantsPerson")} live />
+                          ) : null}
+                          {th.mode === "human" ? (
+                            <StatusPill tone="secondary" icon={Headset} label={t("human")} />
+                          ) : null}
+                          {th.unread > 0 ? (
+                            <span className="tabular ms-auto flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground shadow-[0_0_10px_0_var(--color-glow)]">
+                              {th.unread}
+                            </span>
+                          ) : null}
+                        </span>
+                      ) : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
+          <p className="hidden items-center gap-1.5 border-t border-border px-3 py-2 text-[11px] text-muted-foreground lg:flex">
+            <Keyboard className="size-3.5" aria-hidden />
+            <Kbd>J</Kbd>
+            <Kbd>K</Kbd>
+            {t("shortcutMove")}
+            <span className="mx-1">·</span>
+            <Kbd>R</Kbd>
+            {t("shortcutReply")}
+          </p>
         </Card>
 
-        <Card className="flex h-[640px] flex-col p-0">
+        <Card className="flex h-[640px] flex-col overflow-hidden p-0 lg:h-[680px]">
           {!detail ? (
-            <p className="p-6 text-sm text-muted-foreground">{t("pick")}</p>
+            <EmptyState
+              icon={MessagesSquare}
+              title={t("pick")}
+              className="m-auto"
+              description={
+                <span className="hidden items-center gap-1.5 lg:inline-flex">
+                  <Kbd>J</Kbd>
+                  <Kbd>K</Kbd>
+                  {t("shortcutMove")}
+                </span>
+              }
+            />
           ) : (
             <>
-              <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
-                <span aria-hidden>{CHANNEL_ICON[detail.thread.channel]}</span>
-                <span className="font-medium" dir="auto">
-                  {detail.thread.name ?? detail.thread.externalId ?? t("visitor")}
+              <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+                <span className="relative shrink-0">
+                  <Avatar
+                    name={detail.thread.name ?? detail.thread.externalId ?? t("visitor")}
+                    size="lg"
+                  />
+                  <ChannelDot
+                    channel={detail.thread.channel}
+                    size="sm"
+                    className="absolute -end-1 -bottom-1 border-2 border-surface"
+                  />
                 </span>
-                {detail.contact ? (
-                  <Link
-                    href={`/t/${props.tenantId}/contacts/${detail.contact.id}`}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    {t("contact")}
-                  </Link>
-                ) : null}
-                {detail.conversation?.records.map((r) => (
-                  <Badge key={r.reference} className="font-mono">
-                    {r.reference}
-                  </Badge>
-                ))}
-                <span className="ms-auto flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-base font-semibold" dir="auto">
+                    {detail.thread.name ?? detail.thread.externalId ?? t("visitor")}
+                  </p>
+                  <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span>{channelName(detail.thread.channel)}</span>
+                    {detail.contact ? (
+                      <Link
+                        href={`/t/${props.tenantId}/contacts/${detail.contact.id}`}
+                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      >
+                        <UserRound className="size-3" aria-hidden />
+                        {t("contact")}
+                      </Link>
+                    ) : null}
+                    {detail.conversation?.records.map((r) => (
+                      <Badge key={r.reference} tone="secondary" className="font-mono">
+                        {r.reference}
+                      </Badge>
+                    ))}
+                  </p>
+                </div>
+                <span className="flex items-center gap-2">
                   {detail.thread.mode === "human" ? (
                     <>
-                      <Badge>{t("youHaveIt")}</Badge>
+                      <StatusPill tone="secondary" icon={Headset} label={t("youHaveIt")} />
                       {props.canReply ? (
                         <Button
                           size="sm"
@@ -291,15 +448,17 @@ export function InboxView(props: {
                           disabled={busy}
                           onClick={() => void act("handback")}
                         >
+                          <Bot aria-hidden />
                           {t("handBack")}
                         </Button>
                       ) : null}
                     </>
                   ) : (
                     <>
-                      <Badge tone="success">{t("assistantReplying")}</Badge>
+                      <StatusPill tone="success" icon={Bot} label={t("assistantReplying")} live />
                       {props.canReply ? (
                         <Button size="sm" disabled={busy} onClick={() => void act("takeover")}>
+                          <Hand aria-hidden />
                           {t("takeOver")}
                         </Button>
                       ) : null}
@@ -307,73 +466,98 @@ export function InboxView(props: {
                   )}
                 </span>
               </div>
-              <div className="flex-1 space-y-2 overflow-y-auto p-4" data-testid="inbox-transcript">
-                {detail.messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className={cn("flex", m.role === "caller" ? "justify-start" : "justify-end")}
-                  >
+              <div
+                className="flex-1 space-y-3 overflow-y-auto bg-[radial-gradient(ellipse_at_top,color-mix(in_srgb,var(--color-primary)_6%,transparent),transparent_60%)] p-4"
+                data-testid="inbox-transcript"
+              >
+                {detail.messages.map((m, i) => {
+                  const customer = m.role === "caller";
+                  const who = customer
+                    ? t("customer")
+                    : m.human
+                      ? (m.authorName ?? t("team"))
+                      : t("assistant");
+                  return (
                     <div
-                      dir="auto"
+                      key={i}
                       className={cn(
-                        "max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                        m.role === "caller"
-                          ? "border border-border bg-muted"
-                          : m.human
-                            ? "bg-primary text-primary-foreground"
-                            : m.draft
-                              ? "border border-dashed border-warning/60 bg-warning/5"
-                              : "border border-primary/30 bg-primary/5",
-                        m.discarded && "opacity-50",
+                        "flex items-end gap-2",
+                        customer ? "justify-start" : "justify-end",
                       )}
-                      data-testid={m.draft ? "inbox-draft" : undefined}
                     >
-                      <span className="mb-0.5 block text-[11px] opacity-70">
-                        {m.role === "caller"
-                          ? t("customer")
-                          : m.human
-                            ? (m.authorName ?? t("team"))
-                            : t("assistant")}{" "}
-                        · {format.dateTime(new Date(m.createdAt), { timeStyle: "short" })}
-                        {m.draft ? ` · ${t("draft")}` : m.discarded ? ` · ${t("discarded")}` : null}
-                      </span>
-                      {m.draft && draftEdit !== null ? (
-                        <textarea
-                          aria-label={t("editDraft")}
-                          className="h-40 w-full min-w-[320px] rounded border border-border bg-background p-2 text-sm"
-                          value={draftEdit}
-                          onChange={(e) => setDraftEdit(e.target.value)}
+                      {customer ? (
+                        <Avatar
+                          name={detail.thread.name ?? detail.thread.externalId ?? t("visitor")}
+                          size="sm"
                         />
-                      ) : (
-                        m.text
-                      )}
-                      {m.draft && !detail.thread.canEmailReply ? (
-                        <span className="mt-2 block text-xs text-muted-foreground">
-                          {t("noEmail")}
-                        </span>
                       ) : null}
-                      {m.draft && props.canReply && detail.thread.canEmailReply ? (
-                        <span className="mt-2 flex gap-2">
-                          <Button
-                            size="sm"
-                            disabled={busy || draftEdit?.trim() === ""}
-                            onClick={() => void sendDraft(draftEdit ?? m.text)}
-                          >
-                            {t("approveSend")}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={busy}
-                            onClick={() => setDraftEdit(draftEdit === null ? m.text : null)}
-                          >
-                            {draftEdit === null ? t("editDraft") : t("cancelEdit")}
-                          </Button>
+                      <div
+                        dir="auto"
+                        className={cn(
+                          "max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap",
+                          customer
+                            ? "rounded-es-md border border-border bg-surface"
+                            : m.human
+                              ? "rounded-ee-md bg-[linear-gradient(135deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_75%,var(--color-secondary)))] text-primary-foreground shadow-[0_6px_24px_-10px_var(--color-glow)]"
+                              : m.draft
+                                ? "rounded-ee-md border border-dashed border-warning/60 bg-warning/8"
+                                : "rounded-ee-md border border-primary/30 bg-primary/8",
+                          m.discarded && "opacity-50",
+                        )}
+                        data-testid={m.draft ? "inbox-draft" : undefined}
+                      >
+                        <span className="mb-1 flex items-center gap-1.5 text-[11px] opacity-75">
+                          {!customer && !m.human ? (
+                            <Sparkles className="size-3" aria-hidden />
+                          ) : m.draft ? (
+                            <PenLine className="size-3" aria-hidden />
+                          ) : null}
+                          {who} · {format.dateTime(new Date(m.createdAt), { timeStyle: "short" })}
+                          {m.draft
+                            ? ` · ${t("draft")}`
+                            : m.discarded
+                              ? ` · ${t("discarded")}`
+                              : null}
                         </span>
-                      ) : null}
+                        {m.draft && draftEdit !== null ? (
+                          <Textarea
+                            aria-label={t("editDraft")}
+                            className="h-40 w-full min-w-[280px]"
+                            value={draftEdit}
+                            onChange={(e) => setDraftEdit(e.target.value)}
+                          />
+                        ) : (
+                          m.text
+                        )}
+                        {m.draft && !detail.thread.canEmailReply ? (
+                          <span className="mt-2 block text-xs text-muted-foreground">
+                            {t("noEmail")}
+                          </span>
+                        ) : null}
+                        {m.draft && props.canReply && detail.thread.canEmailReply ? (
+                          <span className="mt-2 flex gap-2">
+                            <Button
+                              size="sm"
+                              disabled={busy || draftEdit?.trim() === ""}
+                              onClick={() => void sendDraft(draftEdit ?? m.text)}
+                            >
+                              <Send aria-hidden />
+                              {t("approveSend")}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy}
+                              onClick={() => setDraftEdit(draftEdit === null ? m.text : null)}
+                            >
+                              {draftEdit === null ? t("editDraft") : t("cancelEdit")}
+                            </Button>
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={bottom} />
               </div>
               {error ? (
@@ -384,9 +568,10 @@ export function InboxView(props: {
               {props.canReply ? (
                 <form
                   onSubmit={(e) => void reply(e)}
-                  className="flex gap-2 border-t border-border p-3"
+                  className="flex items-center gap-2 border-t border-border p-3"
                 >
                   <Input
+                    ref={replyInput}
                     name="text"
                     dir="auto"
                     autoComplete="off"
@@ -395,8 +580,10 @@ export function InboxView(props: {
                       detail.thread.mode === "human" ? t("replyPlaceholder") : t("replyTakesOver")
                     }
                     disabled={busy}
+                    className="h-11 rounded-full px-4"
                   />
-                  <Button type="submit" disabled={busy}>
+                  <Button type="submit" disabled={busy} shape="pill" className="h-11 px-5">
+                    <Send aria-hidden />
                     {t("send")}
                   </Button>
                 </form>

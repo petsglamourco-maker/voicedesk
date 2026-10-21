@@ -10,13 +10,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type {
+  ComponentProps,
   ButtonHTMLAttributes,
   HTMLAttributes,
-  InputHTMLAttributes,
   LabelHTMLAttributes,
   ReactNode,
   SelectHTMLAttributes,
-  TextareaHTMLAttributes,
 } from "react";
 import { cn } from "./cn";
 
@@ -77,11 +76,11 @@ export function Button({
 
 const fieldBase = `block w-full rounded-md border border-input/60 bg-[color-mix(in_srgb,var(--color-surface)_65%,transparent)] px-3 text-[15px] text-foreground placeholder:text-muted-foreground transition-[border-color,box-shadow] duration-200 hover:border-input focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-primary)_22%,transparent),0_0_20px_0_var(--color-glow)] focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-danger aria-[invalid=true]:focus-visible:shadow-[0_0_0_3px_color-mix(in_srgb,var(--color-danger)_25%,transparent)]`;
 
-export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cn(fieldBase, "h-10", className)} {...props} />;
 }
 
-export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (
     <textarea className={cn(fieldBase, "min-h-24 py-2.5 leading-relaxed", className)} {...props} />
   );

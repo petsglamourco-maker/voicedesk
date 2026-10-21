@@ -75,6 +75,7 @@ export default async function FeedbackPage(props: {
   const shell = await getTranslations("shell");
   const channels = await getTranslations("dashboard.touchpoint");
   const format = await getFormatter();
+  const now = new Date();
   const o = data.overall;
   const pct = (v: number | null) => (v === null ? t("noData") : `${v}%`);
   const channelName = (c: string) =>
@@ -229,7 +230,7 @@ export default async function FeedbackPage(props: {
                     {f.comment}
                   </span>
                   <span className="text-xs text-muted-foreground">
-                    {format.relativeTime(new Date(f.answeredAt))}
+                    {format.relativeTime(new Date(f.answeredAt), now)}
                   </span>
                 </li>
               );
