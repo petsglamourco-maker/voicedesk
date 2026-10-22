@@ -589,6 +589,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       new ServerOptions({
         agent: fileURLToPath(import.meta.url),
         agentName: AGENT_NAME,
+        // Keep reconnecting (every 10 s) through internet or DNS drops instead of giving up
+        // after ~90 s (the default 10 tries); a phone line must come back on its own.
+        maxRetry: 100_000,
         // Health check: GET http://localhost:4200/
         port: Number(process.env.VOICE_AGENT_PORT ?? 4200),
       }),
