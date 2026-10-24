@@ -1,5 +1,6 @@
 import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { isIP } from "node:net";
+import { isPublicAddress } from "@voicedesk/adapters/net";
 import { Agent, fetch, type Dispatcher } from "undici";
 
 /**
@@ -17,46 +18,8 @@ export class BlockedUrlError extends Error {
   }
 }
 
-const V4_BLOCKED: Array<[string, number]> = [
-  ["0.0.0.0", 8],
-  ["10.0.0.0", 8],
-  ["100.64.0.0", 10],
-  ["127.0.0.0", 8],
-  ["169.254.0.0", 16],
-  ["172.16.0.0", 12],
-  ["192.0.0.0", 24],
-  ["192.0.2.0", 24],
-  ["192.168.0.0", 16],
-  ["198.18.0.0", 15],
-  ["198.51.100.0", 24],
-  ["203.0.113.0", 24],
-  ["224.0.0.0", 4],
-  ["240.0.0.0", 4],
-];
-
-function v4ToInt(ip: string): number {
-  return ip.split(".").reduce((n, octet) => (n << 8) + Number(octet), 0) >>> 0;
-}
-
-export function isPublicAddress(ip: string): boolean {
-  const family = isIP(ip);
-  if (family === 4) {
-    const n = v4ToInt(ip);
-    return !V4_BLOCKED.some(([base, bits]) => {
-      const mask = bits === 0 ? 0 : (~0 << (32 - bits)) >>> 0;
-      return (n & mask) === (v4ToInt(base) & mask);
-    });
-  }
-  if (family === 6) {
-    const lower = ip.toLowerCase();
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(lower);
-    if (mapped) return isPublicAddress(mapped[1]!);
-    if (lower === "::" || lower === "::1") return false;
-    // fc00::/7 unique-local, fe80::/10 link-local, ff00::/8 multicast
-    return !/^(f[cd]|fe[89ab]|ff)/.test(lower);
-  }
-  return false;
-}
+/** Shared SSRF address check (also used for mailbox hosts). */
+export { isPublicAddress };
 
 export interface SafeFetchOptions {
   /** Test-only escape hatch: allow these exact hostnames even if they resolve privately. */

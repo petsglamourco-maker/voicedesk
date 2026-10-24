@@ -2,6 +2,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
 import nodemailer from "nodemailer";
 import { ProviderError } from "../errors";
+import { resolvePublicHost } from "../net/public-address";
 
 /**
  * A business's own support mailbox (Phase 4, ADR 0017): read new mail over IMAP and reply
@@ -90,30 +91,41 @@ function firstAddress(addr: AddressObject | AddressObject[] | undefined) {
 export class ImapMailbox implements MailboxClient {
   constructor(private readonly creds: MailboxCredentials) {}
 
-  private imap() {
+  // Hosts are business-supplied: connect only to a public address (SSRF, security audit H2),
+  // pinned to the IP that was checked, with the name kept for TLS. Never send the password
+  // unencrypted: STARTTLS is required when the port isn't TLS from the start.
+  private async imap() {
+    const { address } = await resolvePublicHost(this.creds.imap.host);
     return new ImapFlow({
-      host: this.creds.imap.host,
+      host: address,
+      servername: this.creds.imap.host,
       port: this.creds.imap.port,
       secure: this.creds.imap.secure,
+      doSTARTTLS: this.creds.imap.secure ? undefined : true,
       auth: { user: this.creds.username, pass: this.creds.password },
       logger: false,
       socketTimeout: 30_000,
     });
   }
 
-  private smtp() {
+  private async smtp() {
+    const { address } = await resolvePublicHost(this.creds.smtp.host);
     return nodemailer.createTransport({
-      host: this.creds.smtp.host,
+      host: address,
       port: this.creds.smtp.port,
       secure: this.creds.smtp.secure,
+      requireTLS: !this.creds.smtp.secure,
+      tls: { servername: this.creds.smtp.host },
       auth: { user: this.creds.username, pass: this.creds.password },
       connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
+      socketTimeout: 30_000,
     });
   }
 
   async verify(): Promise<void> {
-    const client = this.imap();
     try {
+      const client = await this.imap();
       await client.connect();
       await client.logout();
     } catch (error) {
@@ -123,7 +135,7 @@ export class ImapMailbox implements MailboxClient {
       });
     }
     try {
-      await this.smtp().verify();
+      await (await this.smtp()).verify();
     } catch (error) {
       throw new ProviderError(PROVIDER, `SMTP login failed: ${(error as Error).message}`, {
         cause: error,
@@ -137,7 +149,7 @@ export class ImapMailbox implements MailboxClient {
     lastUid: number,
     uidValidity: number | null,
   ): Promise<FetchResult> {
-    const client = this.imap();
+    const client = await this.imap();
     await client.connect();
     const lock = await client.getMailboxLock(folder);
     try {
@@ -205,7 +217,9 @@ export class ImapMailbox implements MailboxClient {
   }
 
   async send(message: OutgoingEmail): Promise<{ messageId: string }> {
-    const info = await this.smtp().sendMail({
+    const info = await (
+      await this.smtp()
+    ).sendMail({
       from: { name: message.fromName, address: this.creds.username },
       to: message.to,
       subject: message.subject,

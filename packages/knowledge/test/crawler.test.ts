@@ -20,6 +20,17 @@ describe("isPublicAddress", () => {
     ["fe80::1", false],
     ["fd00::1", false],
     ["::ffff:127.0.0.1", false],
+    // Bypass forms (security audit 2026-10-24, C3): hex IPv4-mapped, NAT64, 6to4, Teredo,
+    // IPv4-compatible and the 6to4 relay range must all be blocked.
+    ["::ffff:7f00:1", false],
+    ["::ffff:a9fe:a9fe", false],
+    ["::ffff:c0a8:101", false],
+    ["64:ff9b::7f00:1", false],
+    ["2002:7f00:1::1", false],
+    ["2001:0:4136:e378::1", false],
+    ["::7f00:1", false],
+    ["192.88.99.1", false],
+    ["::ffff:8.8.8.8", true],
     ["2606:4700::1111", true],
   ])("%s → %s", (ip, expected) => {
     expect(isPublicAddress(ip)).toBe(expected);
@@ -70,6 +81,12 @@ beforeAll(async () => {
       case "/moved":
         res.writeHead(301, { location: "/about" });
         return res.end();
+      case "/to-mapped": {
+        // A public page redirecting to an internal address written as hex IPv4-mapped IPv6.
+        const port = (server.address() as AddressInfo).port;
+        res.writeHead(302, { location: `http://[::ffff:7f00:1]:${port}/private/admin` });
+        return res.end();
+      }
       default:
         return send(404, "text/html", "not found");
     }
@@ -88,6 +105,11 @@ describe("safe fetcher", () => {
     await expect(safeFetch(`http://localhost:${port}/`)).rejects.toThrow();
     await expect(safeFetch("file:///etc/passwd")).rejects.toThrow(BlockedUrlError);
     await expect(safeFetch("http://user:pass@example.com/")).rejects.toThrow(BlockedUrlError);
+  });
+
+  it("blocks a redirect to an internal address in IPv4-mapped IPv6 form", async () => {
+    const safeFetch = createSafeFetcher({ allowPrivateHosts: ["127.0.0.1"] });
+    await expect(safeFetch(`${base}/to-mapped`)).rejects.toThrow(BlockedUrlError);
   });
 
   it("enforces the response size cap", async () => {
