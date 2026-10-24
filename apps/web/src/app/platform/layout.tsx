@@ -7,7 +7,7 @@ import { getMe } from "@/lib/api";
 /** Platform-owner area. Anyone else gets a 404, matching the API. */
 export default async function PlatformLayout({ children }: { children: ReactNode }) {
   const me = await getMe();
-  if (!me) redirect("/sign-in?redirect=/platform/ai");
+  if (!me) redirect("/sign-in?redirect=/platform/setup");
   if (!me.user.isPlatformOwner) notFound();
   const t = await getTranslations("platform");
   const back = me.activeTenantId ?? me.tenants[0]?.tenantId;
@@ -20,7 +20,9 @@ export default async function PlatformLayout({ children }: { children: ReactNode
         { href: "/platform/ai", label: t("aiProviders") },
         { href: "/platform/phone-numbers", label: t("phoneNumbers") },
         { href: "/platform/vas", label: t("vas") },
+        { href: "/platform/support", label: t("support") },
       ]}
+      helpTenantId={back}
       back={back ? { href: `/t/${back}`, label: t("backToBusiness") } : null}
     >
       {children}

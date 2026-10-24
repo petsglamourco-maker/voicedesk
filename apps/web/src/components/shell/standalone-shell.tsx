@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { BrandMark } from "../brand-mark";
+import { HelpWidget } from "../help/help-widget";
 
 /**
  * Frame for screens outside a business (VA console, Platform admin): aurora background and a
@@ -17,6 +18,8 @@ export function StandaloneShell(props: {
   navLabel?: string;
   back?: { href: string; label: string } | null;
   end?: ReactNode;
+  /** Business the Help assistant answers for (the person's active one), if any. */
+  helpTenantId?: string;
   children: ReactNode;
 }) {
   const pathname = usePathname();
@@ -66,6 +69,7 @@ export function StandaloneShell(props: {
       <main id="main" className="stagger mx-auto max-w-6xl space-y-6 px-4 py-8">
         {props.children}
       </main>
+      <HelpWidget tenantId={props.helpTenantId} />
     </div>
   );
 }

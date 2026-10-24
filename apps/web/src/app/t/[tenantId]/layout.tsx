@@ -19,6 +19,7 @@ export default async function TenantLayout(props: {
   const t = await getTranslations("tenant");
   const s = await getTranslations("shell");
   const common = await getTranslations("common");
+  const help = await getTranslations("help");
   const jar = await cookies();
   const base = `/t/${tenantId}`;
 
@@ -97,6 +98,7 @@ export default async function TenantLayout(props: {
         themes: { dark: s("themes.dark"), light: s("themes.light"), system: s("themes.system") },
         vaConsole: t("vaConsole"),
         platformAdmin: t("platformAdmin"),
+        help: help("palette"),
         signOut: common("signOut"),
         notifications: s("notifications"),
         palette: {

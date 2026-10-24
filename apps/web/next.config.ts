@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source.
   transpilePackages: ["@voicedesk/ui", "@voicedesk/auth"],
   poweredByHeader: false,
+  // Keep the dev badge away from the Help button (bottom-right).
+  devIndicators: { position: "bottom-left" },
   // The browser only ever talks to this origin; /api/* is proxied to the API service, so
   // auth cookies are first-party and no CORS is needed.
   rewrites() {

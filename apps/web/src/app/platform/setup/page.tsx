@@ -6,6 +6,7 @@ import {
   CircleDashed,
   Globe2,
   Laptop,
+  LifeBuoy,
   Mail,
   MailOpen,
   MessageSquareText,
@@ -53,7 +54,10 @@ const TONE: Record<State, [StatusTone, LucideIcon, string]> = {
 
 /** Platform admin → Setup: which features are ready and what each still needs (names only). */
 export default async function SetupPage() {
-  const data = await apiGetOrNull<{ items: SetupItem[] }>("/api/platform/setup");
+  const [data, support] = await Promise.all([
+    apiGetOrNull<{ items: SetupItem[] }>("/api/platform/setup"),
+    apiGetOrNull<{ requests: unknown[] }>("/api/platform/support-requests?status=open"),
+  ]);
   if (!data) notFound();
   const t = await getTranslations("setup");
   const platform = await getTranslations("platform");
@@ -88,6 +92,12 @@ export default async function SetupPage() {
           label={t("offCount")}
           value={count("off")}
           color="var(--color-warning)"
+        />
+        <HeroStat
+          icon={<LifeBuoy />}
+          label={t("openSupport")}
+          value={support?.requests.length ?? 0}
+          color="var(--color-accent)"
         />
       </PageHero>
 

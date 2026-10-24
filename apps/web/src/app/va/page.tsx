@@ -20,6 +20,7 @@ export default async function VaPage(props: {
     <StandaloneShell
       badge={t("badge")}
       back={back ? { href: `/t/${back}`, label: t("backToBusiness") } : null}
+      helpTenantId={back}
       end={<span className="hidden text-sm text-muted-foreground sm:inline">{me.user.name}</span>}
     >
       <VaConsole

@@ -194,7 +194,7 @@
     "generateTimeout": "Generation is taking longer than expected. Refresh the page in a minute.",
     "savedNotice": "Draft saved.",
     "approvedNotice": "Approved. The assistant now uses this profile.",
-    "aiUnavailable": "AI generation needs an Anthropic API key. You can still fill in the profile by hand.",
+    "aiUnavailable": "AI generation is off because no AI provider is switched on (Platform admin → AI providers). You can still fill in the profile by hand.",
     "changed": "Differs from live",
     "basics": "Basics",
     "businessName": "Business name",
@@ -402,7 +402,8 @@
     "failed": "Something went wrong.",
     "phoneNumbers": "Phone numbers",
     "vas": "VAs",
-    "setup": "Setup"
+    "setup": "Setup",
+    "support": "Support requests"
   },
   "voice": {
     "ended": "Call ended",
@@ -1272,6 +1273,51 @@
         "unlocks": "Website chat on real websites, and hosted forms and rating links that customers can open.",
         "how": "Host VoiceDesk on a server with your own domain (part of Phase 7). Until then it runs on this computer only."
       }
-    }
+    },
+    "openSupport": "Open support requests"
+  },
+  "help": {
+    "title": "VoiceDesk Help",
+    "subtitle": "Answers about using VoiceDesk",
+    "helpingWith": "Helping with: {page}",
+    "open": "Open help",
+    "close": "Close help",
+    "newChat": "New chat",
+    "intro": "Hi! Ask me anything about VoiceDesk: setting something up, fixing a problem, or getting more out of it.",
+    "tryAsking": "Try asking",
+    "placeholder": "Ask anything about VoiceDesk…",
+    "send": "Ask",
+    "thinking": "Thinking…",
+    "articlesMode": "AI answers are off, so here are the matching help articles.",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "thanks": "Thanks for the feedback.",
+    "contact": "Contact support",
+    "contactTitle": "Contact the VoiceDesk team",
+    "contactHint": "Tell us what's wrong or what you need. We'll reply by email.",
+    "messageLabel": "Your message",
+    "includeChat": "Include this help conversation",
+    "sendRequest": "Send to support",
+    "cancel": "Cancel",
+    "sent": "Sent. We'll reply by email.",
+    "backToChat": "Back to chat",
+    "privacy": "Answers come from VoiceDesk help. Don't share customers' personal details here.",
+    "error": "Help isn't available right now. Please try again.",
+    "palette": "Help & support"
+  },
+  "supportRequests": {
+    "title": "Support requests",
+    "subtitle": "Questions people sent with Contact support in the Help assistant. Reply by email, then mark them resolved.",
+    "open": "Open",
+    "resolved": "Resolved",
+    "empty": "No support requests yet",
+    "emptyHint": "When someone uses Contact support in the Help assistant, it appears here and is emailed to you.",
+    "chat": "Help conversation they shared ({n} messages)",
+    "them": "They asked",
+    "assistant": "Help replied",
+    "reply": "Reply by email",
+    "replySubject": "Your VoiceDesk support request",
+    "markResolved": "Mark resolved",
+    "reopen": "Reopen"
   }
 }

@@ -2,7 +2,15 @@
 
 import { Dialog, DialogContent } from "@voicedesk/ui";
 import { Command } from "cmdk";
-import { Building2, CornerDownLeft, ExternalLink, Monitor, Moon, Sun } from "lucide-react";
+import {
+  Building2,
+  CornerDownLeft,
+  ExternalLink,
+  LifeBuoy,
+  Monitor,
+  Moon,
+  Sun,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Theme } from "@/lib/theme";
 import type { NavGroup } from "./app-shell";
@@ -24,6 +32,8 @@ export function CommandPalette(props: {
   };
   themeLabels: Record<Theme, string>;
   onTheme: (theme: Theme) => void;
+  onHelp: () => void;
+  helpLabel: string;
   extra: Array<{ label: string; href: string }>;
 }) {
   const router = useRouter();
@@ -99,6 +109,17 @@ export function CommandPalette(props: {
               </Command.Group>
             ) : null}
             <Command.Group heading={props.labels.actions} className={headingClass}>
+              <Command.Item
+                value={`help support ${props.helpLabel}`}
+                onSelect={() => {
+                  props.onOpenChange(false);
+                  props.onHelp();
+                }}
+                className={itemClass}
+              >
+                <LifeBuoy aria-hidden />
+                {props.helpLabel}
+              </Command.Item>
               {(
                 [
                   ["dark", Moon],

@@ -36,6 +36,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { authClient } from "@/lib/auth-client";
 import { THEME_COOKIE, type Theme } from "@/lib/theme";
+import { HELP_OPEN_EVENT, HelpWidget } from "../help/help-widget";
 import { CommandPalette } from "./command-palette";
 import { NAV_ICONS, type NavIcon } from "./icons";
 import { Notifications } from "./notifications";
@@ -62,6 +63,7 @@ export interface ShellLabels {
   themes: Record<Theme, string>;
   vaConsole: string;
   platformAdmin: string;
+  help: string;
   signOut: string;
   notifications: string;
   palette: {
@@ -339,7 +341,7 @@ export function AppShell(props: {
                   </DropdownMenuItem>
                   {props.user.isPlatformOwner ? (
                     <DropdownMenuItem asChild>
-                      <Link href="/platform/ai">
+                      <Link href="/platform/setup">
                         <Shield />
                         {labels.platformAdmin}
                       </Link>
@@ -369,13 +371,16 @@ export function AppShell(props: {
         labels={labels.palette}
         themeLabels={labels.themes}
         onTheme={changeTheme}
+        onHelp={() => window.dispatchEvent(new Event(HELP_OPEN_EVENT))}
+        helpLabel={labels.help}
         extra={[
           { label: labels.vaConsole, href: "/va" },
           ...(props.user.isPlatformOwner
-            ? [{ label: labels.platformAdmin, href: "/platform/ai" }]
+            ? [{ label: labels.platformAdmin, href: "/platform/setup" }]
             : []),
         ]}
       />
+      <HelpWidget tenantId={props.tenantId} />
     </div>
   );
 }
