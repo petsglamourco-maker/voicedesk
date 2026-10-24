@@ -14,6 +14,7 @@ import {
 import type { TextChannel } from "@voicedesk/agent-brain";
 import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
+import { registerOriginCheck } from "./lib/origin-check";
 import { registerAgentRoutes } from "./routes/agent";
 import { registerConversationRoutes } from "./routes/conversations";
 import { registerPlatformAudit, registerPlatformRoutes } from "./routes/platform";
@@ -35,6 +36,7 @@ import { registerWhatsAppRoutes, whatsAppSender } from "./routes/whatsapp";
 import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { registerFormRoutes } from "./routes/forms";
 import { registerVaRoutes } from "./routes/va";
+import { registerCspReportRoute } from "./routes/csp-report";
 import { registerOutboundRoutes } from "./routes/outbound";
 import { registerSpendRoutes } from "./routes/spend";
 import { registerFeedbackRoutes } from "./routes/feedback";
@@ -106,6 +108,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
+  registerOriginCheck(app, deps.webOrigin ?? "http://localhost:3000");
   registerPlatformAudit(app, deps);
 
   // Shared across API processes (Valkey). Signed-in traffic is counted per session, so an
@@ -154,6 +157,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerVaRoutes(app, deps);
   registerOutboundRoutes(app, deps);
   registerSpendRoutes(app, deps);
+  registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);
   registerHelpRoutes(app, deps);

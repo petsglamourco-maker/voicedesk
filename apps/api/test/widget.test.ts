@@ -98,6 +98,7 @@ describe("public website chat", () => {
       const res = await h.app.inject({
         method: "POST",
         url: `/api/public/chat/${key}/session`,
+        headers: { origin: ORIGIN },
         payload,
       });
       expect(res.statusCode, JSON.stringify(payload)).toBe(403);
@@ -114,6 +115,7 @@ describe("public website chat", () => {
     const session = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
+      headers: { origin: ORIGIN },
       payload: { token: await widgetToken(h, key) },
     });
     const { visitorId, messages } = session.json<{ visitorId: string; messages: unknown[] }>();
@@ -124,6 +126,7 @@ describe("public website chat", () => {
     const res = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/messages`,
+      headers: { origin: ORIGIN },
       payload: {
         visitorId,
         token: await widgetToken(h, key),
@@ -153,6 +156,7 @@ describe("public website chat", () => {
     const resumed = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
+      headers: { origin: ORIGIN },
       payload: { token: await widgetToken(h, key), visitorId },
     });
     expect(
@@ -165,6 +169,7 @@ describe("public website chat", () => {
       await h.app.inject({
         method: "POST",
         url: `/api/public/chat/${key}/session`,
+        headers: { origin: ORIGIN },
         payload: { token: await widgetToken(h, key) },
       })
     ).json<{ visitorId: string }>();
@@ -172,6 +177,7 @@ describe("public website chat", () => {
       const res = await h.app.inject({
         method: "POST",
         url: `/api/public/chat/${key}/messages`,
+        headers: { origin: ORIGIN },
         payload: {
           visitorId,
           token: await widgetToken(h, key),

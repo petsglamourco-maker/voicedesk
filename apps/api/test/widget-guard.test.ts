@@ -47,6 +47,7 @@ const session = async (body: Record<string, unknown>) =>
   h.app.inject({
     method: "POST",
     url: `/api/public/chat/${key}/session`,
+    headers: { origin: ORIGIN },
     payload: { token: await widgetToken(h, key), ...body },
   });
 
@@ -87,6 +88,7 @@ describe("bot check (Turnstile) when switched on", () => {
     const sent = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/messages`,
+      headers: { origin: ORIGIN },
       payload: { visitorId, token: await widgetToken(h, key), text: "Hi", typedMs: 4000 },
     });
     expect(sent.statusCode).toBe(200);
@@ -95,6 +97,7 @@ describe("bot check (Turnstile) when switched on", () => {
     const stranger = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/messages`,
+      headers: { origin: ORIGIN },
       payload: {
         visitorId: "x".repeat(24),
         token: await widgetToken(h, key),

@@ -16,3 +16,10 @@ export {
   type SafeFetch,
 } from "./safe-fetch";
 export { cleanText, contentHash, detectLanguage, estimateTokens } from "./text";
+export {
+  CONTENT_TYPES,
+  contentMatches,
+  FileRejectedError,
+  MAX_PDF_PAGES,
+  zipSummary,
+} from "./file-safety";

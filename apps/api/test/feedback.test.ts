@@ -38,6 +38,7 @@ describe("feedback", () => {
     const res = await h.app.inject({
       method: "POST",
       url: `/api/public/feedback/${s.token}`,
+      headers: { origin: ORIGIN },
       payload: { score: 1 },
     });
     expect(res.json()).toEqual({ thanks: "Thank you for your feedback!", low: true });
@@ -48,6 +49,7 @@ describe("feedback", () => {
     await h.app.inject({
       method: "POST",
       url: `/api/public/feedback/${s.token}`,
+      headers: { origin: ORIGIN },
       payload: { score: 5, comment: "Kept me waiting" },
     });
     const again = await h.app.inject({ method: "GET", url: `/api/public/feedback/${s.token}` });
@@ -65,6 +67,7 @@ describe("feedback", () => {
     await h.app.inject({
       method: "POST",
       url: `/api/public/feedback/${good.token}`,
+      headers: { origin: ORIGIN },
       payload: { score: 5 },
     });
     const res = await h.app.inject({

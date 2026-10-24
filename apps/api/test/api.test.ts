@@ -24,8 +24,50 @@ describe("system", () => {
   it("requires a session", async () => {
     expect((await h.app.inject({ method: "GET", url: "/api/me" })).statusCode).toBe(401);
     expect(
-      (await h.app.inject({ method: "POST", url: "/api/tenants", payload: {} })).statusCode,
+      (
+        await h.app.inject({
+          method: "POST",
+          url: "/api/tenants",
+          headers: { origin: ORIGIN },
+          payload: {},
+        })
+      ).statusCode,
     ).toBeOneOf([400, 401]);
+  });
+
+  it("refuses changes from other sites and HTML form posts (audit M1)", async () => {
+    const owner = await signUpVerified(h, "CsrfOwner");
+    const create = (headers: Record<string, string>) =>
+      h.app.inject({
+        method: "POST",
+        url: "/api/tenants",
+        headers: { cookie: owner.cookie, ...headers },
+        payload: { name: "Csrf Co", countryCode: "GB", timezone: "Europe/London" },
+      });
+    expect((await create({})).json()).toMatchObject({ error: "CROSS_SITE" });
+    expect((await create({ origin: "https://evil.example" })).statusCode).toBe(403);
+    expect((await create({ referer: "https://evil.example/page" })).statusCode).toBe(403);
+    // Browsers that leave Origin out still send our own Referer.
+    expect((await create({ referer: `${ORIGIN}/onboarding` })).statusCode).not.toBe(403);
+    // A classic HTML form post (form-encoded) isn't accepted by JSON routes.
+    const form = await h.app.inject({
+      method: "POST",
+      url: "/api/tenants",
+      headers: {
+        cookie: owner.cookie,
+        origin: ORIGIN,
+        "content-type": "application/x-www-form-urlencoded",
+      },
+      payload: "name=Csrf+Co&countryCode=GB&timezone=Europe%2FLondon",
+    });
+    expect(form.statusCode).toBe(415);
+    // Webhooks are server-to-server and don't need our Origin.
+    const hook = await h.app.inject({
+      method: "POST",
+      url: "/api/webhooks/forms/pk_missing",
+      payload: { message: "hi" },
+    });
+    expect(hook.statusCode).toBe(404);
   });
 });
 
@@ -141,5 +183,31 @@ describe("sign up → create business → invite staff", () => {
     expect(actions).toEqual(
       expect.arrayContaining(["tenant.created", "member.invited", "member.joined"]),
     );
+  });
+});
+
+describe("CSP reports (audit M4)", () => {
+  it("accepts both report formats and answers 204", async () => {
+    const legacy = await h.app.inject({
+      method: "POST",
+      url: "/api/csp-report",
+      headers: { "content-type": "application/csp-report" },
+      payload: JSON.stringify({
+        "csp-report": {
+          "effective-directive": "script-src",
+          "blocked-uri": "https://evil.example/x.js?token=secret",
+        },
+      }),
+    });
+    expect(legacy.statusCode).toBe(204);
+    const modern = await h.app.inject({
+      method: "POST",
+      url: "/api/csp-report",
+      headers: { "content-type": "application/reports+json" },
+      payload: JSON.stringify([
+        { type: "csp-violation", body: { effectiveDirective: "img-src", blockedURL: "data" } },
+      ]),
+    });
+    expect(modern.statusCode).toBe(204);
   });
 });

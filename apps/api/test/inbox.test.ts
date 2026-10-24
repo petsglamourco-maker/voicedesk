@@ -44,6 +44,7 @@ beforeAll(async () => {
     await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
+      headers: { origin: ORIGIN },
       payload: { token: await widgetToken(h, key) },
     })
   ).json<{ visitorId: string }>().visitorId;
@@ -56,6 +57,7 @@ const chat = async (text: string) =>
   h.app.inject({
     method: "POST",
     url: `/api/public/chat/${key}/messages`,
+    headers: { origin: ORIGIN },
     payload: { visitorId, token: await widgetToken(h, key), text, typedMs: 3000 },
   });
 
@@ -120,6 +122,7 @@ describe("unified inbox", () => {
     const resumed = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
+      headers: { origin: ORIGIN },
       payload: { token: await widgetToken(h, key), visitorId },
     });
     const messages = resumed.json<{ messages: Array<{ text: string; authorName?: string }> }>()

@@ -105,17 +105,6 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const ownOrigin = deps.webOrigin ?? "http://localhost:3000";
 
-  // Many form tools post classic HTML form encoding.
-  if (!app.hasContentTypeParser("application/x-www-form-urlencoded")) {
-    app.addContentTypeParser(
-      "application/x-www-form-urlencoded",
-      { parseAs: "string", bodyLimit: 64 * 1024 },
-      (_req, body, done) => {
-        done(null, Object.fromEntries(new URLSearchParams(body as string)));
-      },
-    );
-  }
-
   async function endpointFor(key: string): Promise<PublicEndpoint> {
     const endpoint = await resolvePublicEndpoint(deps.db, "form", key);
     if (!endpoint || !endpoint.enabled) throw notFound();
@@ -208,31 +197,49 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
     },
   );
 
-  r.post(
-    "/api/webhooks/forms/:key",
-    {
-      schema: {
-        tags: ["public forms"],
-        summary: "Receive a submission from an existing form (JSON or form-encoded)",
-        params: z.object({ key: z.string().max(64) }),
-        querystring: z.object({ secret: z.string().max(100).optional() }),
+  // Many form tools post classic HTML form encoding. Only this webhook accepts it: elsewhere
+  // a form-encoded body is refused, so a page on another site can't post an HTML form to a
+  // signed-in user's API (security audit M1).
+  app.register((scope, _opts, done) => {
+    scope.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string", bodyLimit: 64 * 1024 },
+      (_req, body, done) => {
+        done(null, Object.fromEntries(new URLSearchParams(body as string)));
       },
-      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
-    },
-    async (request, reply) => {
-      const endpoint = await endpointFor(request.params.key);
-      const config = endpoint.config as FormConfig;
-      const header = request.headers["x-voicedesk-secret"];
-      const given = request.query.secret ?? (typeof header === "string" ? header : undefined);
-      if (!secretMatches(config.secret, given)) throw notFound();
-      const mapped = mapFields(flattenFields(request.body), config.fieldMap);
-      if (!mapped.message && !mapped.email && !mapped.phone && !Object.keys(mapped.extra).length) {
-        throw new HttpError(400, "EMPTY_SUBMISSION", "No form fields received");
-      }
-      await submit(endpoint, { ...mapped, submissionId: randomUUID(), source: "webhook" });
-      return reply.code(202).send({ received: true });
-    },
-  );
+    );
+    scope.withTypeProvider<ZodTypeProvider>().post(
+      "/api/webhooks/forms/:key",
+      {
+        schema: {
+          tags: ["public forms"],
+          summary: "Receive a submission from an existing form (JSON or form-encoded)",
+          params: z.object({ key: z.string().max(64) }),
+          querystring: z.object({ secret: z.string().max(100).optional() }),
+        },
+        config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      },
+      async (request, reply) => {
+        const endpoint = await endpointFor(request.params.key);
+        const config = endpoint.config as FormConfig;
+        const header = request.headers["x-voicedesk-secret"];
+        const given = request.query.secret ?? (typeof header === "string" ? header : undefined);
+        if (!secretMatches(config.secret, given)) throw notFound();
+        const mapped = mapFields(flattenFields(request.body), config.fieldMap);
+        if (
+          !mapped.message &&
+          !mapped.email &&
+          !mapped.phone &&
+          !Object.keys(mapped.extra).length
+        ) {
+          throw new HttpError(400, "EMPTY_SUBMISSION", "No form fields received");
+        }
+        await submit(endpoint, { ...mapped, submissionId: randomUUID(), source: "webhook" });
+        return reply.code(202).send({ received: true });
+      },
+    );
+    done();
+  });
 
   // ---- Settings ----
 

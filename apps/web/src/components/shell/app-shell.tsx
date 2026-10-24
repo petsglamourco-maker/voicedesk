@@ -79,7 +79,8 @@ export interface ShellLabels {
 export const SIDEBAR_COOKIE = "vd-sidebar";
 
 function setCookie(name: string, value: string) {
-  document.cookie = `${name}=${value}; path=/; max-age=31536000; samesite=lax`;
+  const secure = location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${name}=${value}; path=/; max-age=31536000; samesite=lax${secure}`;
 }
 
 /** The signed-in app frame: sidebar, top bar (search, notifications, account) and aurora. */

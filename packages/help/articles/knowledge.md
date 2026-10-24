@@ -30,6 +30,8 @@ VoiceDesk reads the public pages on your site, respecting robots.txt, and re-che
 
 Good files to add: price lists, menus, policies, terms and conditions, service descriptions.
 
+Files are checked when you upload them: a file whose contents don't match its type (for example a program renamed to .pdf) is refused. Very large documents are refused too: PDFs over 500 pages, and Word files that are huge once unpacked. Split them into smaller files.
+
 ## Adding text or FAQs
 
 1. Choose the **Text / FAQ** tab.

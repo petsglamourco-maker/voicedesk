@@ -38,7 +38,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Daily brief:** an email at 07:30 local time.
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
 - **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
-- **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). Batches 1–4 are done: localhost binding, SSRF, two-step login, re-auth, audit gaps, password reset/sessions/Argon2id/lockout, and spending limits with a send guard (ADR 0022). Batches 5–6 remain.
+- **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). Batches 1–5 are done: localhost binding, SSRF, two-step login, re-auth, audit gaps, password reset/sessions/Argon2id/lockout, spending limits with a send guard (ADR 0022), and browser and upload protections (CSP report-only). Batch 6 remains.
 - **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
 
 ## Layout
@@ -204,6 +204,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - **The plan alone sets what a business can use:** `allowanceFor()` is the only function billing tiers will replace. Running out means "upgrade". Business-set lower limits only apply when the platform switch `businessCaps` is on (off by default). Price every Phase 7 tier to be profitable from measured unit costs.
   - `platform_settings` is shared by all tests: don't change it in tests; pass `settings` to `checkSend`.
   - Website chat trusts the frame's signed token (`widget-token.ts`), never an origin in the request. The bot check is a `HumanCheck` adapter: it fails open when Cloudflare is unreachable and fails closed on "bot". Long-lived chat streams are capped per visitor and per IP via `deps.kv`.
+- **Browser protections** (security audit M1, M4, M5):
+  - Every POST/PUT/PATCH/DELETE must carry our `Origin` (or `Referer`) (`lib/origin-check.ts`). Only `/api/webhooks/*`, `/api/auth/*` (Better Auth checks it) and `/api/csp-report` are exempt. API tests must send `origin: ORIGIN`.
+  - Form-encoded bodies are parsed only for the form webhook (an encapsulated scope).
+  - CSP is **report-only** (`next.config.ts`); reports are logged by `/api/csp-report` (directive and blocked origin only). Enforce it once the reports are clean; nonces before launch.
+  - Uploads: bytes must match the type (`contentMatches`), and the stored content type is chosen by the server. Extraction has limits: 500 PDF pages, 100 MB unpacked DOCX, 50k CSV rows, 2M characters, 60 s.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

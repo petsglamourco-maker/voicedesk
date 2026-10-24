@@ -136,7 +136,8 @@ const TONES = [
 ] as const;
 
 function applyTheme(next: "dark" | "light") {
-  document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+  const secure = location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax${secure}`;
   document.documentElement.dataset.theme = next;
 }
 

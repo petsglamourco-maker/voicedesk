@@ -123,6 +123,8 @@ export function createAuth(deps: AuthDeps) {
     database: drizzleAdapter(deps.db, { provider: "pg", schema }),
     advanced: {
       database: { generateId: "uuid" },
+      // Secure cookies whenever VoiceDesk is served over https (security audit M4).
+      useSecureCookies: baseURL.startsWith("https://"),
       // The host app sets this header to the client IP it resolved through trusted proxies.
       ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     },
