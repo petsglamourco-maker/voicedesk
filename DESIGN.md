@@ -128,6 +128,8 @@ Every screen follows the same recipe, so the app feels like one product:
 - `AuthShell` for sign-in, sign-up, onboarding and invites;
 - `PublicCard` for pages customers see (hosted form, rating). It carries no VoiceDesk brand, because the business is the brand there.
 
+**Help:** the floating help orb (`components/help/help-widget.tsx`) sits bottom-right on every signed-in screen; toasts are offset above it. Keep the corner free.
+
 `loading.tsx` and `error.tsx` under `t/[tenantId]` give every business screen a content-shaped skeleton and a friendly retry.
 
 ## Checks

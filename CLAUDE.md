@@ -37,6 +37,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **CSAT/NPS surveys:** buttons in website chat, a reply in WhatsApp, a link after calls and emails; a Feedback dashboard; low-score alerts.
   - **Daily brief:** an email at 07:30 local time.
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
+- **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
 - **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
 
 ## Layout
@@ -59,6 +60,7 @@ packages/agent-brain  profile schema/generator/store, personas, phrases (AI disc
                   state machine, tools, engine (runTurn), DB services, summaries, harness, evals/
 packages/jobs     queue names, payload types, Redis connection, recrawl schedules
 packages/compliance  per-country config (GB), PII redaction, redacting pino logger
+packages/help     end-user help articles (articles/*.md) + HelpIndex search for the Help assistant
 packages/ui       shared React primitives (shadcn-style, Tailwind v4 tokens from apps/web)
 packages/config   tsconfig bases + loadRootEnv()
 ```
@@ -107,6 +109,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **TypeScript:** TS 6.0, strict, ESM, `verbatimModuleSyntax` (use `import type`). Workspace packages export `.ts` source and must typecheck **without the DOM lib** (consumers compile them).
 - **Next.js 16:** `params`, `searchParams` and `cookies()` are async. Read `apps/web/AGENTS.md` and `node_modules/next/dist/docs/`. Never define components inside render (`react-hooks/static-components`).
 - **Design ("Aurora Glow", `DESIGN.md`):** tokens only (no hex in components), components from `@voicedesk/ui`, gallery at `/design`. Token changes must pass `contrast.test.ts`; visual baselines in `apps/web/e2e/visual.spec.ts-snapshots`.
+- **Help articles:** when a feature or screen changes, update its article in `packages/help/articles` (the article test checks screens and links, not wording).
 - **UI strings:** go in `apps/web/messages/en.json` (next-intl). Use logical CSS (`ms-`, `me-`, `start-`) and `dir="auto"` on user/agent text for right-to-left languages.
 - **Commits:** small, conventional (`feat(scope): …`), with the Co-Authored-By trailer.
 
