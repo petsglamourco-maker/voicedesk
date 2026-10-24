@@ -8,9 +8,11 @@ import {
   phoneNumbers,
   feedback,
   staffMessages,
+  supportRequests,
   tenants,
   tickets,
   user,
+  withPlatformAccess,
   withTenant,
   type Database,
 } from "@voicedesk/db";
@@ -179,6 +181,8 @@ export interface OutgoingMessage {
   text: string;
   /** For logs and metrics. */
   kind: string;
+  /** Email only: where a reply goes (e.g. the person who asked for support). */
+  replyTo?: string;
 }
 
 export interface NotificationPlan {
@@ -573,5 +577,68 @@ export async function planFeedbackRequest(
             kind: "feedback.request",
           },
     ],
+  };
+}
+
+/**
+ * ADR 0021: a "Contact support" request from the Help assistant. Emailed to every platform
+ * owner, replies going straight to the person who asked. The request is platform data, so it's
+ * read under (audited) platform access on behalf of the owner being emailed.
+ */
+export async function planSupportRequest(
+  db: Database,
+  job: { requestId: string },
+  webOrigin: string,
+): Promise<NotificationPlan> {
+  const owners = await db
+    .select({ id: user.id, email: user.email })
+    .from(user)
+    .where(eq(user.isPlatformOwner, true));
+  if (owners.length === 0) return { messages: [] };
+  const found = await withPlatformAccess(
+    db,
+    { actorUserId: owners[0]!.id, reason: "email a support request to the platform owners" },
+    async (tx) => {
+      const [request] = await tx
+        .select()
+        .from(supportRequests)
+        .where(eq(supportRequests.id, job.requestId));
+      if (!request) return null;
+      const [asker] = await tx
+        .select({ name: user.name, email: user.email })
+        .from(user)
+        .where(eq(user.id, request.userId));
+      const [business] = request.tenantId
+        ? await tx
+            .select({ name: tenants.name })
+            .from(tenants)
+            .where(eq(tenants.id, request.tenantId))
+        : [];
+      return { request, asker, business };
+    },
+  );
+  if (!found?.asker) return { messages: [] };
+  const { request, asker, business } = found;
+  const chat = (request.chat ?? [])
+    .map((t) => `${t.role === "user" ? asker.name : "VoiceDesk Help"}: ${t.text}`)
+    .join("\n\n");
+  const text = [
+    `${asker.name} (${asker.email}) asked for help${business ? ` in ${business.name}` : ""}.`,
+    `Screen: ${request.page}`,
+    "",
+    request.message,
+    ...(chat ? ["", "--- Help chat they shared ---", "", chat] : []),
+    "",
+    `Reply to this email to answer them. All requests: ${webOrigin}/platform/support`,
+  ].join("\n");
+  return {
+    messages: owners.map((o) => ({
+      channel: "email" as const,
+      to: o.email,
+      subject: `Support request from ${asker.name}${business ? ` (${business.name})` : ""}`,
+      text,
+      kind: "support.request",
+      replyTo: asker.email,
+    })),
   };
 }

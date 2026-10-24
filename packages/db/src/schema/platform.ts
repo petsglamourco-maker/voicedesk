@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgEnum,
@@ -8,7 +9,8 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "./app";
+import { tenants, timestamps } from "./app";
+import { user } from "./auth";
 
 /**
  * Platform-wide settings managed by the platform owner (not tenant data, so no tenant_id).
@@ -60,3 +62,31 @@ export const aiProviders = pgTable("ai_providers", {
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   ...timestamps,
 });
+
+/**
+ * "Contact support" requests from the in-app Help assistant (ADR 0021). Anyone signed in can
+ * create one for themselves; only the platform owner reads and resolves them, under
+ * withPlatformAccess (audited). RLS in migrations (custom SQL).
+ */
+export const supportRequestStatus = pgEnum("support_request_status", ["open", "resolved"]);
+
+export const supportRequests = pgTable(
+  "support_requests",
+  {
+    id: uuid("id").primaryKey(),
+    /** The business they were in, if any. */
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "set null" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Screen they asked from (ids removed). */
+    page: text("page").notNull(),
+    message: text("message").notNull(),
+    /** The help chat, only when they ticked "include this conversation". */
+    chat: jsonb("chat").$type<Array<{ role: "user" | "assistant"; text: string }>>(),
+    status: supportRequestStatus("status").notNull().default("open"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("support_requests_status_idx").on(t.status, t.createdAt)],
+);

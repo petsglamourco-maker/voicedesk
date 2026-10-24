@@ -8,6 +8,7 @@ import {
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
+  planSupportRequest,
   planTransferContext,
   type NotificationPlan,
 } from "@voicedesk/agent-brain";
@@ -43,6 +44,7 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
           to: m.to,
           subject: m.subject ?? "",
           text: m.text,
+          ...(m.replyTo ? { replyTo: m.replyTo } : {}),
           tags: { tenantId, kind: m.kind },
         });
       }
@@ -120,6 +122,8 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       }
       case "transfer.context":
         return execute(job, data.tenantId, await planTransferContext(deps.db, data));
+      case "support.request":
+        return execute(job, "platform", await planSupportRequest(deps.db, data, deps.webOrigin));
     }
   };
 }

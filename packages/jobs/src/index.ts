@@ -120,6 +120,8 @@ export type NotificationJob =
   | { kind: "feedback.request"; tenantId: string; conversationId: string }
   /** Phase 6: every 15 minutes, send the daily briefs that are due (07:30 local time). */
   | { kind: "brief.tick" }
+  /** ADR 0021: someone used "Contact support" in the Help assistant; email the platform owners. */
+  | { kind: "support.request"; requestId: string }
   | {
       kind: "transfer.context";
       tenantId: string;
