@@ -55,7 +55,7 @@ describe("take-a-message mode without AI", () => {
 
   it("a suspended business only says the service isn't available", async () => {
     const { driver, services } = setup(makeContext({ suspended: true, aiPaused: "platform" }));
-    driver.start();
+    expect(driver.start()).toMatch(/isn't available right now/);
     const result = await driver.say("Hello?");
     expect(result.reply).toMatch(/isn't available right now/);
     expect(result.state.endRequested).toBe(true);

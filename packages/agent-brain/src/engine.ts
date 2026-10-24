@@ -147,7 +147,12 @@ export function startConversation(
     gender: ctx.persona.gender,
   });
   // Recording notice (brief §3.3) goes right after the AI disclosure, before the question.
-  const text = options.recordingNotice ? `${hello} ${recordingNotice(language)}` : hello;
+  // A suspended business (ADR 0022) only says the service isn't available.
+  const text = ctx.suspended
+    ? unavailablePhrase(language, ctx.businessName)
+    : options.recordingNotice
+      ? `${hello} ${recordingNotice(language)}`
+      : hello;
   // The API requires the first message to come from the user; mark the connection.
   state.history.push(
     { role: "user", content: "[Conversation started]" },
