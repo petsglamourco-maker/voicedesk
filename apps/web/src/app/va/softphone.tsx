@@ -1,7 +1,7 @@
 "use client";
 
 import { Alert, Badge, Button, Card, CardTitle, cn } from "@voicedesk/ui";
-import { Room, RoomEvent, Track } from "livekit-client";
+import { RemoteParticipant, Room, RoomEvent, Track } from "livekit-client";
 import {
   Bot,
   Building2,
@@ -65,6 +65,9 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   const [muted, setMuted] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [connected, setConnected] = useState(false);
+  /** Outbound: the dialled phone has picked up (handed-over callers are already on the line). */
+  const [answered, setAnswered] = useState(call.kind !== "outbound");
+  const answeredRef = useRef(call.kind !== "outbound");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
@@ -89,6 +92,23 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
     room.on(RoomEvent.TrackUnsubscribed, (track) => {
       track.detach().forEach((el) => el.remove());
     });
+    // Outbound: LiveKit reports the phone's state on the dialled participant
+    // ("dialing" → "ringing" → "active" once answered).
+    if (call.kind === "outbound") {
+      const check = (p: RemoteParticipant) => {
+        if (p.attributes["sip.callStatus"] !== "active") return;
+        answeredRef.current = true;
+        setAnswered(true);
+      };
+      room.on(RoomEvent.ParticipantConnected, check);
+      room.on(RoomEvent.ParticipantAttributesChanged, (_changed, p) => {
+        if (p instanceof RemoteParticipant) check(p);
+      });
+      room.on(RoomEvent.ParticipantDisconnected, () => {
+        if (disposed) return;
+        if (!answeredRef.current) setError(t("notAnswered"));
+      });
+    }
     // The caller hung up, or the call was ended.
     room.on(RoomEvent.Disconnected, () => {
       if (disposed) return;
@@ -129,10 +149,10 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
   }, [call.url, call.token, call.kind, call.tenantId, call.handoffId, t]);
 
   useEffect(() => {
-    if (!connected) return;
+    if (!connected || !answered) return;
     const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
-  }, [connected]);
+  }, [connected, answered]);
 
   useEffect(() => {
     if (outbound) return;
@@ -177,6 +197,7 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
 
   const name =
     call.callee ?? context?.contact?.fullName ?? context?.callerPhone ?? t("unknownCaller");
+  const live = connected && answered;
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
 
@@ -193,13 +214,13 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
             <span
               className={cn(
                 "absolute inset-0 rounded-full blur-md",
-                connected ? "animate-glow-pulse bg-success/45" : "animate-pulse bg-warning/40",
+                live ? "animate-glow-pulse bg-success/45" : "animate-pulse bg-warning/40",
               )}
             />
             <span
               className={cn(
                 "relative flex size-14 items-center justify-center rounded-full border",
-                connected
+                live
                   ? "border-success/50 bg-success/15 text-success"
                   : "border-warning/50 bg-warning/15 text-warning",
               )}
@@ -226,13 +247,13 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
           <span
             className={cn(
               "tabular rounded-full border px-4 py-1.5 font-display font-semibold",
-              connected
+              live
                 ? "border-success/40 bg-success/10 text-2xl text-success shadow-[0_0_24px_-6px_var(--color-success)]"
                 : "animate-pulse border-border bg-muted text-sm text-muted-foreground",
             )}
             aria-label={t("callTime")}
           >
-            {connected ? `${mm}:${ss}` : t("connecting")}
+            {!connected ? t("connecting") : !answered ? t("ringing") : `${mm}:${ss}`}
           </span>
         </div>
         {error ? (

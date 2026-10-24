@@ -881,7 +881,9 @@
     "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact.",
     "keepOpenHint": "Keep this tab open while you're available: leaving it (or closing the laptop) makes you offline within a minute, and calls then go to your backup number or the assistant takes a message.",
     "noMicrophone": "No microphone found. Plug in a headset or microphone, then hang up and try again. You can still hear the other person.",
-    "micBlocked": "The browser isn't allowed to use your microphone. Click the icon left of the web address, set Microphone to Allow, then hang up and try again."
+    "micBlocked": "The browser isn't allowed to use your microphone. Click the icon left of the web address, set Microphone to Allow, then hang up and try again.",
+    "ringing": "Ringing…",
+    "notAnswered": "The call didn't connect: nobody answered, or the phone company refused it. Hang up and try again."
   },
   "feedbackSettings": {
     "title": "Customer feedback",
