@@ -104,11 +104,23 @@ export function Softphone(props: { call: AnsweredCall; onDone: () => void }) {
       try {
         await room.connect(call.url, call.token);
         await room.startAudio();
-        await room.localParticipant.setMicrophoneEnabled(true);
-        setConnected(true);
       } catch (e) {
         setError(e instanceof Error ? e.message : t("connectFailed"));
+        return;
       }
+      // The call is connected either way; without a microphone the person can still listen
+      // and hang up, and is told exactly what to fix.
+      try {
+        await room.localParticipant.setMicrophoneEnabled(true);
+      } catch (e) {
+        const name = e instanceof Error ? e.name : "";
+        setError(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? t("micBlocked")
+            : t("noMicrophone"),
+        );
+      }
+      if (!disposed) setConnected(true);
     })();
     return () => {
       disposed = true;
