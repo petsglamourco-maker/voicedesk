@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization, twoFactor } from "better-auth/plugins";
@@ -20,7 +21,20 @@ export interface AuthAuditEvent {
   targetType?: string;
   targetId?: string;
   metadata?: Record<string, unknown>;
+  ipAddress?: string | null;
 }
+
+/**
+ * Who is making the current auth request, and from where. The host app sets it around each
+ * Better Auth call, because Better Auth's organization hooks don't pass the acting user
+ * (security audit H6: role changes and removals must name their actor).
+ */
+export const authRequestContext = new AsyncLocalStorage<{
+  actorUserId: string | null;
+  ipAddress: string | null;
+}>();
+const actor = () => authRequestContext.getStore()?.actorUserId ?? null;
+const ip = () => authRequestContext.getStore()?.ipAddress ?? null;
 
 export interface AuthDeps {
   db: Database;
@@ -57,6 +71,7 @@ export function createAuth(deps: AuthDeps) {
               action: "auth.session_created",
               targetType: "session",
               targetId: session.id,
+              ipAddress: ip(),
             });
           },
         },
@@ -95,6 +110,9 @@ export function createAuth(deps: AuthDeps) {
         roles,
         creatorRole: "owner",
         allowUserToCreateOrganization: true,
+        // One request must never hard-delete a business and all its data (security audit H1).
+        // Deleting a business will be a separate, re-authenticated flow with a grace period.
+        disableOrganizationDeletion: true,
         requireEmailVerificationOnInvitation: true,
         invitationExpiresIn: 60 * 60 * 24 * 7,
         sendInvitationEmail: async (data) => {
@@ -133,12 +151,13 @@ export function createAuth(deps: AuthDeps) {
               targetId: member.id,
               metadata: { invitationId: invitation.id, role: member.role },
             }),
-          // Better Auth doesn't pass the acting user to these hooks; the request is still
-          // authorized by its access control. Actor attribution is added in Phase 7 hardening.
+          // Better Auth doesn't pass the acting user to these hooks: it comes from the request
+          // context the host app sets (authRequestContext).
           afterUpdateMemberRole: ({ member, previousRole, organization }) =>
             deps.audit({
               tenantId: organization.id,
-              actorUserId: null,
+              actorUserId: actor(),
+              ipAddress: ip(),
               action: "member.role_changed",
               targetType: "member",
               targetId: member.id,
@@ -147,7 +166,8 @@ export function createAuth(deps: AuthDeps) {
           afterRemoveMember: ({ member, organization }) =>
             deps.audit({
               tenantId: organization.id,
-              actorUserId: null,
+              actorUserId: actor(),
+              ipAddress: ip(),
               action: "member.removed",
               targetType: "member",
               targetId: member.id,

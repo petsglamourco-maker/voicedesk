@@ -7,6 +7,7 @@ import {
   toView,
   updateProvider,
   MfaRequiredError,
+  recordAudit,
 } from "@voicedesk/core";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -22,7 +23,48 @@ export async function requirePlatformOwner(deps: AppDeps, request: FastifyReques
   if (!session.user.isPlatformOwner) throw notFound();
   // Platform admin controls keys, phone routing and every business: two-step login first (C1).
   if (!session.user.twoFactorEnabled) throw new MfaRequiredError();
+  (request as PlatformRequest).platformActorId = session.user.id;
   return session;
+}
+
+type PlatformRequest = FastifyRequest & { platformActorId?: string };
+
+/**
+ * Every successful change under /api/platform/* is written to the audit log with the
+ * platform owner, IP, target id and the NAMES of the fields changed, never their values
+ * (API keys!) (security audit H6). Covers future platform routes automatically.
+ */
+export function registerPlatformAudit(app: FastifyInstance, deps: AppDeps): void {
+  app.addHook("onResponse", async (request: PlatformRequest, reply) => {
+    const route = request.routeOptions.url ?? "";
+    if (
+      !route.startsWith("/api/platform/") ||
+      request.method === "GET" ||
+      reply.statusCode >= 400 ||
+      !request.platformActorId
+    ) {
+      return;
+    }
+    const slug = route.replace("/api/platform/", "").replace(/\/:\w+/g, "").replace(/\//g, ".");
+    const params = (request.params ?? {}) as { id?: string };
+    const body = request.body;
+    await deps.db
+      .transaction((tx) =>
+        recordAudit(tx, {
+          tenantId: null,
+          actorType: "platform_owner",
+          actorUserId: request.platformActorId!,
+          action: `platform.${slug}.${request.method.toLowerCase()}`,
+          targetType: slug.split(".")[0],
+          targetId: params.id,
+          metadata: {
+            fields: body && typeof body === "object" ? Object.keys(body).sort() : [],
+          },
+          ipAddress: request.ip ?? null,
+        }),
+      )
+      .catch((err: unknown) => request.log.warn({ err }, "platform audit failed"));
+  });
 }
 
 const idParams = z.object({ id: z.string().uuid() });

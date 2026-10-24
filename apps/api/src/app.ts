@@ -15,7 +15,7 @@ import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
 import { registerAgentRoutes } from "./routes/agent";
 import { registerConversationRoutes } from "./routes/conversations";
-import { registerPlatformRoutes } from "./routes/platform";
+import { registerPlatformAudit, registerPlatformRoutes } from "./routes/platform";
 import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
 import { registerKnowledgeRoutes } from "./routes/knowledge";
@@ -93,6 +93,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
+  registerPlatformAudit(app, deps);
 
   await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
   await app.register(swagger, {
@@ -109,7 +110,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(swaggerUi, { routePrefix: "/api/docs" });
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } });
 
-  registerAuthRoutes(app, deps.auth);
+  registerAuthRoutes(app, deps.auth, deps.db);
   registerHealthRoutes(app, deps);
   registerMeRoutes(app, deps);
   registerTenantRoutes(app, deps);

@@ -44,7 +44,7 @@ import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice"
 
 export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promise<void> {
   return async (event) => {
-    const entry = { ...event, actorType: "user" as const };
+    const entry = { ...event, actorType: "user" as const, ipAddress: event.ipAddress ?? null };
     if (event.tenantId) {
       await withTenant(db, event.tenantId, (tx) => recordAudit(tx, entry));
     } else {
