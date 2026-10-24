@@ -2,6 +2,7 @@
 
 import { Alert, Button, Input, Label } from "@voicedesk/ui";
 import { LogIn } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -39,14 +40,24 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5" noValidate={false}>
+    <form method="post" onSubmit={onSubmit} className="space-y-5" noValidate={false}>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="email">{t("email")}</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
       <div>
-        <Label htmlFor="password">{t("password")}</Label>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <Label htmlFor="password" className="mb-0">
+            {t("password")}
+          </Label>
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {t("forgotLink")}
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"

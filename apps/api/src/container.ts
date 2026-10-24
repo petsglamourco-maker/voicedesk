@@ -66,6 +66,7 @@ export function createAppAuth(
     trustedOrigins: [env.WEB_ORIGIN],
     sendEmail,
     audit: createAuditSink(db),
+    checkBreachedPasswords: env.PASSWORD_BREACH_CHECK === "on",
   });
 }
 

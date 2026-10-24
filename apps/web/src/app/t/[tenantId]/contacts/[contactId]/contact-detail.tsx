@@ -185,7 +185,7 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
 
       <Card>
         {editing ? (
-          <form onSubmit={(e) => void save(e)} className="grid gap-3 sm:grid-cols-2">
+          <form method="post" onSubmit={(e) => void save(e)} className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="fullName">{t("field.fullName")}</Label>
               <Input id="fullName" name="fullName" defaultValue={contact.fullName ?? ""} />

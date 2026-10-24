@@ -20,7 +20,7 @@ import { memoryFreshAuth } from "../src/lib/fresh-auth";
 import { parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
-const PASSWORD = "correct-horse-battery";
+export const PASSWORD = "correct-horse-battery";
 
 export interface TestHarness {
   app: FastifyInstance;
@@ -47,6 +47,8 @@ export interface TestHarness {
 export async function createHarness(
   options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient"> & {
     llm?: LlmProvider;
+    /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
+    breachCheck?: boolean;
   } = {},
 ): Promise<TestHarness> {
   loadRootEnv();
@@ -54,6 +56,7 @@ export async function createHarness(
     ...process.env,
     DATABASE_URL: requireEnv("TEST_DATABASE_URL"),
     LOG_LEVEL: "silent",
+    PASSWORD_BREACH_CHECK: options.breachCheck ? "on" : "off",
   });
   const db = createDb(env.DATABASE_URL);
   const outbox: AuthEmail[] = [];

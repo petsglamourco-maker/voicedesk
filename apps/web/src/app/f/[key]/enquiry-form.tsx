@@ -71,7 +71,7 @@ export function EnquiryForm(props: { formKey: string; businessName: string }) {
   }
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="mt-6 space-y-5">
+    <form method="post" onSubmit={(e) => void submit(e)} className="mt-6 space-y-5">
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="name">{t("name")}</Label>

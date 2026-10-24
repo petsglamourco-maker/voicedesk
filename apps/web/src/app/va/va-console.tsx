@@ -325,6 +325,7 @@ export function VaConsole(props: { dial?: DialRequest | null }) {
             color="var(--color-ch-outbound)"
           />
           <form
+            method="post"
             onSubmit={(e) => void placeCall(e)}
             className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] lg:items-end [&>*]:min-w-0"
             data-testid="va-dial"

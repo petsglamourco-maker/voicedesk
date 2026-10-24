@@ -173,7 +173,7 @@ export function MembersPanel(props: {
       {props.canManage ? (
         <Card>
           <CardHead icon={<UserPlus />} title={t("inviteTitle")} />
-          <form onSubmit={onInvite} className="mt-5 flex flex-wrap items-end gap-3">
+          <form method="post" onSubmit={onInvite} className="mt-5 flex flex-wrap items-end gap-3">
             <div className="min-w-0 flex-1 basis-64">
               <Label htmlFor="invite-email">{t("inviteEmail")}</Label>
               <Input id="invite-email" name="email" type="email" required />

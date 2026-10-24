@@ -231,6 +231,7 @@ export function AskPanel(props: { tenantId: string }) {
           </Alert>
         ) : null}
         <form
+          method="post"
           onSubmit={(e) => void ask(e)}
           className="flex items-center gap-2 border-t border-border p-3"
         >

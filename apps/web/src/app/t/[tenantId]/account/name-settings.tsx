@@ -47,7 +47,11 @@ export function NameSettings(props: { name: string }) {
           {t("nameSaved")}
         </Alert>
       ) : null}
-      <form onSubmit={(e) => void save(e)} className="mt-5 flex flex-wrap items-end gap-3">
+      <form
+        method="post"
+        onSubmit={(e) => void save(e)}
+        className="mt-5 flex flex-wrap items-end gap-3"
+      >
         <div className="min-w-0 basis-64">
           <Label htmlFor="display-name">{t("name")}</Label>
           <Input

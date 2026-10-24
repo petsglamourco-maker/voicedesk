@@ -9,6 +9,8 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().url(),
   API_PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  /** Refuse passwords from known breaches (Have I Been Pwned range API). Tests use "off". */
+  PASSWORD_BREACH_CHECK: z.enum(["on", "off"]).default("on"),
 });
 
 export type Env = z.infer<typeof envSchema>;

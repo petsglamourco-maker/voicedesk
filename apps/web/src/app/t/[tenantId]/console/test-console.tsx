@@ -229,6 +229,7 @@ export function TestConsole({
 
       <Card>
         <form
+          method="post"
           onSubmit={(e) => void start(e)}
           className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end [&>*]:min-w-0"
         >
@@ -328,6 +329,7 @@ export function TestConsole({
               <div ref={bottom} />
             </div>
             <form
+              method="post"
               onSubmit={(e) => void send(e)}
               className="flex gap-2 border-t border-border bg-[color-mix(in_srgb,var(--color-surface)_50%,transparent)] p-3"
             >

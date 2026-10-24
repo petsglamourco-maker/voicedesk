@@ -567,6 +567,7 @@ export function InboxView(props: {
               ) : null}
               {props.canReply ? (
                 <form
+                  method="post"
                   onSubmit={(e) => void reply(e)}
                   className="flex items-center gap-2 border-t border-border p-3"
                 >

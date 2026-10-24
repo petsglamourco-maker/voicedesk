@@ -1,10 +1,10 @@
 ---
 id: account-security
-title: Account security - your name and two-step verification
+title: Account security - name, password, two-step verification and devices
 page: /t/:tenant/account
 roles: all
-keywords: account, security, two-step verification, 2fa, two factor, authenticator, backup codes, name, password, sign in, sign out
-suggested: How do I turn on two-step verification? | What are backup codes for? | How do I change my name?
+keywords: account, security, two-step verification, 2fa, two factor, authenticator, backup codes, name, password, change password, forgot password, reset password, sessions, devices, sign in, sign out, sign out everywhere, confirm it's you
+suggested: How do I turn on two-step verification? | What if I forget my password? | How do I sign out of other devices?
 ---
 
 ## Your account page
@@ -39,6 +39,38 @@ After your password, you're asked for the 6-digit code from your authenticator a
 ## Turning it off
 
 Click **Turn off** and confirm your password. We don't recommend this.
+
+## Owners and admins must use two-step verification
+
+Business owners and admins have 7 days to turn it on (a reminder banner shows the date). After that, admin features stay locked until it's on; everyday features, and this Account page, keep working. The platform owner needs it before opening Platform admin.
+
+## Changing your password
+
+1. Under **Password**, enter your **Current password**.
+2. Enter the **New password** twice (at least 10 characters).
+3. Leave **Sign out on all my other devices** ticked unless you have a reason not to.
+4. Click **Change password**.
+
+Passwords that have appeared in known data breaches are refused, even if they're long. Only a tiny, anonymous part of a scrambled version of the password is checked; the password itself never leaves VoiceDesk.
+
+## Forgot your password?
+
+1. On the sign-in page, click **Forgot password?**.
+2. Enter your email address and click **Send reset link**.
+3. Open the email "Reset your VoiceDesk password" and follow the link. It works once and expires after 30 minutes.
+4. Choose a new password and click **Save new password**.
+
+Resetting signs you out on every device. If the email doesn't arrive, check your spam folder, then ask Help "why aren't emails arriving?".
+
+## Where you're signed in
+
+**Where you're signed in** lists each browser or device with your account, when it was last used, and **This device** for the one you're using. Click **Sign out** next to any device you don't recognise, or **Sign out all other devices**. Then change your password.
+
+You're signed out automatically after 7 days without using VoiceDesk.
+
+## "Confirm it's you"
+
+Some changes ask for your password again: anything in Platform admin, changing a team member's role, removing someone, and inviting an admin or owner. After you confirm, you won't be asked again for 5 minutes.
 
 ## Signing out and appearance
 

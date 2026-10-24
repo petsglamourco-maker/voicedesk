@@ -77,7 +77,7 @@ export function TwoFactorSettings({ enabled }: { enabled: boolean }) {
         {notice ? <Alert tone="success">{notice}</Alert> : null}
 
         {setup ? (
-          <form onSubmit={onVerify} className="space-y-4">
+          <form method="post" onSubmit={onVerify} className="space-y-4">
             <div>
               <p className="flex items-center gap-2 text-sm font-medium">
                 <KeyRound aria-hidden className="size-4 shrink-0 text-primary" />
@@ -126,6 +126,7 @@ export function TwoFactorSettings({ enabled }: { enabled: boolean }) {
           </form>
         ) : (
           <form
+            method="post"
             onSubmit={(e) => void onPassword(e, enabled ? "disable" : "enable")}
             className="flex flex-wrap items-end gap-3"
           >

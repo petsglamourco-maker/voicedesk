@@ -1,4 +1,4 @@
-import { authRequestContext, type Auth } from "@voicedesk/auth";
+import { authRequestContext, upgradePasswordHash, type Auth } from "@voicedesk/auth";
 import { recordAudit } from "@voicedesk/core";
 import { user, type Database } from "@voicedesk/db";
 import type { FreshAuthStore } from "./fresh-auth";
@@ -13,6 +13,11 @@ const AUDITED: Record<string, { ok?: string; failed?: string }> = {
   "/api/auth/two-factor/verify-totp": { failed: "auth.2fa_failed" },
   "/api/auth/two-factor/disable": { ok: "auth.2fa_disabled" },
   "/api/auth/change-password": { ok: "auth.password_changed", failed: "auth.password_change_failed" },
+  "/api/auth/request-password-reset": { ok: "auth.password_reset_requested" },
+  "/api/auth/reset-password": { failed: "auth.password_reset_failed" },
+  "/api/auth/revoke-session": { ok: "auth.session_revoked" },
+  "/api/auth/revoke-other-sessions": { ok: "auth.sessions_revoked" },
+  "/api/auth/revoke-sessions": { ok: "auth.sessions_revoked" },
 };
 
 /**
@@ -93,6 +98,22 @@ export function registerAuthRoutes(
             }),
           )
           .catch((err: unknown) => request.log.warn({ err }, "auth audit failed"));
+      }
+
+      // Move old scrypt hashes to Argon2id once the password is known to be right (M16).
+      if (url.pathname === "/api/auth/sign-in/email" && response.ok) {
+        const body = request.body as { email?: unknown; password?: unknown } | null;
+        if (typeof body?.email === "string" && typeof body.password === "string") {
+          const [found] = await db
+            .select({ id: user.id })
+            .from(user)
+            .where(eq(user.email, body.email.trim().toLowerCase()));
+          if (found) {
+            await upgradePasswordHash(db, found.id, body.password).catch((err: unknown) =>
+              request.log.warn({ err }, "password hash upgrade failed"),
+            );
+          }
+        }
       }
 
       reply.status(response.status);

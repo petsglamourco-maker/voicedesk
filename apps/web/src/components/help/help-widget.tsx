@@ -427,7 +427,11 @@ export function HelpWidget(props: { tenantId?: string }) {
                 <div ref={bottom} />
               </div>
 
-              <form onSubmit={submit} className="space-y-2 border-t border-border p-3">
+              <form
+                method="post"
+                onSubmit={submit}
+                className="space-y-2 border-t border-border p-3"
+              >
                 <div className="flex items-end gap-2">
                   <Textarea
                     ref={input}
@@ -470,6 +474,7 @@ export function HelpWidget(props: { tenantId?: string }) {
             </>
           ) : view === "contact" ? (
             <form
+              method="post"
               onSubmit={(e) => void sendSupport(e)}
               className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
             >

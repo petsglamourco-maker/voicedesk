@@ -60,7 +60,7 @@ export function ReauthPrompt() {
     <Dialog open={open} onOpenChange={(next) => (next ? undefined : close(false))}>
       {open ? (
         <DialogContent title={t("title")} description={t("description")}>
-          <form className="space-y-4" onSubmit={(e) => void onSubmit(e)}>
+          <form method="post" className="space-y-4" onSubmit={(e) => void onSubmit(e)}>
             <Field id="reauth-password" label={t("password")} error={error}>
               <Input
                 id="reauth-password"

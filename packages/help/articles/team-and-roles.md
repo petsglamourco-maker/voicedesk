@@ -27,7 +27,7 @@ They get an email with a link. They sign in or create an account with that same 
 
 ## Changing a role or removing someone
 
-Use the role menu next to a member to change their role, or click **Remove** to take away their access. You can't change your own role or remove yourself here.
+Use the role menu next to a member to change their role, or click **Remove** to take away their access. You can't change your own role or remove yourself here. These changes, and inviting an admin or owner, ask you to confirm your password first (once every 5 minutes).
 
 ## Letting someone answer calls
 

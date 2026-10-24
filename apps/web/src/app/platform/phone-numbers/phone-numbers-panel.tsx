@@ -120,6 +120,7 @@ export function PhoneNumbersPanel({ initial }: { initial: PhoneNumbersResponse }
       <Card>
         <CardHead icon={<Plus />} title={t("addTitle")} hint={t("addHint")} />
         <form
+          method="post"
           onSubmit={add}
           className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.4fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] lg:items-end [&>*]:min-w-0"
         >

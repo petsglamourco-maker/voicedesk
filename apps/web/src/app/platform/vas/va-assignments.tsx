@@ -91,6 +91,7 @@ export function VaAssignments({ initial }: { initial: VaResponse }) {
       <Card>
         <CardHead icon={<UserPlus />} title={t("addTitle")} hint={t("addHint")} />
         <form
+          method="post"
           onSubmit={add}
           className="mt-5 grid gap-4 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] sm:items-end [&>*]:min-w-0"
         >

@@ -109,6 +109,7 @@ export function WhatsAppNumbers() {
         </Alert>
       ) : null}
       <form
+        method="post"
         onSubmit={(e) => void add(e)}
         className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-end [&>*]:min-w-0"
       >

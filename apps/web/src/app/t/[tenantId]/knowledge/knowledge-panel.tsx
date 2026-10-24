@@ -186,7 +186,7 @@ export function KnowledgePanel({ tenantId, canEdit }: { tenantId: string; canEdi
               </div>
             }
           />
-          <form onSubmit={onAdd} className="mt-5 space-y-4">
+          <form method="post" onSubmit={onAdd} className="mt-5 space-y-4">
             {tab === "website" ? (
               <>
                 <div className="flex flex-wrap gap-3">
@@ -356,7 +356,7 @@ export function KnowledgePanel({ tenantId, canEdit }: { tenantId: string; canEdi
           hint={t("testSubtitle")}
           color="var(--color-accent)"
         />
-        <form onSubmit={(e) => void onSearch(e)} className="mt-5 flex gap-2 sm:gap-3">
+        <form method="post" onSubmit={(e) => void onSearch(e)} className="mt-5 flex gap-2 sm:gap-3">
           <Input
             name="q"
             aria-label={t("testTitle")}

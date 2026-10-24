@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
+import { verifyPassword } from "@voicedesk/auth";
 import { listUserTenants, mfaDeadline, recordAudit } from "@voicedesk/core";
 import { account } from "@voicedesk/db";
-import { verifyPassword } from "better-auth/crypto";
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
