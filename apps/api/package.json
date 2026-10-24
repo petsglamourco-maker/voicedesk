@@ -26,6 +26,7 @@
     "@voicedesk/config": "workspace:*",
     "@voicedesk/core": "workspace:*",
     "@voicedesk/db": "workspace:*",
+    "@voicedesk/help": "workspace:*",
     "@voicedesk/jobs": "workspace:*",
     "@voicedesk/knowledge": "workspace:*",
     "better-auth": "1.7.10",

@@ -37,6 +37,7 @@ import { registerVaRoutes } from "./routes/va";
 import { registerOutboundRoutes } from "./routes/outbound";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
+import { registerHelpRoutes } from "./routes/help";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 
@@ -132,6 +133,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerOutboundRoutes(app, deps);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);
+  registerHelpRoutes(app, deps);
   registerDashboardRoutes(app, deps);
 
   return app;
