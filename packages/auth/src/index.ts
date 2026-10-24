@@ -1,10 +1,12 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { haveIBeenPwned, organization, twoFactor } from "better-auth/plugins";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { organization, twoFactor } from "better-auth/plugins";
 import { account, type Database } from "@voicedesk/db";
 import * as schema from "@voicedesk/db/schema";
 import { and, eq } from "drizzle-orm";
+import { breachCount, PASSWORD_FIELDS } from "./breach";
 import { hashPassword, isCurrentHash, verifyPassword } from "./password";
 import { ac, roles } from "./roles";
 
@@ -52,7 +54,33 @@ export interface AuthDeps {
    * of the password's SHA-1 are sent). On by default; tests switch it off (no network).
    */
   checkBreachedPasswords?: boolean;
+  /** Told when the breach check couldn't run (the password was allowed). Never gets the password. */
+  onBreachCheckUnavailable?: () => void;
+  /**
+   * Shared storage for Better Auth's own request limits (Valkey in the app). Without it the
+   * limiter is off (tests; the API's own limiter still applies).
+   */
+  rateLimitStorage?: {
+    consume: (
+      key: string,
+      rule: { window: number; max: number },
+    ) => Promise<{ allowed: boolean; retryAfter: number | null }>;
+  };
 }
+
+/**
+ * Better Auth's per-IP limits on the sensitive endpoints (security audit H4). Generous
+ * enough for an office behind one IP; account lockout handles password guessing.
+ */
+export const AUTH_RATE_LIMITS = {
+  "/sign-in/email": { window: 60, max: 20 },
+  "/sign-up/email": { window: 600, max: 30 },
+  "/request-password-reset": { window: 600, max: 5 },
+  "/reset-password": { window: 600, max: 10 },
+  "/change-password": { window: 600, max: 10 },
+  "/two-factor/verify-totp": { window: 60, max: 10 },
+  "/two-factor/verify-backup-code": { window: 600, max: 10 },
+} as const;
 
 /** Sessions end after 7 days without use; an active session is extended once a day. */
 export const SESSION_EXPIRES_SECONDS = 7 * 24 * 60 * 60;
@@ -72,11 +100,15 @@ export async function upgradePasswordHash(
   const [row] = await db.select({ hash: account.password }).from(account).where(where);
   if (!row?.hash || isCurrentHash(row.hash)) return false;
   if (!(await verifyPassword({ hash: row.hash, password }))) return false;
-  await db.update(account).set({ password: await hashPassword(password) }).where(where);
+  await db
+    .update(account)
+    .set({ password: await hashPassword(password) })
+    .where(where);
   return true;
 }
 
 export { hashPassword, verifyPassword } from "./password";
+export { breachCount } from "./breach";
 
 export function createAuth(deps: AuthDeps) {
   const { baseURL } = deps;
@@ -91,7 +123,37 @@ export function createAuth(deps: AuthDeps) {
     database: drizzleAdapter(deps.db, { provider: "pg", schema }),
     advanced: {
       database: { generateId: "uuid" },
+      // The host app sets this header to the client IP it resolved through trusted proxies.
+      ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     },
+    hooks: {
+      // Refuse passwords from known breaches (security audit H5). If the service can't be
+      // reached in 3 seconds the password is allowed: an outage must not lock people out.
+      before: createAuthMiddleware(async (ctx) => {
+        const field = PASSWORD_FIELDS[ctx.path];
+        if (!field || deps.checkBreachedPasswords === false) return;
+        const password = (ctx.body as Record<string, unknown> | undefined)?.[field];
+        if (typeof password !== "string") return;
+        const count = await breachCount(password);
+        if (count === null) deps.onBreachCheckUnavailable?.();
+        else if (count > 0) {
+          throw new APIError("BAD_REQUEST", {
+            code: "PASSWORD_COMPROMISED",
+            message:
+              "This password has appeared in a data breach, so it isn't safe. Please choose a different one.",
+          });
+        }
+      }),
+    },
+    rateLimit: deps.rateLimitStorage
+      ? {
+          enabled: true,
+          window: 60,
+          max: 200,
+          customRules: AUTH_RATE_LIMITS,
+          customStorage: deps.rateLimitStorage,
+        }
+      : { enabled: false },
     session: {
       expiresIn: SESSION_EXPIRES_SECONDS,
       updateAge: 24 * 60 * 60,
@@ -239,11 +301,6 @@ If you didn't ask for this, you can ignore this email: your password hasn't chan
         },
       }),
       twoFactor({ issuer: "VoiceDesk" }),
-      haveIBeenPwned({
-        enabled: deps.checkBreachedPasswords ?? true,
-        customPasswordCompromisedMessage:
-          "This password has appeared in a data breach, so it isn't safe. Please choose a different one.",
-      }),
     ],
   });
 }

@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./roles": "./src/roles.ts"
+    "./roles": "./src/roles.ts",
+    "./devices": "./src/devices.ts"
   },
   "scripts": {
     "generate-schema": "pnpm dlx auth@1.7.10 generate --config src/cli-config.ts --output ../db/src/schema/auth.ts -y",

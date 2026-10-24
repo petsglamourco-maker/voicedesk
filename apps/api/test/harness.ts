@@ -16,7 +16,8 @@ import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
 import { buildApp, type AppDeps } from "../src/app";
 import { createAppAuth, type JobDispatcher } from "../src/container";
-import { memoryFreshAuth } from "../src/lib/fresh-auth";
+import { freshAuthStore } from "../src/lib/fresh-auth";
+import { memoryKv } from "../src/lib/kv";
 import { parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
@@ -49,6 +50,8 @@ export async function createHarness(
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
     breachCheck?: boolean;
+    /** Turn Better Auth's own request limits on (off by default: tests sign in a lot). */
+    authRateLimit?: boolean;
   } = {},
 ): Promise<TestHarness> {
   loadRootEnv();
@@ -60,10 +63,12 @@ export async function createHarness(
   });
   const db = createDb(env.DATABASE_URL);
   const outbox: AuthEmail[] = [];
-  const auth = createAppAuth(env, db, (email) => {
+  const kv = memoryKv();
+  const sendAuthEmail = (email: AuthEmail) => {
     outbox.push(email);
     return Promise.resolve();
-  });
+  };
+  const auth = createAppAuth(env, db, sendAuthEmail, options.authRateLimit ? kv : undefined);
   const storage = new InMemoryObjectStorage();
   const embeddings = new MockEmbeddingProvider();
   const llm = new MockLlmProvider();
@@ -117,7 +122,9 @@ export async function createHarness(
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
     oauthStateSecret: env.BETTER_AUTH_SECRET,
-    freshAuth: memoryFreshAuth(),
+    freshAuth: freshAuthStore(kv),
+    kv,
+    sendAuthEmail,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",
   });

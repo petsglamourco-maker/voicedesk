@@ -48,7 +48,10 @@ export function registerPlatformAudit(app: FastifyInstance, deps: AppDeps): void
     ) {
       return;
     }
-    const slug = route.replace("/api/platform/", "").replace(/\/:\w+/g, "").replace(/\//g, ".");
+    const slug = route
+      .replace("/api/platform/", "")
+      .replace(/\/:\w+/g, "")
+      .replace(/\//g, ".");
     const params = (request.params ?? {}) as { id?: string };
     const body = request.body;
     await deps.db

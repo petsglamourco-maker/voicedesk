@@ -28,3 +28,12 @@ export function describeDevice(userAgent: string | null | undefined): {
             : null;
   return { browser, os };
 }
+
+/**
+ * Identifies "the same kind of device" for new-device alerts: browser + OS family only, so
+ * browser updates don't trigger alerts and no raw user agent is stored.
+ */
+export function deviceKey(userAgent: string | null | undefined): string {
+  const { browser, os } = describeDevice(userAgent);
+  return `${browser ?? "unknown"}|${os ?? "unknown"}`;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeDevice } from "./user-agent";
+import { describeDevice } from "@voicedesk/auth/devices";
 
 describe("describeDevice", () => {
   it.each([

@@ -188,4 +188,26 @@ describe("breached passwords (audit H5)", () => {
       await hb.close();
     }
   });
+
+  it("still lets people sign up when the check can't be reached", async () => {
+    const hb = await createHarness({ breachCheck: true });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("fetch failed"));
+    try {
+      const res = await hb.app.inject({
+        method: "POST",
+        url: "/api/auth/sign-up/email",
+        headers: json(),
+        payload: {
+          name: "Offline",
+          email: `offline-${Date.now()}@example.com`,
+          password: PASSWORD,
+        },
+      });
+      expect(res.statusCode).toBe(200);
+      expect(fetchSpy).toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+      await hb.close();
+    }
+  });
 });

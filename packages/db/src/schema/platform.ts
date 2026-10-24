@@ -5,6 +5,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -89,4 +90,21 @@ export const supportRequests = pgTable(
     ...timestamps,
   },
   (t) => [index("support_requests_status_idx").on(t.status, t.createdAt)],
+);
+
+/**
+ * Browsers/devices each account has signed in from (security audit: new-device alerts).
+ * Only a hash of the browser and OS family is kept, never the raw user agent or IP.
+ */
+export const knownDevices = pgTable(
+  "known_devices",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    deviceHash: text("device_hash").notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.deviceHash] })],
 );

@@ -42,7 +42,8 @@
     "resetSave": "Save new password",
     "resetDone": "Your password has been changed. Every device has been signed out.",
     "resetInvalid": "This reset link has expired or has already been used.",
-    "resetAgain": "Ask for a new link"
+    "resetAgain": "Ask for a new link",
+    "tooManyAttempts": "Too many sign-in attempts from this network. Please wait a minute and try again."
   },
   "onboarding": {
     "title": "Add your business",

@@ -62,6 +62,14 @@ Passwords that have appeared in known data breaches are refused, even if they're
 
 Resetting signs you out on every device. If the email doesn't arrive, check your spam folder, then ask Help "why aren't emails arriving?".
 
+## Too many wrong passwords
+
+After 10 wrong passwords, sign-in to that account is paused for 15 minutes, even with the right password, and we email you. This stops someone guessing your password. Wait 15 minutes, or reset your password with **Forgot password?**.
+
+## New sign-in emails
+
+When your account signs in from a browser or device it hasn't used before, we email you the browser, system, time and IP address. If it wasn't you, reset your password straight away and sign out the other devices below.
+
 ## Where you're signed in
 
 **Where you're signed in** lists each browser or device with your account, when it was last used, and **This device** for the one you're using. Click **Sign out** next to any device you don't recognise, or **Sign out all other devices**. Then change your password.

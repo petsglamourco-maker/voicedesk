@@ -179,11 +179,22 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Calls go LiveKit → Elastic SIP trunk termination (`SIP_OUTBOUND_TWILIO_*`). The LiveKit outbound trunk's login is refreshed from .env on every dial.
   - Errors appear only in Twilio, not our logs. Read them free via `monitor.twilio.com/v1/Alerts`. 32202 = credential mismatch; 32205 = Voice Geo Permissions (Low Risk) not enabled for that country.
   - UK geographic numbers can't send SMS; use an alphanumeric `SMS_FROM`.
-- **Local services are bound to 127.0.0.1** (docker-compose ports, `next dev --hostname 127.0.0.1`, API, worker and voice-agent health). Never publish them on 0.0.0.0: they hold real data with dev credentials (security audit C2).
+- **Local services are bound to 127.0.0.1** (docker-compose ports, `next dev --hostname 127.0.0.1`, API, worker and voice-agent health). Never publish them on 0.0.0.0, because they hold real data with dev credentials (security audit C2).
+  - Server-to-server URLs (`DATABASE_URL`, `REDIS_URL`, `API_INTERNAL_URL`…) use `127.0.0.1`, not `localhost`. Node tries `::1` first, and nothing listens there.
+  - **e2e runs 2 workers locally.** With more, cold `next dev` stalls page loads for 90 s. The first dashboard load can take 10-20 s while it compiles (`DASHBOARD_TIMEOUT`).
+  - The browser origin stays `http://localhost:3000`, because the OAuth redirect URIs are registered for it.
 - **Two-step login and password re-checks** (security audit C1, H6):
   - `requirePlatformOwner` refuses without 2FA; business owners/admins lose admin features after a 7-day grace (`mfaBlocks` in `@voicedesk/core`).
   - Platform writes (any non-GET through `requirePlatformOwner`), role changes, removals and admin/owner invites need the password confirmed within 5 minutes (`POST /api/me/reauth`, `deps.freshAuth`). They answer 403 `REAUTH_REQUIRED`. The browser's `api()` and the Team page show the prompt and retry. New sensitive actions should use `requireFreshAuth`.
   - API tests use `makePlatformOwner(h, account)` / `reauth(h, cookie)` from the harness.
+- **Sign-in protection** (security audit H4, H5, M16):
+  - Passwords are Argon2id (`packages/auth/src/password.ts`, Node's built-in `crypto.argon2`); old scrypt hashes still verify and are upgraded at sign-in.
+  - 10 wrong passwords lock the account for 15 minutes and email the owner. New browser/OS families trigger an email (`known_devices` keeps hashes only). See `apps/api/src/lib/sign-in-guard.ts`.
+  - Short-lived security state goes through `deps.kv` (Valkey; `memoryKv` in tests): lockouts, password re-checks, Better Auth's limits.
+  - Fastify trusts `X-Forwarded-For` only from `TRUSTED_PROXIES`. The auth route overwrites it with `request.ip` before calling Better Auth, so never read the raw header.
+  - API limits are counted per session cookie hash or per IP, in Valkey. Better Auth's limits (`AUTH_RATE_LIMITS`) are off in tests unless `createHarness({ authRateLimit: true })`.
+  - Breached-password checks call Have I Been Pwned (`packages/auth/src/breach.ts`, `PASSWORD_BREACH_CHECK`, off in tests). They fail open after 3 s with a log warning: an outage must not block sign-ups.
+  - Web forms use `method="post"` so a submit before the page loads never puts fields in the URL.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

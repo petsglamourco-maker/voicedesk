@@ -5,7 +5,7 @@ import { LogOut, MonitorSmartphone } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { describeDevice } from "@/lib/user-agent";
+import { describeDevice } from "@voicedesk/auth/devices";
 
 interface SessionRow {
   id: string;

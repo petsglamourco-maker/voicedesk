@@ -1,7 +1,8 @@
 import { auditLog, tenants, user, withPlatformAccess } from "@voicedesk/db";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { memoryFreshAuth, REAUTH_TTL_SECONDS } from "../src/lib/fresh-auth";
+import { freshAuthStore, REAUTH_TTL_SECONDS } from "../src/lib/fresh-auth";
+import { memoryKv } from "../src/lib/kv";
 import {
   createHarness,
   createOwnerWithTenant,
@@ -223,7 +224,7 @@ describe("password check before sensitive actions (audit H6)", () => {
 
   it("a confirmation lasts five minutes", async () => {
     let now = 0;
-    const store = memoryFreshAuth(() => now);
+    const store = freshAuthStore(memoryKv(() => now));
     await store.mark("s1");
     expect(await store.isFresh("s1")).toBe(true);
     expect(await store.isFresh("s2")).toBe(false);

@@ -11,6 +11,11 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   /** Refuse passwords from known breaches (Have I Been Pwned range API). Tests use "off". */
   PASSWORD_BREACH_CHECK: z.enum(["on", "off"]).default("on"),
+  /**
+   * Proxies allowed to say who the client is (X-Forwarded-For), comma-separated IPs/CIDRs.
+   * Locally that's the Next.js dev server on this machine; in production, the load balancer.
+   */
+  TRUSTED_PROXIES: z.string().default("127.0.0.1,::1"),
 });
 
 export type Env = z.infer<typeof envSchema>;

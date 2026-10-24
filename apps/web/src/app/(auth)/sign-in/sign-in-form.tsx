@@ -27,8 +27,13 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     });
     setPending(false);
     if (error) {
+      // 429: our account lockout explains itself; Better Auth's own limit doesn't.
       setError(
-        error.status === 403 ? t("emailNotVerified") : (error.message ?? common("errorGeneric")),
+        error.status === 403
+          ? t("emailNotVerified")
+          : error.status === 429 && error.code !== "ACCOUNT_LOCKED"
+            ? t("tooManyAttempts")
+            : (error.message ?? common("errorGeneric")),
       );
       return;
     }

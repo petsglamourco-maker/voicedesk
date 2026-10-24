@@ -239,6 +239,20 @@
       "when": 1792839963596,
       "tag": "0033_support_requests_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792858940893,
+      "tag": "0034_known_devices",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792858942235,
+      "tag": "0035_known_devices_grant",
+      "breakpoints": true
     }
   ]
 }

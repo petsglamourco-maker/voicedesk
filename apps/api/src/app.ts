@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -51,6 +52,16 @@ export type AppDeps = Omit<Container, "close"> & {
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 
+const SESSION_COOKIE = /(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/;
+
+/** Rate-limit bucket: a hash of the session cookie when signed in, else the client IP. */
+export function rateLimitKey(request: { headers: { cookie?: string }; ip: string }): string {
+  const token = SESSION_COOKIE.exec(request.headers.cookie ?? "")?.[1];
+  return token
+    ? `s:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`
+    : `ip:${request.ip}`;
+}
+
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   deps = {
     ...deps,
@@ -85,8 +96,9 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         }),
       },
     },
-    // Locally the Next.js dev server proxies /api/*; restrict to known proxies in production.
-    trustProxy: true,
+    // Only these proxies may say who the client is (security audit H4): locally the Next.js
+    // dev server on this machine. Anyone else's X-Forwarded-For is ignored.
+    trustProxy: deps.trustedProxies ?? ["127.0.0.1", "::1"],
     bodyLimit: 1024 * 1024,
   }).withTypeProvider<ZodTypeProvider>();
 
@@ -95,7 +107,15 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerErrorHandler(app);
   registerPlatformAudit(app, deps);
 
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // Shared across API processes (Valkey). Signed-in traffic is counted per session, so an
+  // office behind one IP isn't throttled together; everything else per client IP.
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    nameSpace: "api-rl:",
+    ...(deps.rateLimitRedis ? { redis: deps.rateLimitRedis } : {}),
+    keyGenerator: rateLimitKey,
+  });
   await app.register(swagger, {
     openapi: {
       info: { title: "VoiceDesk API", version: "0.1.0" },

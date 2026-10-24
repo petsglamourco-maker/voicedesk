@@ -1,4 +1,4 @@
-import type { createRedisConnection } from "@voicedesk/jobs";
+import type { Kv } from "./kv";
 
 /**
  * Step-up re-authentication (security audit H6): sensitive admin actions need the password
@@ -20,26 +20,11 @@ export class ReauthRequiredError extends Error {
   }
 }
 
-const key = (sessionId: string) => `reauth:${sessionId}`;
-
-export function redisFreshAuth(redis: ReturnType<typeof createRedisConnection>): FreshAuthStore {
+export function freshAuthStore(kv: Kv): FreshAuthStore {
+  const key = (sessionId: string) => `reauth:${sessionId}`;
   return {
-    mark: async (sessionId) => {
-      await redis.set(key(sessionId), "1", "EX", REAUTH_TTL_SECONDS);
-    },
-    isFresh: async (sessionId) => (await redis.exists(key(sessionId))) === 1,
-  };
-}
-
-/** For tests and single-process use. */
-export function memoryFreshAuth(now: () => number = Date.now): FreshAuthStore {
-  const until = new Map<string, number>();
-  return {
-    mark: (sessionId) => {
-      until.set(sessionId, now() + REAUTH_TTL_SECONDS * 1000);
-      return Promise.resolve();
-    },
-    isFresh: (sessionId) => Promise.resolve((until.get(sessionId) ?? 0) > now()),
+    mark: (sessionId) => kv.set(key(sessionId), "1", REAUTH_TTL_SECONDS),
+    isFresh: async (sessionId) => (await kv.get(key(sessionId))) !== null,
   };
 }
 

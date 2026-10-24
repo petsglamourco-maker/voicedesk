@@ -36,9 +36,11 @@ import {
   type ChannelJob,
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
+import { createLogger } from "@voicedesk/compliance/logger";
 import type { Env } from "./env";
 import { whatsAppSettingsFromEnv, type WhatsAppSettings } from "./routes/whatsapp";
-import { redisFreshAuth, type FreshAuthStore } from "./lib/fresh-auth";
+import { freshAuthStore, type FreshAuthStore } from "./lib/fresh-auth";
+import { kvRateLimitStorage, redisKv, type Kv } from "./lib/kv";
 import { bridgeLiveFromRedis } from "./lib/live";
 import { sipGatewayFromEnv, type SipGateway } from "./lib/sip";
 import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
@@ -54,10 +56,13 @@ export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promis
   };
 }
 
+const authLog = createLogger("auth");
+
 export function createAppAuth(
   env: Env,
   db: Database,
   sendEmail: (email: AuthEmail) => Promise<void>,
+  kv?: Kv,
 ): Auth {
   return createAuth({
     db,
@@ -67,6 +72,9 @@ export function createAppAuth(
     sendEmail,
     audit: createAuditSink(db),
     checkBreachedPasswords: env.PASSWORD_BREACH_CHECK === "on",
+    onBreachCheckUnavailable: () =>
+      authLog.warn("breached-password check unavailable; password allowed"),
+    ...(kv ? { rateLimitStorage: kvRateLimitStorage(kv) } : {}),
   });
 }
 
@@ -109,6 +117,14 @@ export interface Container {
   oauthStateSecret: string;
   /** Recent password confirmations for sensitive admin actions (step-up re-auth). */
   freshAuth: FreshAuthStore;
+  /** Short-lived security state: sign-in failures, lockouts, password re-checks. */
+  kv: Kv;
+  /** Security emails to account holders (lockout, new device), outside Better Auth. */
+  sendAuthEmail: (email: AuthEmail) => Promise<void>;
+  /** Valkey for the API's request limits, shared by every API process. */
+  rateLimitRedis?: ReturnType<typeof createRedisConnection>;
+  /** Proxies whose X-Forwarded-For is believed (TRUSTED_PROXIES). */
+  trustedProxies?: string[];
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -123,9 +139,11 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const notificationQueue = createNotificationQueue(redis);
   const channelQueue = createChannelQueue(redis);
   const stopLiveBridge = await bridgeLiveFromRedis(redis.duplicate(), LIVE_CHANNEL);
-  const auth = createAppAuth(env, db, async (email) => {
+  const kv = redisKv(redis);
+  const sendAuthEmail = async (email: AuthEmail) => {
     await emailQueue.add(email.kind, email);
-  });
+  };
+  const auth = createAppAuth(env, db, sendAuthEmail, kv);
   const storage = storageFromEnv();
   await storage.ensureBucket();
   let embeddings: Promise<EmbeddingProvider> | undefined;
@@ -147,7 +165,13 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     whatsapp: whatsAppSettingsFromEnv(),
     mailboxClient: (creds) => new ImapMailbox(creds),
     oauthStateSecret: env.BETTER_AUTH_SECRET,
-    freshAuth: redisFreshAuth(redis),
+    freshAuth: freshAuthStore(kv),
+    kv,
+    sendAuthEmail,
+    rateLimitRedis: redis,
+    trustedProxies: env.TRUSTED_PROXIES.split(",")
+      .map((p) => p.trim())
+      .filter(Boolean),
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {
