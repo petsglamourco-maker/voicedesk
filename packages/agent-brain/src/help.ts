@@ -2,6 +2,7 @@ import type { LlmContentBlock, LlmMessage, LlmProvider, LlmTool } from "@voicede
 import type { Database } from "@voicedesk/db";
 import { z } from "zod";
 import { recordLlmUsage } from "./usage";
+import { neutraliseMarkers } from "./untrusted";
 
 /**
  * The in-app Help assistant (ADR 0021): answers questions about using VoiceDesk from the help
@@ -186,7 +187,7 @@ export async function askHelp(
       results.push({
         type: "tool_result",
         toolUseId: block.id,
-        content: JSON.stringify(content).slice(0, 12_000),
+        content: neutraliseMarkers(JSON.stringify(content).slice(0, 12_000)),
         ...(isError ? { isError } : {}),
       });
     }

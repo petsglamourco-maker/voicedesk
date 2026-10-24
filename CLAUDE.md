@@ -6,7 +6,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 
 - **Phase 0 (Foundations): done.** Monorepo, RLS tenancy, Better Auth (orgs, invites, roles, TOTP 2FA), API, worker, web, adapters, compliance skeleton.
 - **Phase 1 (Knowledge & text agent): built.** Crawler, uploads, ingestion with local embeddings, AI business profile with review and approval, conversation engine with personas and flows in 6 languages, streaming test console, records, summaries, evals.
-  - Evals: 42 golden conversations (7 flows × 6 languages: enquiry, complaint, booking, convert, reschedule, cancel, message). Latest run on DeepSeek (prompt 2026-10-18.5): 33/42, with 0 hard-check failures. The remaining misses are soft empathy/naturalness scores. About $0.08 per run.
+  - Evals: 48 golden conversations (8 flows × 6 languages: enquiry, complaint, booking, convert, reschedule, cancel, message, injection). Latest run on DeepSeek (prompt 2026-10-18.5): 33/42, with 0 hard-check failures. The remaining misses are soft empathy/naturalness scores. About $0.08 per run.
 - **AI providers are switchable at runtime** (ADR 0012): Platform admin → AI providers lists Claude, DeepSeek and a local OpenAI-compatible model, each with on/off, priority order and automatic fallback.
 - **Phase 2a (browser voice): done and live-tested** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. On DeepSeek the median was 1.5 s; Claude Haiku is still to be tried.
 - **Phase 2b (phone calls): built, awaiting a Twilio number.** Platform admin → Phone numbers creates a LiveKit SIP trunk and dispatch rule per number. The worker handles phone jobs: caller ID, silence prompts, hang-up via `end_conversation`, and an in-process stereo WAV recording to our S3. Also built: the Calls log with a 7-day latency dashboard, and the post-call summary email to owners/admins. Buying the number needs the owner's go-ahead because it costs money.
@@ -39,7 +39,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
 - **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
 - **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). Batches 1–5 are done: localhost binding, SSRF, two-step login, re-auth, audit gaps, password reset/sessions/Argon2id/lockout, spending limits with a send guard (ADR 0022), and browser and upload protections (CSP report-only). Batch 6 remains.
-- **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
+- **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
 
 ## Layout
 
@@ -96,7 +96,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Apps get their LLM from `createAppLlm(db, secrets)` (the router over enabled providers). Never construct a provider directly in app code, and use `isLlmAvailable(llm)` rather than checking provider names.
   - Use model tiers: `realtime` = `LLM_MODEL_REALTIME` (claude-haiku-5-5), `reasoning` = `LLM_MODEL_REASONING` (claude-sonnet-5-5). Never hard-code model ids in business logic.
   - Record cost with `recordLlmUsage`.
-  - Treat documents, transcripts and tool results as untrusted data in prompts.
+  - Treat documents, transcripts and tool results as untrusted data in prompts (security audit M2). Customer text goes through `neutraliseMarkers`; emails, forms and documents are framed with `untrustedBlock` (`agent-brain/src/untrusted.ts`); tool results are neutralised in the engine, back-office and help loops. Never let outside text contain "[Engine note]" or close a `<document>` tag.
 - **Agent engine (ADR 0009):**
   - Required flow steps live in `state.ts` (`missing*Slots`), and completion tools refuse until those slots are filled. Prompt changes bump `PROMPT_VERSION` and need a `pnpm eval` run.
   - Keep the system prompt stable: volatile content goes in per-turn engine notes.
@@ -172,6 +172,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Recordings never leave our infrastructure:** `session.start({ record: false })` (otherwise LiveKit Cloud would receive session reports), and the in-process `CallRecorder` + `TeeAudioOutput` write `tenants/<id>/recordings/<conversationId>.wav`. Only when `agent_settings.record_calls` is on, which also adds the spoken notice.
 - **Notifications:** agent services take an optional `notify` hook and only report events. All "who gets what" logic lives in `agent-brain/src/notifications.ts` planners; `apps/workers` just sends. Never log message text or phone numbers.
 - **Per-turn channel instructions** (`state.transfer`, `state.endRequested`) are cleared at the start of every `runTurn`. Never persist them across turns, or a later turn repeats the transfer or hang-up.
+- **Caller ID is not proof** (security audit M8): `find_booking` by phone number also needs the name the booking was made under, and the recognised-caller note gives no booking details.
 - **Booking changes** are gated by turn order in `tools.ts`: cancel needs a later turn than `find_booking`; reschedule needs a later turn than `check_availability`. Don't replace this with a "call twice" confirmation, which made models ask twice or claim success after a refusal (evals 2026-10-18).
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
 - **LiveKit logs what the assistant says** (`lk.pii.message`) at info level. The voice-agent scripts pass `--log-level warn` to its logger (our own `createLogger` is separate). Keep it that way so transcripts stay out of logs.

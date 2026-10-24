@@ -52,7 +52,9 @@ describe("askHelp", () => {
 
     // The page and role go in a note on the question; the system prompt stays stable.
     const first = llm.requests[0]!;
-    expect(JSON.stringify(first.messages.at(-1)!.content)).toContain("screen: /t/:tenant/integrations");
+    expect(JSON.stringify(first.messages.at(-1)!.content)).toContain(
+      "screen: /t/:tenant/integrations",
+    );
     expect(JSON.stringify(first.messages.at(-1)!.content)).toContain("role: staff");
     expect(first.system.join("\n")).not.toMatch(/Asked on screen|Their role/);
     expect(first.tier).toBe("realtime");

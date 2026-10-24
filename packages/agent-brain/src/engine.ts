@@ -20,6 +20,7 @@ import type { AgentServices } from "./services";
 import { initialState, stepNote, type ConversationState, type CreatedRecord } from "./state";
 import { messageOnlyTurn, unavailablePhrase } from "./message-only";
 import { runTool, toolDefinitions } from "./tools";
+import { neutraliseMarkers, untrustedBlock } from "./untrusted";
 
 export type TurnEvent =
   | { type: "tool"; name: string; input: unknown; ok: boolean; result: unknown }
@@ -226,7 +227,13 @@ export async function runTurn(
     return { reply, state, events, usage, latencyMs: Date.now() - started };
   }
 
-  state.history.push({ role: "user", content: callerText });
+  // Customer text can't pose as the engine (security audit M2). Emails and form enquiries
+  // (email style) are longer documents from outside: framed as an untrusted block.
+  state.history.push({
+    role: "user",
+    content:
+      ctx.style === "email" ? untrustedBlock("message", callerText) : neutraliseMarkers(callerText),
+  });
   state.history.push({
     role: "system",
     content: stepNote(state, localNow(ctx), ctx.profile?.sales.primaryGoal ?? "booking"),
@@ -292,7 +299,7 @@ export async function runTurn(
         results.push({
           type: "tool_result",
           toolUseId: block.id,
-          content: JSON.stringify(outcome.result),
+          content: neutraliseMarkers(JSON.stringify(outcome.result)),
           ...(outcome.isError ? { isError: true } : {}),
         });
       }

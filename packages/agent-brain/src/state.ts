@@ -240,11 +240,11 @@ export function stepNote(
   const done = (type: CreatedRecord["type"]) => state.records.find((r) => r.type === type);
   if (state.knownCaller && state.turns <= 2) {
     const k = state.knownCaller;
-    const upcoming = k.upcoming
-      .map((b) => `${b.service} ${b.reference} at ${b.startsAt}`)
-      .join("; ");
+    // Caller ID can be faked (security audit M8): no booking details until find_booking has
+    // checked the name the booking was made under.
+    const count = k.upcoming.length;
     lines.push(
-      `Returning customer (recognised by their phone number): ${k.name ?? "name not on file"}.${upcoming ? ` Upcoming bookings: ${upcoming}.` : ""} You may greet them by name. Still read back any detail before relying on it.`,
+      `Returning customer (recognised by their phone number, which can be faked): ${k.name ?? "name not on file"}.${count ? ` They have ${count} upcoming booking${count === 1 ? "" : "s"}.` : ""} You may greet them by first name. Don't mention booking details, times or references until find_booking has confirmed them with the name the booking was made under.`,
     );
   }
   switch (state.flow) {

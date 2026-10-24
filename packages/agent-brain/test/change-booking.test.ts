@@ -64,12 +64,18 @@ describe("find_booking", () => {
     expect(stepNote(env.state, "now")).toMatch(/couldn't be verified/);
   });
 
-  it("uses the caller's number on a phone call", async () => {
+  it("uses the caller's number on a phone call, but only with the name (audit M8)", async () => {
     const { env, booked } = await setup("+447700900123");
-    const found = await runTool("find_booking", {}, env);
+    // Caller ID alone can be faked: it asks for the name and reveals nothing.
+    const noName = await runTool("find_booking", {}, env);
+    expect(noName.isError).toBe(true);
+    expect(JSON.stringify(noName.result)).not.toContain(booked.reference);
+    const wrongName = await runTool("find_booking", { name: "Someone Else" }, env);
+    expect(wrongName.isError).toBe(true);
+    const found = await runTool("find_booking", { name: "Patel" }, env);
     expect(found.result).toMatchObject({ bookings: [{ reference: booked.reference }] });
     const stranger = await setup("+447700900999");
-    expect((await runTool("find_booking", {}, stranger.env)).isError).toBe(true);
+    expect((await runTool("find_booking", { name: "Patel" }, stranger.env)).isError).toBe(true);
   });
 
   it("accepts the phone number the booking was made with instead of the name", async () => {

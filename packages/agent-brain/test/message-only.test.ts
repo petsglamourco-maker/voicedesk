@@ -50,7 +50,10 @@ describe("take-a-message mode without AI", () => {
     expect((await driver.say("Hola, quería preguntar algo")).reply).toMatch(/tomar un mensaje/);
     expect((await driver.say("Carlos")).reply).toMatch(/qué mensaje/);
     await driver.say("Llámenme mañana, por favor");
-    expect(services.messages[0]).toMatchObject({ callerName: "Carlos", callerPhone: "+447700900456" });
+    expect(services.messages[0]).toMatchObject({
+      callerName: "Carlos",
+      callerPhone: "+447700900456",
+    });
   });
 
   it("a suspended business only says the service isn't available", async () => {

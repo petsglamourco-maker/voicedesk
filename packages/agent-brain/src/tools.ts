@@ -428,7 +428,7 @@ export const TOOLS = {
 
   find_booking: define({
     description:
-      "Find the caller's existing booking to change or cancel it. Give the reference and the name it was booked under (or the phone number). On a phone call, call it with no reference to look up the caller's own number. Never reveal anything about a booking it couldn't verify.",
+      "Find the caller's existing booking to change or cancel it. Give the reference and the name it was booked under (or the phone number). On a phone call you can leave out the reference, but always give the name it was booked under: the caller's number alone isn't proof. Never reveal anything about a booking it couldn't verify.",
     input: z.object({
       reference: opt.describe("Booking reference as the caller says it, e.g. BD-7K4Q"),
       name: opt.describe("Name the booking was made under"),
@@ -466,10 +466,16 @@ export const TOOLS = {
           );
         }
       } else if (callerId) {
-        matches = await env.services.findBookings({ phone: callerId });
+        // Caller ID can be spoofed: it finds the bookings, the name proves who's asking
+        // (security audit M8).
+        if (!input.name) {
+          return error("Ask for the name the booking was made under, then call this again.");
+        }
+        const found = await env.services.findBookings({ phone: callerId });
+        matches = found.filter((b) => namesMatch(input.name, b.customerName));
         if (matches.length === 0) {
           return fail(
-            "No upcoming bookings for this number. Ask for the booking reference and name.",
+            "No upcoming booking matches that name for this number. Ask for the booking reference and the name it was booked under.",
           );
         }
       } else {
