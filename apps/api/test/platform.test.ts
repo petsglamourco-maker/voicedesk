@@ -1,7 +1,13 @@
 import { user } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHarness, ORIGIN, signUpVerified, type TestHarness } from "./harness";
+import {
+  createHarness,
+  ORIGIN,
+  signUpVerified,
+  makePlatformOwner,
+  type TestHarness,
+} from "./harness";
 
 interface View {
   id: string;
@@ -20,10 +26,7 @@ beforeAll(async () => {
   h = await createHarness();
   owner = await signUpVerified(h, "Platform");
   regular = await signUpVerified(h, "Regular");
-  await h.db
-    .update(user)
-    .set({ isPlatformOwner: true, twoFactorEnabled: true })
-    .where(eq(user.email, owner.email));
+  await makePlatformOwner(h, owner);
 });
 
 afterAll(() => h.close());

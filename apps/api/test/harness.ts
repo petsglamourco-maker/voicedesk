@@ -8,13 +8,15 @@ import {
 import type { AuthEmail } from "@voicedesk/auth";
 import { loadRootEnv, requireEnv } from "@voicedesk/config/load-env";
 import { SecretBox, type ProviderSecrets } from "@voicedesk/core";
-import { closeDb, createDb, type Database } from "@voicedesk/db";
+import { closeDb, createDb, user, type Database } from "@voicedesk/db";
+import { eq } from "drizzle-orm";
 import type { AiJob, ChannelJob, NotificationJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
 import { buildApp, type AppDeps } from "../src/app";
 import { createAppAuth, type JobDispatcher } from "../src/container";
+import { memoryFreshAuth } from "../src/lib/fresh-auth";
 import { parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
@@ -112,6 +114,7 @@ export async function createHarness(
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
     oauthStateSecret: env.BETTER_AUTH_SECRET,
+    freshAuth: memoryFreshAuth(),
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",
   });
@@ -185,4 +188,27 @@ export async function createOwnerWithTenant(h: TestHarness, businessName = "Brig
   });
   expect(res.statusCode).toBe(201);
   return { ...owner, tenantId: res.json<{ id: string }>().id };
+}
+
+/** Confirms the password (step-up re-auth) so sensitive admin actions are allowed. */
+export async function reauth(h: TestHarness, cookie: string): Promise<void> {
+  const res = await h.app.inject({
+    method: "POST",
+    url: "/api/me/reauth",
+    headers: { cookie, origin: ORIGIN },
+    payload: { password: PASSWORD },
+  });
+  expect(res.statusCode).toBe(200);
+}
+
+/** Makes an account the platform owner, with two-step login on and a fresh password check. */
+export async function makePlatformOwner(
+  h: TestHarness,
+  account: { email: string; cookie: string },
+): Promise<void> {
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, account.email));
+  await reauth(h, account.cookie);
 }

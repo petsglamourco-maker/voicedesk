@@ -1,8 +1,12 @@
-import { user } from "@voicedesk/db";
-import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { setupStatus, type SetupItem } from "../src/lib/setup";
-import { createHarness, ORIGIN, signUpVerified, type TestHarness } from "./harness";
+import {
+  createHarness,
+  ORIGIN,
+  signUpVerified,
+  makePlatformOwner,
+  type TestHarness,
+} from "./harness";
 
 const byId = (items: SetupItem[]) => Object.fromEntries(items.map((i) => [i.id, i]));
 
@@ -62,10 +66,7 @@ describe("GET /api/platform/setup", () => {
     h = await createHarness();
     owner = await signUpVerified(h, "SetupOwner");
     regular = await signUpVerified(h, "SetupRegular");
-    await h.db
-      .update(user)
-      .set({ isPlatformOwner: true, twoFactorEnabled: true })
-      .where(eq(user.email, owner.email));
+    await makePlatformOwner(h, owner);
   });
   afterAll(() => h.close());
 

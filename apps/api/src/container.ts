@@ -38,6 +38,7 @@ import {
 } from "@voicedesk/jobs";
 import type { Env } from "./env";
 import { whatsAppSettingsFromEnv, type WhatsAppSettings } from "./routes/whatsapp";
+import { redisFreshAuth, type FreshAuthStore } from "./lib/fresh-auth";
 import { bridgeLiveFromRedis } from "./lib/live";
 import { sipGatewayFromEnv, type SipGateway } from "./lib/sip";
 import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
@@ -105,6 +106,8 @@ export interface Container {
   mailboxClient?: (creds: MailboxCredentials) => MailboxClient;
   /** Signs OAuth `state` values (the Better Auth secret). */
   oauthStateSecret: string;
+  /** Recent password confirmations for sensitive admin actions (step-up re-auth). */
+  freshAuth: FreshAuthStore;
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -143,6 +146,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     whatsapp: whatsAppSettingsFromEnv(),
     mailboxClient: (creds) => new ImapMailbox(creds),
     oauthStateSecret: env.BETTER_AUTH_SECRET,
+    freshAuth: redisFreshAuth(redis),
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {

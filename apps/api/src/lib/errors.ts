@@ -1,5 +1,6 @@
 import { ForbiddenError, MfaRequiredError } from "@voicedesk/core";
 import type { FastifyInstance } from "fastify";
+import { ReauthRequiredError } from "./fresh-auth";
 import { hasZodFastifySchemaValidationErrors } from "fastify-type-provider-zod";
 import { ZodError } from "zod";
 
@@ -36,6 +37,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
     }
     if (error instanceof MfaRequiredError) {
       return reply.status(403).send({ error: "MFA_REQUIRED", message: error.message });
+    }
+    if (error instanceof ReauthRequiredError) {
+      return reply.status(403).send({ error: "REAUTH_REQUIRED", message: error.message });
     }
     if (error instanceof ForbiddenError) {
       return reply.status(403).send({ error: "FORBIDDEN", message: error.message });

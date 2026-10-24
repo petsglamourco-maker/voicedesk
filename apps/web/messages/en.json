@@ -1328,5 +1328,13 @@
     "why": "Two-step login is required for business owners, admins and the platform owner to use admin features. Set it up below with an authenticator app (for example Google Authenticator or Microsoft Authenticator).",
     "done": "Two-step login is on. You can use every feature again.",
     "back": "Back to your business"
+  },
+  "reauth": {
+    "title": "Confirm it's you",
+    "description": "Enter your password to make this change. You won't be asked again for 5 minutes.",
+    "password": "Password",
+    "confirm": "Confirm",
+    "wrong": "That password isn't right.",
+    "tooMany": "Too many tries. Please wait a minute and try again."
   }
 }

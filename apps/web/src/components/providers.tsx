@@ -4,6 +4,7 @@ import { ConfirmProvider, TooltipProvider } from "@voicedesk/ui";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+import { ReauthPrompt } from "./reauth-prompt";
 
 /** App-wide UI providers: tooltips, styled confirm dialogs, toasts. */
 export function Providers(props: { children: ReactNode }) {
@@ -13,6 +14,7 @@ export function Providers(props: { children: ReactNode }) {
       <ConfirmProvider cancelLabel={t("cancel")} confirmLabel={t("confirm")}>
         {props.children}
       </ConfirmProvider>
+      <ReauthPrompt />
       <Toaster
         position="bottom-right"
         offset={{ bottom: 96, right: 24 }}

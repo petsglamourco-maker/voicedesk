@@ -126,7 +126,9 @@ describe("call log", () => {
       tx
         .select()
         .from(auditLog)
-        .where(and(eq(auditLog.action, "call.recording_downloaded"), eq(auditLog.targetId, callId))),
+        .where(
+          and(eq(auditLog.action, "call.recording_downloaded"), eq(auditLog.targetId, callId)),
+        ),
     );
     expect(audits.length).toBeGreaterThan(0);
   });

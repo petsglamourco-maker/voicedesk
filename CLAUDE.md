@@ -180,5 +180,10 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Errors appear only in Twilio, not our logs. Read them free via `monitor.twilio.com/v1/Alerts`. 32202 = credential mismatch; 32205 = Voice Geo Permissions (Low Risk) not enabled for that country.
   - UK geographic numbers can't send SMS; use an alphanumeric `SMS_FROM`.
 - **Local services are bound to 127.0.0.1** (docker-compose ports, `next dev --hostname 127.0.0.1`, API, worker and voice-agent health). Never publish them on 0.0.0.0: they hold real data with dev credentials (security audit C2).
+- **Two-step login and password re-checks** (security audit C1, H6):
+  - `requirePlatformOwner` refuses without 2FA; business owners/admins lose admin features after a 7-day grace (`mfaBlocks` in `@voicedesk/core`).
+  - Platform writes (any non-GET through `requirePlatformOwner`), role changes, removals and admin/owner invites need the password confirmed within 5 minutes (`POST /api/me/reauth`, `deps.freshAuth`). They answer 403 `REAUTH_REQUIRED`. The browser's `api()` and the Team page show the prompt and retry. New sensitive actions should use `requireFreshAuth`.
+  - API tests use `makePlatformOwner(h, account)` / `reauth(h, cookie)` from the harness.
+- **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

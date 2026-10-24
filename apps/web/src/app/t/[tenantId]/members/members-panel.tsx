@@ -35,6 +35,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
+import { confirmPassword, REAUTH_REQUIRED } from "@/lib/reauth";
 
 type Role = "owner" | "admin" | "staff";
 
@@ -116,11 +117,13 @@ export function MembersPanel(props: {
     };
   }, [tenantId, props.canManage, version]);
 
-  async function run(action: () => Promise<{ error: { message?: string } | null }>) {
+  async function run(action: () => Promise<{ error: { message?: string; code?: string } | null }>) {
     setPending(true);
     setError(null);
     setNotice(null);
-    const { error } = await action();
+    let { error } = await action();
+    // Role changes, removals and admin invites need the password confirmed (security H6).
+    if (error?.code === REAUTH_REQUIRED && (await confirmPassword())) ({ error } = await action());
     setPending(false);
     if (error) {
       setError(error.message ?? common("errorGeneric"));

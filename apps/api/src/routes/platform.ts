@@ -14,6 +14,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { requireFreshAuth } from "../lib/fresh-auth";
 import { setupStatus } from "../lib/setup";
 import { requireSession } from "./guards";
 
@@ -23,6 +24,8 @@ export async function requirePlatformOwner(deps: AppDeps, request: FastifyReques
   if (!session.user.isPlatformOwner) throw notFound();
   // Platform admin controls keys, phone routing and every business: two-step login first (C1).
   if (!session.user.twoFactorEnabled) throw new MfaRequiredError();
+  // Changes need the password confirmed in the last few minutes (security audit H6).
+  if (request.method !== "GET") await requireFreshAuth(deps.freshAuth, session.session.id);
   (request as PlatformRequest).platformActorId = session.user.id;
   return session;
 }

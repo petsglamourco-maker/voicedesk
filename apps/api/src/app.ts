@@ -110,7 +110,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(swaggerUi, { routePrefix: "/api/docs" });
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } });
 
-  registerAuthRoutes(app, deps.auth, deps.db);
+  registerAuthRoutes(app, deps);
   registerHealthRoutes(app, deps);
   registerMeRoutes(app, deps);
   registerTenantRoutes(app, deps);

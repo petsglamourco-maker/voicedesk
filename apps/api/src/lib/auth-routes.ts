@@ -1,6 +1,7 @@
 import { authRequestContext, type Auth } from "@voicedesk/auth";
 import { recordAudit } from "@voicedesk/core";
 import { user, type Database } from "@voicedesk/db";
+import type { FreshAuthStore } from "./fresh-auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
@@ -14,8 +15,27 @@ const AUDITED: Record<string, { ok?: string; failed?: string }> = {
   "/api/auth/change-password": { ok: "auth.password_changed", failed: "auth.password_change_failed" },
 };
 
+/**
+ * Team changes that need the password confirmed in the last few minutes (security audit H6):
+ * changing roles, removing people, and inviting owners or admins.
+ */
+function needsFreshAuth(pathname: string, body: unknown): boolean {
+  if (
+    pathname === "/api/auth/organization/update-member-role" ||
+    pathname === "/api/auth/organization/remove-member"
+  ) {
+    return true;
+  }
+  const role = (body as { role?: unknown } | null)?.role;
+  return pathname === "/api/auth/organization/invite-member" && role !== "staff";
+}
+
 /** Mounts Better Auth's handler at /api/auth/* (per Better Auth's Fastify integration). */
-export function registerAuthRoutes(app: FastifyInstance, auth: Auth, db: Database): void {
+export function registerAuthRoutes(
+  app: FastifyInstance,
+  deps: { auth: Auth; db: Database; freshAuth: FreshAuthStore },
+): void {
+  const { auth, db } = deps;
   app.route({
     method: ["GET", "POST"],
     url: "/api/auth/*",
@@ -31,6 +51,17 @@ export function registerAuthRoutes(app: FastifyInstance, auth: Auth, db: Databas
       // Who is acting (for Better Auth's hooks), then run the request in that context.
       const session = request.method === "POST" ? await getSession(auth, request) : null;
       const actorUserId = session?.user.id ?? null;
+      if (
+        session &&
+        needsFreshAuth(url.pathname, request.body) &&
+        !(await deps.freshAuth.isFresh(session.session.id))
+      ) {
+        return reply.status(403).send({
+          code: "REAUTH_REQUIRED",
+          error: "REAUTH_REQUIRED",
+          message: "Please enter your password again to do this.",
+        });
+      }
       const response = await authRequestContext.run(
         { actorUserId, ipAddress: request.ip ?? null },
         () => auth.handler(req),

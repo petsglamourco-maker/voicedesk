@@ -9,6 +9,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -42,10 +43,7 @@ const NUMBER = `+4420${Math.floor(10_000_000 + Math.random() * 89_999_999)}`;
 beforeAll(async () => {
   h = await createHarness({ sip, voice });
   const platform = await signUpVerified(h, "Platform");
-  await h.db
-    .update(user)
-    .set({ isPlatformOwner: true, twoFactorEnabled: true })
-    .where(eq(user.email, platform.email));
+  await makePlatformOwner(h, platform);
   biz = await createOwnerWithTenant(h, "Outbound Co");
   await h.app.inject({
     method: "POST",

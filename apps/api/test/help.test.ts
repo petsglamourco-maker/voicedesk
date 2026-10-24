@@ -9,6 +9,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -41,10 +42,7 @@ beforeAll(async () => {
   h = await createHarness({ llm });
   owner = await createOwnerWithTenant(h, "Help Co");
   const p = await signUpVerified(h, "PlatformHelp");
-  await h.db
-    .update(user)
-    .set({ isPlatformOwner: true, twoFactorEnabled: true })
-    .where(eq(user.email, p.email));
+  await makePlatformOwner(h, p);
   const [row] = await h.db.select({ id: user.id }).from(user).where(eq(user.email, p.email));
   platform = { ...p, id: row!.id };
 });
