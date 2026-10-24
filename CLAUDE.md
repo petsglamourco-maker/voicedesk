@@ -120,7 +120,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `DATABASE_URL`: runtime, RLS-bound role
 - `DATABASE_OWNER_URL`: migrations only
 - `TEST_DATABASE_*`
-- `REDIS_URL`, `S3_*`, `SMTP_*`, `EMAIL_FROM`
+- `VALKEY_PASSWORD` (Valkey requires it; docker-compose reads it) and `REDIS_URL` (`redis://:<password>@localhost:6379`), `S3_*`, `SMTP_*`, `EMAIL_FROM`
 - `BETTER_AUTH_URL` and `WEB_ORIGIN`: the browser-facing origin (:3000)
 - `API_INTERNAL_URL`, `WORKER_HEALTH_PORT`
 - `SETTINGS_ENCRYPTION_KEY`: 32 random bytes, base64. Encrypts API keys stored in the database; without it, keys can't be saved in admin settings
@@ -179,4 +179,6 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Calls go LiveKit → Elastic SIP trunk termination (`SIP_OUTBOUND_TWILIO_*`). The LiveKit outbound trunk's login is refreshed from .env on every dial.
   - Errors appear only in Twilio, not our logs. Read them free via `monitor.twilio.com/v1/Alerts`. 32202 = credential mismatch; 32205 = Voice Geo Permissions (Low Risk) not enabled for that country.
   - UK geographic numbers can't send SMS; use an alphanumeric `SMS_FROM`.
+- **Local services are bound to 127.0.0.1** (docker-compose ports, `next dev --hostname 127.0.0.1`, API, worker and voice-agent health). Never publish them on 0.0.0.0: they hold real data with dev credentials (security audit C2).
+- **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

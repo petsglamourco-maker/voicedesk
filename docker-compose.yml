@@ -1,4 +1,6 @@
 # Local development infrastructure. Apps run on the host with `pnpm dev`.
+# Every port is bound to 127.0.0.1 only: these services hold real data and have dev
+# credentials, so they must never be reachable from the network (security audit C2).
 name: voicedesk
 
 services:
@@ -8,7 +10,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
@@ -21,9 +23,21 @@ services:
   redis:
     image: valkey/valkey:8.1.10-alpine3.24
     # BullMQ requires noeviction so queued jobs are never silently dropped.
-    command: ["valkey-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    # The password comes from VALKEY_PASSWORD in .env (also inside REDIS_URL).
+    command:
+      [
+        "valkey-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory-policy",
+        "noeviction",
+        "--requirepass",
+        "${VALKEY_PASSWORD:?Set VALKEY_PASSWORD in .env}",
+      ]
+    environment:
+      REDISCLI_AUTH: "${VALKEY_PASSWORD}"
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -37,7 +51,7 @@ services:
     image: chrislusf/seaweedfs:4.48
     command: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-s3.config=/etc/seaweedfs/s3.json"]
     ports:
-      - "8333:8333"
+      - "127.0.0.1:8333:8333"
     volumes:
       - storagedata:/data
       - ./infra/seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
@@ -46,8 +60,8 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.6
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
 
 volumes:
   pgdata:
