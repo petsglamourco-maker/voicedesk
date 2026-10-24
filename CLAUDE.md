@@ -170,4 +170,10 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
 - **LiveKit logs what the assistant says** (`lk.pii.message`) at info level. The voice-agent scripts pass `--log-level warn` to its logger (our own `createLogger` is separate). Keep it that way so transcripts stay out of logs.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).
+- **Setup status:** Platform admin → Setup (`/platform/setup`, `apps/api/src/lib/setup.ts`) shows which integrations are ready from .env names alone, never values. Keep it updated when adding an integration.
+- **Real email in dev:** once SMTP points at a real service, the workers send through `ReservedDomainRouter`. Reserved test domains (example.com, *.test, *.local…) and stand-in texts (`SMS_PROVIDER=mailpit`) still go to Mailpit, so e2e and demo data never mail out. Tests must use Mailpit (`MAILPIT_SMTP_*`), never `SMTP_*`.
+- **Twilio outbound:**
+  - Calls go LiveKit → Elastic SIP trunk termination (`SIP_OUTBOUND_TWILIO_*`). The LiveKit outbound trunk's login is refreshed from .env on every dial.
+  - Errors appear only in Twilio, not our logs. Read them free via `monitor.twilio.com/v1/Alerts`. 32202 = credential mismatch; 32205 = Voice Geo Permissions (Low Risk) not enabled for that country.
+  - UK geographic numbers can't send SMS; use an alphanumeric `SMS_FROM`.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.
