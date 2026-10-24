@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { DASHBOARD_TIMEOUT } from "./accounts";
 import { waitForEmailLink } from "./mailpit";
 
 const PASSWORD = "e2e-password-123";
@@ -19,7 +20,7 @@ async function createBusiness(page: Page, name: string): Promise<string> {
   await expect(page.getByRole("heading", { name: "Add your business" })).toBeVisible();
   await page.getByLabel("Business name").fill(name);
   await page.getByRole("button", { name: "Create business" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: DASHBOARD_TIMEOUT });
   return new URL(page.url()).pathname.split("/")[2]!;
 }
 

@@ -1,5 +1,5 @@
-// Reads emails captured by the local Mailpit SMTP server (http://localhost:8025).
-const MAILPIT = "http://localhost:8025/api/v1";
+// Reads emails captured by the local Mailpit SMTP server (http://127.0.0.1:8025).
+const MAILPIT = "http://127.0.0.1:8025/api/v1";
 
 interface MessageSummary {
   ID: string;

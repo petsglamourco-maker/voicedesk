@@ -5,6 +5,8 @@ import { expect, type Page } from "@playwright/test";
 import { waitForEmailLink } from "./mailpit";
 
 export const E2E_PASSWORD = "e2e-password-123";
+/** First dashboard load in `next dev` compiles the route. */
+export const DASHBOARD_TIMEOUT = 60_000;
 
 export async function signUpVerified(page: Page, name = "E2E Tester"): Promise<string> {
   const email = `e2e-${randomUUID().slice(0, 8)}@example.com`;
@@ -24,6 +26,9 @@ export async function signUpWithBusiness(page: Page, business: string): Promise<
   await expect(page.getByRole("heading", { name: "Add your business" })).toBeVisible();
   await page.getByLabel("Business name").fill(business);
   await page.getByRole("button", { name: "Create business" }).click();
-  await expect(page.getByRole("heading", { name: business })).toBeVisible();
+  // The dev server compiles the dashboard on first use (10-20 s when tests run in parallel).
+  await expect(page.getByRole("heading", { name: business })).toBeVisible({
+    timeout: DASHBOARD_TIMEOUT,
+  });
   return new URL(page.url()).pathname.split("/")[2]!;
 }

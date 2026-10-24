@@ -4,7 +4,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 
 loadRootEnv();
 
-const apiUrl = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
+const apiUrl = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000";
 
 const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source.
