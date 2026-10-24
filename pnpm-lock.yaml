@@ -235,6 +235,9 @@ importers:
       '@voicedesk/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@voicedesk/help':
+        specifier: workspace:*
+        version: link:../../packages/help
       '@voicedesk/jobs':
         specifier: workspace:*
         version: link:../../packages/jobs
@@ -555,6 +558,16 @@ importers:
       tsx:
         specifier: 4.23.15
         version: 4.23.15
+
+  packages/help:
+    dependencies:
+      '@voicedesk/adapters':
+        specifier: workspace:*
+        version: link:../adapters
+    devDependencies:
+      '@voicedesk/config':
+        specifier: workspace:*
+        version: link:../config
 
   packages/jobs:
     dependencies:
