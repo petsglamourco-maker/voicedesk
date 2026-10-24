@@ -212,9 +212,7 @@ export class ImapMailbox implements MailboxClient {
           date: parsed.date ?? new Date(),
           automated,
           authenticated: senderAuthenticated(
-            parsed.headerLines
-              .filter((h) => h.key === "authentication-results")
-              .map((h) => h.line),
+            parsed.headerLines.filter((h) => h.key === "authentication-results").map((h) => h.line),
             from.address,
           ),
           attachmentNames: parsed.attachments.map((a) => a.filename ?? "attachment"),

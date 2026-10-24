@@ -39,7 +39,7 @@ import {
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
 import { createLogger } from "@voicedesk/compliance/logger";
-import type { Env } from "./env";
+import { oauthStateSecretFor, type Env } from "./env";
 import { whatsAppSettingsFromEnv, type WhatsAppSettings } from "./routes/whatsapp";
 import { freshAuthStore, type FreshAuthStore } from "./lib/fresh-auth";
 import { kvRateLimitStorage, redisKv, type Kv } from "./lib/kv";
@@ -189,7 +189,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     calendars,
     whatsapp: whatsAppSettingsFromEnv(),
     mailboxClient: (creds) => new ImapMailbox(creds),
-    oauthStateSecret: env.BETTER_AUTH_SECRET,
+    oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,
     sendAuthEmail,

@@ -105,7 +105,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **AI disclosure is mandatory:** the greeting comes from fixed phrases in `phrases.ts`, and `CountryConfig.aiDisclosure.required` is typed `true`. Never make either configurable off.
 - **Storage keys** use `tenantKey(tenantId, ...)`.
 - **Outbound HTTP to customer-supplied URLs** must use `createSafeFetcher` (SSRF protection).
-- **Logging:** use `createLogger` / `loggerOptions` from `@voicedesk/compliance/logger`. Don't log emails, phones, names, transcripts, tokens or query strings.
+- **Logging:** use `createLogger` / `loggerOptions` from `@voicedesk/compliance/logger`. Don't log emails, phones, names, transcripts, tokens or query strings. The formatter also scrubs sensitive keys at any depth (text, content, message, body, to/from…) and strips query parameters and personal data from error messages (security audit M13). A field you need in logs must not use one of those names.
 - **Dependencies:** exact pins. pnpm's release-age gate stays on; never add `minimumReleaseAgeExclude`. If a version is too new, pick the previous release. Install scripts are allow-listed or denied in `pnpm-workspace.yaml` (`allowBuilds`).
 - **TypeScript:** TS 6.0, strict, ESM, `verbatimModuleSyntax` (use `import type`). Workspace packages export `.ts` source and must typecheck **without the DOM lib** (consumers compile them).
 - **Next.js 16:** `params`, `searchParams` and `cookies()` are async. Read `apps/web/AGENTS.md` and `node_modules/next/dist/docs/`. Never define components inside render (`react-hooks/static-components`).
@@ -125,6 +125,9 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `BETTER_AUTH_URL` and `WEB_ORIGIN`: the browser-facing origin (:3000)
 - `API_INTERNAL_URL`, `WORKER_HEALTH_PORT`
 - `SETTINGS_ENCRYPTION_KEY`: 32 random bytes, base64. Encrypts API keys stored in the database; without it, keys can't be saved in admin settings
+  - Key ring (security audit M12): `SETTINGS_ENCRYPTION_KEY_ID` (default `k1`) names the current key; `SETTINGS_ENCRYPTION_OLD_KEYS` (`id:base64,…`) keeps old keys readable.
+  - To rotate: put the old key in OLD_KEYS, set a new key and id, then run `pnpm --filter @voicedesk/core reencrypt`.
+- `OAUTH_STATE_SECRET` (optional): its own key for OAuth state and chat tokens, derived from `BETTER_AUTH_SECRET` when empty. The API refuses to start with the placeholder `BETTER_AUTH_SECRET`.
 - `ANTHROPIC_API_KEY`: optional fallback key for the Claude provider. Which providers are used is chosen in Platform admin → AI providers; with none switched on, the agent uses the mock
 - `LLM_MODEL_REALTIME`, `LLM_MODEL_REASONING`
 - `EMBEDDINGS_PROVIDER` (`local` or `mock`) and `MODELS_CACHE_DIR` (default `.cache/models`)
@@ -146,6 +149,8 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 
 - **pnpm 12** blocks dependency install scripts unless they're listed in `allowBuilds`.
 - **MinIO's Docker images are gone**, so we use SeaweedFS (`infra/seaweedfs/s3.json` holds the dev credentials).
+- **Default privileges grant the runtime role UPDATE and DELETE on every new table.** Append-only tables (`audit_log`, `consent_events`, `spend_events`, `spend_alerts`, `processed_messages`) need an explicit `REVOKE`. A guard test in `packages/db` checks them, so add new history tables to it.
+- **Consent history** is written by a trigger on `contacts` (`consent_events`). Name the source with `set_config('app.consent_source', 'form', true)` in the same transaction.
 - **Changing an already-applied migration:** reset with `docker compose rm -sf postgres && docker volume rm voicedesk_pgdata` before committing it. Never edit a committed migration.
 - **Drizzle wraps Postgres errors** ("Failed query…"); the real error is in `error.cause`.
 - **Norton Antivirus inspects TLS on this machine** (`NODE_EXTRA_CA_CERTS`). Turbo's strict env mode would strip that variable, so `turbo.json` passes TLS and proxy variables through. If crawls or model downloads fail with "unable to verify the first certificate", check that first.

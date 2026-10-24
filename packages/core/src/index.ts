@@ -9,3 +9,4 @@ export * from "./csv";
 export * from "./mailboxes";
 export * from "./answerers";
 export * from "./handoffs";
+export { reencryptAll, type ReencryptReport } from "./reencrypt";

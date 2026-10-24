@@ -22,7 +22,7 @@ import {
 } from "../src/container";
 import { freshAuthStore } from "../src/lib/fresh-auth";
 import { memoryKv, type Kv } from "../src/lib/kv";
-import { parseEnv } from "../src/env";
+import { oauthStateSecretFor, parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
 export const PASSWORD = "correct-horse-battery";
@@ -136,7 +136,7 @@ export async function createHarness(
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
     humanCheck: options.humanCheck ?? null,
-    oauthStateSecret: env.BETTER_AUTH_SECRET,
+    oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,
     sendAuthEmail,

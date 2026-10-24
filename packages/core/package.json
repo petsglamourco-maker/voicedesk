@@ -8,7 +8,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "reencrypt": "tsx src/reencrypt-cli.ts"
   },
   "dependencies": {
     "@voicedesk/adapters": "workspace:*",
@@ -18,6 +19,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
-    "@voicedesk/config": "workspace:*"
+    "@voicedesk/config": "workspace:*",
+    "tsx": "4.23.15"
   }
 }

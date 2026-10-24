@@ -281,6 +281,27 @@
       "when": 1792875928444,
       "tag": "0039_processed_messages_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792876771169,
+      "tag": "0040_consent_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792876772421,
+      "tag": "0041_consent_events_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792876815609,
+      "tag": "0042_append_only_history",
+      "breakpoints": true
     }
   ]
 }

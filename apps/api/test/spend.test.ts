@@ -1,5 +1,4 @@
-import type {
-  DEFAULT_CAPS} from "@voicedesk/agent-brain";
+import type { DEFAULT_CAPS } from "@voicedesk/agent-brain";
 import {
   checkSend,
   createConversation,

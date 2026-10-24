@@ -82,6 +82,7 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
     LIVEKIT_URL.replace(/^ws/, "http"),
     LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET,
+    { requestTimeout: 15 }, // dialling has its own 30 s (security audit M15)
   );
   const list = (value: string | undefined) =>
     (value ?? "")

@@ -35,8 +35,10 @@ export function voiceGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): Voice
   const apiKey = env.LIVEKIT_API_KEY;
   const apiSecret = env.LIVEKIT_API_SECRET;
   if (!url || !apiKey || !apiSecret) return null;
-  const dispatch = new AgentDispatchClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
-  const rooms = new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret);
+  // LiveKit requests give up after 15 s instead of hanging (security audit M15).
+  const options = { requestTimeout: 15 };
+  const dispatch = new AgentDispatchClient(url.replace(/^ws/, "http"), apiKey, apiSecret, options);
+  const rooms = new RoomServiceClient(url.replace(/^ws/, "http"), apiKey, apiSecret, options);
   return {
     async createSession({ roomName, identity, displayName, metadata }) {
       // Explicit dispatch: the worker only joins rooms we create (never all rooms).

@@ -24,6 +24,10 @@ export class SmtpEmailProvider implements EmailProvider {
       // Port 465 is TLS from the first byte; 587/25 upgrade with STARTTLS.
       secure: config.secure ?? config.port === 465,
       ...(config.user ? { auth: { user: config.user, pass: config.password ?? "" } } : {}),
+      // Never hang a worker on a slow mail server (security audit M15).
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 30_000,
     });
   }
 

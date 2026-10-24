@@ -179,6 +179,6 @@ describe("agent services with a connected Google calendar", () => {
     const tenantId = await connectedTenant();
     const row = await getCalendarConnection(dbs.app, tenantId);
     expect(row?.refreshTokenEncrypted).not.toContain("rt-secret");
-    expect(row?.refreshTokenEncrypted.startsWith("v1:")).toBe(true);
+    expect(row?.refreshTokenEncrypted.startsWith("v2:")).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { createCipheriv, randomBytes, randomUUID } from "node:crypto";
 import { responseText } from "@voicedesk/adapters";
 import { aiProviders, closeDb, withPlatformAccess } from "@voicedesk/db";
-import { connectTestDbs, type TestDbs } from "@voicedesk/db/testing";
+import { connectTestDbs, createTestTenant, type TestDbs } from "@voicedesk/db/testing";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startFakeOpenAi, type FakeServer } from "../../adapters/test/fake-openai-server";
@@ -13,6 +13,8 @@ import {
   updateProvider,
   type AiProviderRow,
 } from "../src/ai-providers";
+import { saveMailbox } from "../src/mailboxes";
+import { reencryptAll } from "../src/reencrypt";
 import { SecretBox } from "../src/secret-box";
 
 const box = new SecretBox(randomBytes(32).toString("base64"));
@@ -54,13 +56,46 @@ afterAll(async () => {
 describe("SecretBox", () => {
   it("round-trips and rejects tampering or a different context", () => {
     const sealed = box.encrypt("sk-test-123456789", "ai_providers:deepseek");
-    expect(sealed).toMatch(/^v1:/);
+    expect(sealed).toMatch(/^v2:k1:/);
     expect(sealed).not.toContain("sk-test");
     expect(box.decrypt(sealed, "ai_providers:deepseek")).toBe("sk-test-123456789");
     expect(() => box.decrypt(sealed, "ai_providers:local")).toThrow();
-    const tampered = `v1:${Buffer.from(Buffer.from(sealed.slice(3), "base64").map((b, i) => (i === 40 ? b ^ 1 : b))).toString("base64")}`;
+    const body = sealed.slice("v2:k1:".length);
+    const tampered = `v2:k1:${Buffer.from(Buffer.from(body, "base64").map((b, i) => (i === 40 ? b ^ 1 : b))).toString("base64")}`;
     expect(() => box.decrypt(tampered, "ai_providers:deepseek")).toThrow();
     expect(() => new SecretBox("short")).toThrow(/32 bytes/);
+  });
+
+  it("rotates keys: old keys still read, new values use the current key (audit M12)", () => {
+    const oldKey = randomBytes(32).toString("base64");
+    const newKey = randomBytes(32).toString("base64");
+    const before = new SecretBox(oldKey, { keyId: "k1" });
+    const sealed = before.encrypt("refresh-token", "calendar_connections:t:google");
+    const after = new SecretBox(newKey, { keyId: "k2", oldKeys: { k1: oldKey } });
+    expect(after.decrypt(sealed, "calendar_connections:t:google")).toBe("refresh-token");
+    expect(after.needsRotation(sealed)).toBe(true);
+    const resealed = after.encrypt("refresh-token", "calendar_connections:t:google");
+    expect(resealed).toMatch(/^v2:k2:/);
+    expect(after.needsRotation(resealed)).toBe(false);
+    // Without the old key the value can't be read (and says which key it needs).
+    expect(() =>
+      new SecretBox(newKey, { keyId: "k2" }).decrypt(sealed, "calendar_connections:t:google"),
+    ).toThrow(/key "k1"/);
+  });
+
+  it("still reads values sealed before key ids (v1)", () => {
+    const key = randomBytes(32);
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", key, iv);
+    cipher.setAAD(Buffer.from("mailboxes:t"));
+    const data = Buffer.concat([cipher.update("app-password", "utf8"), cipher.final()]);
+    const v1 = `v1:${Buffer.concat([iv, cipher.getAuthTag(), data]).toString("base64")}`;
+    const current = new SecretBox(randomBytes(32).toString("base64"), {
+      keyId: "k2",
+      oldKeys: { k1: key.toString("base64") },
+    });
+    expect(current.decrypt(v1, "mailboxes:t")).toBe("app-password");
+    expect(current.needsRotation(v1)).toBe(true);
   });
 });
 
@@ -76,7 +111,7 @@ describe("AI provider settings", () => {
       apiKey: "sk-deepseek-abcdef123456",
     });
     const stored = await row("deepseek");
-    expect(stored.apiKeyEncrypted).toMatch(/^v1:/);
+    expect(stored.apiKeyEncrypted).toMatch(/^v2:/);
     expect(stored.apiKeyEncrypted).not.toContain("abcdef");
     expect(toView(stored, secrets)).toMatchObject({ ready: true, apiKeyHint: "sk-…3456" });
 
@@ -130,5 +165,36 @@ describe("connection test context check", () => {
     const result = await testProvider(dbs.app, secrets, actor, local.id);
     expect(result?.ok).toBe(true);
     expect(result?.contextWarning).toMatch(/context window is too small/);
+  });
+});
+
+describe("re-encrypting after a key rotation (audit M12)", () => {
+  it("moves a business's stored secrets to the new key", async () => {
+    const tenantId = await createTestTenant(dbs.app, "Rotate Co");
+    const oldKey = randomBytes(32).toString("base64");
+    const before = new SecretBox(oldKey, { keyId: "old" });
+    await saveMailbox(dbs.app, before, tenantId, {
+      emailAddress: "help@rotate.example",
+      username: "help@rotate.example",
+      password: "app-password-123",
+      imap: { host: "imap.rotate.example", port: 993, secure: true },
+      smtp: { host: "smtp.rotate.example", port: 465, secure: true },
+      folder: "INBOX",
+      autoSend: false,
+    });
+    const after = new SecretBox(randomBytes(32).toString("base64"), {
+      keyId: "new",
+      oldKeys: { old: oldKey },
+    });
+    const first = await reencryptAll(dbs.app, after, actor, {
+      tenants: [tenantId],
+      includeProviders: false,
+    });
+    expect(first).toEqual({ rotated: 1, current: 0, unreadable: 0 });
+    const again = await reencryptAll(dbs.app, after, actor, {
+      tenants: [tenantId],
+      includeProviders: false,
+    });
+    expect(again).toEqual({ rotated: 0, current: 1, unreadable: 0 });
   });
 });

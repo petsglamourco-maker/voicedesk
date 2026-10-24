@@ -10,6 +10,7 @@ import {
   type LlmResponse,
   type ModelTier,
   type TaggedRaw,
+  REALTIME_TIMEOUT_MS,
 } from "./types";
 
 export interface AnthropicLlmConfig {
@@ -26,6 +27,10 @@ const DEFAULT_EFFORT: Record<ModelTier, "low" | "medium"> = {
 };
 
 /** Claude via the official SDK. See ADR 0007 and the claude-api skill notes in CLAUDE.md. */
+/** Live (realtime) turns fail fast so the router can fall back (security audit M15). */
+const timeoutFor = (request: LlmRequest) =>
+  request.tier === "realtime" ? { timeout: REALTIME_TIMEOUT_MS } : undefined;
+
 export class AnthropicLlmProvider implements LlmProvider {
   readonly name = "anthropic";
   private readonly client: Anthropic;
@@ -39,12 +44,14 @@ export class AnthropicLlmProvider implements LlmProvider {
   }
 
   async complete(request: LlmRequest): Promise<LlmResponse> {
-    return this.run(request, async (params) => this.client.messages.create(params));
+    return this.run(request, async (params) =>
+      this.client.messages.create(params, timeoutFor(request)),
+    );
   }
 
   async stream(request: LlmRequest, onText: (delta: string) => void): Promise<LlmResponse> {
     return this.run(request, async (params) => {
-      const stream = this.client.messages.stream(params);
+      const stream = this.client.messages.stream(params, timeoutFor(request));
       stream.on("text", onText);
       return stream.finalMessage();
     });
