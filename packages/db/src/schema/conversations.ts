@@ -616,3 +616,21 @@ export const spendAlerts = pgTable(
   },
   (t) => [uniqueIndex("spend_alerts_once_idx").on(t.tenantId, t.month, t.category, t.level)],
 );
+
+/**
+ * Inbound messages already handled (security audit M6): providers can deliver the same
+ * webhook more than once, sometimes days apart. One row per business, channel and message id.
+ */
+export const processedMessages = pgTable(
+  "processed_messages",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(), // "whatsapp" | "form"
+    externalId: text("external_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("processed_messages_once_idx").on(t.tenantId, t.channel, t.externalId)],
+);

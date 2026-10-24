@@ -37,6 +37,7 @@ function email(uid: number, over: Partial<InboundEmail> = {}): InboundEmail {
     text: "Are you open on Sunday?",
     date: new Date(),
     automated: false,
+    authenticated: true,
     attachmentNames: [],
     ...over,
   };

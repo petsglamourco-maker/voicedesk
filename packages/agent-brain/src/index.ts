@@ -220,3 +220,4 @@ export {
   type SendRefusal,
 } from "./send-guard";
 export { planSpendAlerts } from "./spend-alerts";
+export { claimInbound } from "./inbound-dedupe";

@@ -222,9 +222,16 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
       async (request, reply) => {
         const endpoint = await endpointFor(request.params.key);
         const config = endpoint.config as FormConfig;
+        // The header is preferred: secrets in URLs end up in logs and browser history
+        // (security audit M6). The ?secret= form still works for existing forms.
         const header = request.headers["x-voicedesk-secret"];
-        const given = request.query.secret ?? (typeof header === "string" ? header : undefined);
+        const given = typeof header === "string" ? header : request.query.secret;
         if (!secretMatches(config.secret, given)) throw notFound();
+        if (typeof header !== "string") request.log.warn("form webhook secret sent in the URL");
+        // A form tool's retries carry the same key, so the enquiry is handled once.
+        const idem = request.headers["idempotency-key"];
+        const submissionId =
+          typeof idem === "string" && /^[\w.:-]{8,120}$/.test(idem) ? `key:${idem}` : randomUUID();
         const mapped = mapFields(flattenFields(request.body), config.fieldMap);
         if (
           !mapped.message &&
@@ -234,7 +241,7 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
         ) {
           throw new HttpError(400, "EMPTY_SUBMISSION", "No form fields received");
         }
-        await submit(endpoint, { ...mapped, submissionId: randomUUID(), source: "webhook" });
+        await submit(endpoint, { ...mapped, submissionId, source: "webhook" });
         return reply.code(202).send({ received: true });
       },
     );
@@ -277,6 +284,9 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
       fieldMap: config.fieldMap ?? {},
       hostedUrl: `${base}/f/${row.key}`,
       webhookPath: `/api/webhooks/forms/${row.key}?secret=${config.secret ?? ""}`,
+      /** Recommended: the address without the secret, and the secret in this header. */
+      webhookUrlPath: `/api/webhooks/forms/${row.key}`,
+      secretHeader: { name: "X-VoiceDesk-Secret", value: config.secret ?? "" },
     };
   };
 

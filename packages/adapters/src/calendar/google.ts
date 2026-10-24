@@ -75,7 +75,12 @@ export class GoogleOAuthClient {
     this.fetchImpl = config.fetch ?? fetch;
   }
 
-  authorizeUrl(state: string, scopes: string[] = GOOGLE_CALENDAR_SCOPES): string {
+  /** `codeChallenge`: PKCE S256 challenge (security audit M7). */
+  authorizeUrl(
+    state: string,
+    codeChallenge?: string,
+    scopes: string[] = GOOGLE_CALENDAR_SCOPES,
+  ): string {
     const url = new URL(this.config.authUrl ?? "https://accounts.google.com/o/oauth2/v2/auth");
     url.search = new URLSearchParams({
       client_id: this.config.clientId,
@@ -87,6 +92,7 @@ export class GoogleOAuthClient {
       prompt: "consent",
       include_granted_scopes: "true",
       state,
+      ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     }).toString();
     return url.toString();
   }
@@ -120,11 +126,12 @@ export class GoogleOAuthClient {
     };
   }
 
-  exchangeCode(code: string): Promise<GoogleTokens> {
+  exchangeCode(code: string, codeVerifier?: string): Promise<GoogleTokens> {
     return this.token({
       code,
       redirect_uri: this.config.redirectUri,
       grant_type: "authorization_code",
+      ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     });
   }
 

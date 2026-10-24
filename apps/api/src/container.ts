@@ -15,6 +15,7 @@ import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voi
 import {
   createAppLlm,
   calendarsFromEnv,
+  disconnectCalendarOf,
   recordAudit,
   SecretBox,
   type CalendarIntegrations,
@@ -64,6 +65,7 @@ export function createAppAuth(
   db: Database,
   sendEmail: (email: AuthEmail) => Promise<void>,
   kv?: Kv,
+  onMemberRemoved?: (event: { tenantId: string; userId: string }) => Promise<void>,
 ): Auth {
   return createAuth({
     db,
@@ -76,7 +78,19 @@ export function createAppAuth(
     onBreachCheckUnavailable: () =>
       authLog.warn("breached-password check unavailable; password allowed"),
     ...(kv ? { rateLimitStorage: kvRateLimitStorage(kv) } : {}),
+    ...(onMemberRemoved ? { onMemberRemoved } : {}),
   });
+}
+
+/** A removed member's own calendar stops being used (security audit M7). */
+export function disconnectRemovedMembersCalendar(
+  db: Database,
+  secrets: ProviderSecrets,
+  calendars: CalendarIntegrations | undefined,
+) {
+  return async ({ tenantId, userId }: { tenantId: string; userId: string }) => {
+    await disconnectCalendarOf(db, secrets.box, calendars?.oauth ?? {}, tenantId, userId);
+  };
 }
 
 /** Background work the API hands to apps/workers. Narrow so tests can fake it. */
@@ -146,14 +160,22 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const sendAuthEmail = async (email: AuthEmail) => {
     await emailQueue.add(email.kind, email);
   };
-  const auth = createAppAuth(env, db, sendAuthEmail, kv);
-  const storage = storageFromEnv();
-  await storage.ensureBucket();
-  let embeddings: Promise<EmbeddingProvider> | undefined;
-  const secrets: ProviderSecrets = {
+  const secretsEarly: ProviderSecrets = {
     box: SecretBox.fromEnv(),
     anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
   };
+  const calendars = calendarsFromEnv();
+  const auth = createAppAuth(
+    env,
+    db,
+    sendAuthEmail,
+    kv,
+    disconnectRemovedMembersCalendar(db, secretsEarly, calendars),
+  );
+  const storage = storageFromEnv();
+  await storage.ensureBucket();
+  let embeddings: Promise<EmbeddingProvider> | undefined;
+  const secrets = secretsEarly;
 
   return {
     db,
@@ -164,7 +186,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     voice: voiceGatewayFromEnv(),
     tts: await ttsFromEnv(),
     sip: sipGatewayFromEnv(),
-    calendars: calendarsFromEnv(),
+    calendars,
     whatsapp: whatsAppSettingsFromEnv(),
     mailboxClient: (creds) => new ImapMailbox(creds),
     oauthStateSecret: env.BETTER_AUTH_SECRET,

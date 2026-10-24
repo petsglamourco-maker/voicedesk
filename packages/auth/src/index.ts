@@ -54,6 +54,8 @@ export interface AuthDeps {
    * of the password's SHA-1 are sent). On by default; tests switch it off (no network).
    */
   checkBreachedPasswords?: boolean;
+  /** Called after someone is removed from a business (e.g. to disconnect their calendar). */
+  onMemberRemoved?: (event: { tenantId: string; userId: string }) => Promise<void>;
   /** Told when the breach check couldn't run (the password was allowed). Never gets the password. */
   onBreachCheckUnavailable?: () => void;
   /**
@@ -291,15 +293,17 @@ If you didn't ask for this, you can ignore this email: your password hasn't chan
               targetId: member.id,
               metadata: { from: previousRole, to: member.role },
             }),
-          afterRemoveMember: ({ member, organization }) =>
-            deps.audit({
+          afterRemoveMember: async ({ member, organization }) => {
+            await deps.audit({
               tenantId: organization.id,
               actorUserId: actor(),
               ipAddress: ip(),
               action: "member.removed",
               targetType: "member",
               targetId: member.id,
-            }),
+            });
+            await deps.onMemberRemoved?.({ tenantId: organization.id, userId: member.userId });
+          },
         },
       }),
       twoFactor({ issuer: "VoiceDesk" }),

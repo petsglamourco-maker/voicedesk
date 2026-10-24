@@ -840,7 +840,8 @@
       "phone": "Phone field",
       "message": "Message field",
       "consent": "Consent field"
-    }
+    },
+    "headerHint": "Safer, if your form tool can add a header: post to the address without ?secret= and send the secret in this header instead, so it never appears in logs. Add an Idempotency-Key header too and retries won't create duplicate enquiries."
   },
   "hostedForm": {
     "name": "Your name",

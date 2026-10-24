@@ -35,6 +35,7 @@ function email(over: Partial<InboundEmail> = {}): InboundEmail {
     text: "Hi, what time do you open on Saturday?",
     date: new Date(),
     automated: false,
+    authenticated: true,
     attachmentNames: [],
     ...over,
   };
@@ -151,6 +152,19 @@ describe("email triage", () => {
     });
     expect(held).toMatchObject({ status: "draft", reason: "needs a person" });
     expect(sent).toHaveLength(1);
+  });
+
+  it("never auto-replies to a sender the mail server couldn't verify (audit M14)", async () => {
+    const { client, sent } = fakeClient();
+    const llm = new MockLlmProvider().enqueue(MockLlmProvider.text("We open at 9am."));
+    const held = await processInboundEmail(deps(llm), {
+      tenantId,
+      autoSend: true,
+      client,
+      email: email({ authenticated: false }),
+    });
+    expect(held).toMatchObject({ status: "draft", reason: "sender not verified" });
+    expect(sent).toHaveLength(0);
   });
 
   it("keeps replies in the same thread", () => {

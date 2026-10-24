@@ -15,7 +15,11 @@ import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
 import { buildApp, type AppDeps } from "../src/app";
-import { createAppAuth, type JobDispatcher } from "../src/container";
+import {
+  createAppAuth,
+  disconnectRemovedMembersCalendar,
+  type JobDispatcher,
+} from "../src/container";
 import { freshAuthStore } from "../src/lib/fresh-auth";
 import { memoryKv, type Kv } from "../src/lib/kv";
 import { parseEnv } from "../src/env";
@@ -72,7 +76,14 @@ export async function createHarness(
     outbox.push(email);
     return Promise.resolve();
   };
-  const auth = createAppAuth(env, db, sendAuthEmail, options.authRateLimit ? kv : undefined);
+  const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
+  const auth = createAppAuth(
+    env,
+    db,
+    sendAuthEmail,
+    options.authRateLimit ? kv : undefined,
+    disconnectRemovedMembersCalendar(db, secrets, options.calendars),
+  );
   const storage = new InMemoryObjectStorage();
   const embeddings = new MockEmbeddingProvider();
   const llm = new MockLlmProvider();
@@ -110,7 +121,6 @@ export async function createHarness(
       return Promise.resolve();
     },
   };
-  const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
   const app = await buildApp({
     db,
     secrets,

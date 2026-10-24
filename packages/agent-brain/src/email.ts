@@ -44,7 +44,7 @@ export function replySubject(subject: string): string {
 export type EmailOutcome =
   | { status: "skipped"; reason: "automated" }
   | { status: "waiting"; threadId: string }
-  | { status: "draft"; threadId: string; reason: "review" | "needs a person" }
+  | { status: "draft"; threadId: string; reason: "review" | "needs a person" | "sender not verified" }
   | { status: "sent"; threadId: string };
 
 /** Records that make a reply unsuitable to send without a person looking first. */
@@ -106,11 +106,18 @@ export async function processInboundEmail(
       e.type === "tool" && (e.name === "note_unanswered_question" || e.name === "request_human"),
   );
   const sensitive = unsure || (state?.records ?? []).some((r) => NEEDS_REVIEW.has(r.type));
-  if (!params.autoSend || sensitive || state?.flow === "complaint") {
+  // Forged senders never get an automatic reply (backscatter; security audit M14).
+  const unverified = email.authenticated === false;
+  if (!params.autoSend || sensitive || state?.flow === "complaint" || unverified) {
     return {
       status: "draft",
       threadId: result.threadId,
-      reason: sensitive || state?.flow === "complaint" ? "needs a person" : "review",
+      reason:
+        sensitive || state?.flow === "complaint"
+          ? "needs a person"
+          : unverified && params.autoSend
+            ? "sender not verified"
+            : "review",
     };
   }
   await sendAssistantEmail(deps.db, tenantId, result.threadId, params.client, result.reply);

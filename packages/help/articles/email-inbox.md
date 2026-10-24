@@ -39,6 +39,7 @@ Zoho, iCloud and Yahoo work the same way. Microsoft 365 mailboxes aren't support
 - Newsletters and automatic emails are ignored.
 - New mail is checked every minute. The page shows when it was last checked.
 - With automatic sending on, complaints, cancellations and anything the assistant isn't sure about still wait for you in the Inbox.
+- Automatic replies only go to senders your email provider has verified (DMARC or DKIM). Emails that could be forged wait for you as drafts, so the assistant never replies to someone pretending to be another person.
 
 ## Approving drafts
 

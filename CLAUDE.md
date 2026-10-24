@@ -174,6 +174,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Per-turn channel instructions** (`state.transfer`, `state.endRequested`) are cleared at the start of every `runTurn`. Never persist them across turns, or a later turn repeats the transfer or hang-up.
 - **Caller ID is not proof** (security audit M8): `find_booking` by phone number also needs the name the booking was made under, and the recognised-caller note gives no booking details.
 - **Booking changes** are gated by turn order in `tools.ts`: cancel needs a later turn than `find_booking`; reschedule needs a later turn than `check_availability`. Don't replace this with a "call twice" confirmation, which made models ask twice or claim success after a refusal (evals 2026-10-18).
+- **Integrations hardening** (security audit M6, M7, M14):
+  - Calendar OAuth uses PKCE; the verifier is derived from the one-use nonce cookie (`pkceVerifier`). Removing a member disconnects a calendar they connected (`disconnectCalendarOf`, via Better Auth's `onMemberRemoved`).
+  - Inbound WhatsApp messages and form submissions are claimed once in `processed_messages` (`claimInbound`).
+  - Form webhooks prefer the `X-VoiceDesk-Secret` header and honour `Idempotency-Key`.
+  - Email auto-send only answers senders whose `Authentication-Results` show DMARC pass or a matching DKIM pass (`senderAuthenticated`).
 - **Calendars:** agent services take `calendars: { box, factory }`. Google failures must never fail a turn (`withCalendar` in `services-db.ts` logs them and marks the connection). Keep event descriptions free of transcripts.
 - **LiveKit logs what the assistant says** (`lk.pii.message`) at info level. The voice-agent scripts pass `--log-level warn` to its logger (our own `createLogger` is separate). Keep it that way so transcripts stay out of logs.
 - **`@livekit/local-inference` ships a prebuilt binary**, so its install script (a no-op) is denied in `allowBuilds`. The end-of-turn model runs locally (`v1-mini`).

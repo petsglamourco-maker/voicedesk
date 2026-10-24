@@ -38,6 +38,9 @@ export interface FormView {
   fieldMap: Partial<Record<MappedField, string>>;
   hostedUrl: string;
   webhookPath: string;
+  /** Recommended set-up: the address without the secret, plus this header. */
+  webhookUrlPath?: string;
+  secretHeader?: { name: string; value: string };
 }
 
 const FORM = "var(--color-ch-form)";
@@ -199,6 +202,18 @@ export function FormSettings(props: { tenantId: string; initial: FormView; canEd
             <span className="text-muted-foreground">{"https://<your-public-address>"}</span>
             {webhookShown}
           </pre>
+          {form.webhookUrlPath && form.secretHeader ? (
+            <div className="mt-3 text-xs text-muted-foreground">
+              <p>{t("headerHint")}</p>
+              <pre
+                className="glass mt-2 overflow-x-auto rounded-lg px-3 py-2.5 font-mono text-xs leading-relaxed text-foreground"
+                dir="ltr"
+              >
+                {`POST https://<your-public-address>${form.webhookUrlPath}
+${form.secretHeader.name}: ${showSecret ? form.secretHeader.value : "••••••••"}`}
+              </pre>
+            </div>
+          ) : null}
           <p className="mt-2 text-xs text-muted-foreground">{t("tunnelHint")}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowSecret(!showSecret)}>

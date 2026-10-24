@@ -35,6 +35,8 @@ If you use Typeform, Jotform, Webflow, Tally, WordPress or similar, point its we
 
 Click **Show secret** to see the webhook secret. Keep it private: anyone with it can send enquiries.
 
+If your form tool can add headers, use the safer set-up shown under the address: post to the address without `?secret=` and send the secret in an **X-VoiceDesk-Secret** header, so it never appears in logs. Add an **Idempotency-Key** header (any unique id per submission) and a retried submission won't create a duplicate enquiry.
+
 ## Field names
 
 Under **Field names**, leave each box on **Detect automatically** to pick up fields called name, email, phone, message and so on. If your form uses different names, enter them for the **Name field**, **Email field**, **Phone field** and **Message field**.

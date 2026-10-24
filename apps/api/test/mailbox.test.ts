@@ -138,6 +138,7 @@ describe("mailbox settings", () => {
           text: "When do you open?",
           date: new Date(),
           automated: false,
+          authenticated: true,
           attachmentNames: [],
         },
       },

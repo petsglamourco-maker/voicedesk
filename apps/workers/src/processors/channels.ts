@@ -2,6 +2,7 @@ import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
 import type { MailboxClient, MailboxCredentials } from "@voicedesk/adapters/email/mailbox";
 import type { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 import {
+  claimInbound,
   handleInboundMessage,
   processFormSubmission,
   processInboundEmail,
@@ -47,6 +48,11 @@ export function createChannelProcessor(deps: ChannelDeps, log: Logger) {
     const data = job.data;
     if (data.kind === "email.poll") return pollMailbox(deps, log, data);
     if (data.kind === "form.submitted") return triageForm(deps, log, data);
+    // The same WhatsApp message can be delivered again days later (audit M6).
+    if (!(await claimInbound(deps.db, data.tenantId, "whatsapp", data.messageId))) {
+      log.info({ jobId: job.id, tenantId: data.tenantId }, "duplicate whatsapp message skipped");
+      return { duplicate: true };
+    }
     const result = await handleInboundMessage(
       {
         db: deps.db,
@@ -174,6 +180,10 @@ async function triageForm(
   log: Logger,
   data: Extract<ChannelJob, { kind: "form.submitted" }>,
 ) {
+  if (!(await claimInbound(deps.db, data.tenantId, "form", data.form.submissionId))) {
+    log.info({ tenantId: data.tenantId }, "duplicate form submission skipped");
+    return { duplicate: true };
+  }
   const result = await processFormSubmission(
     {
       db: deps.db,

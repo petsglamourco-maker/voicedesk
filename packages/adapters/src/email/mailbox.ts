@@ -35,6 +35,11 @@ export interface InboundEmail {
   date: Date;
   /** Newsletters, auto-replies, bounces: never answered. */
   automated: boolean;
+  /**
+   * The receiving mail server verified the sender (DMARC pass, or DKIM pass for the sender's
+   * own domain). Only these may get an automatic reply (security audit M14).
+   */
+  authenticated: boolean;
   attachmentNames: string[];
 }
 
@@ -206,6 +211,12 @@ export class ImapMailbox implements MailboxClient {
           text: stripQuoted(parsed.text ?? "").slice(0, 8000),
           date: parsed.date ?? new Date(),
           automated,
+          authenticated: senderAuthenticated(
+            parsed.headerLines
+              .filter((h) => h.key === "authentication-results")
+              .map((h) => h.line),
+            from.address,
+          ),
           attachmentNames: parsed.attachments.map((a) => a.filename ?? "attachment"),
         });
       }
@@ -250,3 +261,19 @@ export const MAILBOX_PRESETS: Record<string, { imap: MailServer; smtp: MailServe
     smtp: { host: "smtp.mail.yahoo.com", port: 465, secure: true },
   },
 };
+
+/**
+ * Reads the receiving server's verdict (the topmost Authentication-Results header, which the
+ * server adds itself). DMARC pass, or DKIM pass signed by the From domain (or its parent).
+ */
+export function senderAuthenticated(headers: string[], fromAddress: string): boolean {
+  const top = (headers[0] ?? "").toLowerCase();
+  if (!top) return false;
+  if (/\bdmarc=pass\b/.test(top)) return true;
+  const fromDomain = fromAddress.toLowerCase().split("@")[1] ?? "";
+  for (const m of top.matchAll(/\bdkim=pass\b[^;]*?header\.(?:d|i)=@?([a-z0-9.-]+)/g)) {
+    const signer = m[1]!;
+    if (fromDomain === signer || fromDomain.endsWith(`.${signer}`)) return true;
+  }
+  return false;
+}
