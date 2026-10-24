@@ -29,6 +29,10 @@ They get an email with a link. They sign in or create an account with that same 
 
 Use the role menu next to a member to change their role, or click **Remove** to take away their access. You can't change your own role or remove yourself here. These changes, and inviting an admin or owner, ask you to confirm your password first (once every 5 minutes).
 
+## Phoning customers
+
+Owners and admins can phone customers from the business's number in the [VA console](/va). To let staff and VAs who answer calls do it too, turn on **People who answer calls can also phone customers** on this page. Calls cost money and count towards the calls limit on [Usage & limits](/t/:tenant/usage).
+
 ## Letting someone answer calls
 
 When a caller asks to speak to a person, the assistant can ring people at the [VA console](/va).

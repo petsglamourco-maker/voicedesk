@@ -51,6 +51,7 @@ export {
   createDbAgentServices,
   invalidateBusyCache,
   loadAgentContext,
+  aiPauseFor,
   type AgentNotification,
   type DbServiceDeps,
 } from "./services-db";
@@ -187,3 +188,35 @@ export {
   type HelpTurn,
   type HelpUser,
 } from "./help";
+export {
+  ALERT_LEVELS,
+  DEFAULT_CAPS,
+  SPEND_CATEGORIES,
+  allowanceFor,
+  capsFor,
+  getPlatformSpendSettings,
+  monthSpend,
+  monthWindow,
+  recordSmsSpend,
+  smsSegments,
+  spendStatus,
+  stateFor,
+  type Pence,
+  type SpendCategory,
+  type SpendState,
+  type SpendStatus,
+} from "./spend";
+export {
+  checkDestination,
+  countryOfNumber,
+  destinationMessage,
+  type DestinationCheck,
+} from "./destinations";
+export {
+  checkSend,
+  sendRefusalMessage,
+  smsCostsMoney,
+  type SendDecision,
+  type SendRefusal,
+} from "./send-guard";
+export { planSpendAlerts } from "./spend-alerts";

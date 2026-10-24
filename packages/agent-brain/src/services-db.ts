@@ -1,3 +1,5 @@
+import { checkSend } from "./send-guard";
+import { getPlatformSpendSettings, spendStatus } from "./spend";
 import type { EmbeddingProvider } from "@voicedesk/adapters";
 import {
   markCalendarError,
@@ -419,7 +421,7 @@ export function createDbAgentServices(
           t.select().from(agentSettings).where(eq(agentSettings.tenantId, tenantId)),
         );
         const profile = await getApprovedProfile(db, tenantId);
-        const phone = transferTarget(
+        const target = transferTarget(
           {
             transferPhone: settings?.transferPhone ?? null,
             transferHours: settings?.transferHours === "always" ? "always" : "open",
@@ -428,6 +430,11 @@ export function createDbAgentServices(
           isOpenNow(profile, scope.timezone ?? "Europe/London", new Date()),
           options.urgent === true,
         );
+        // A transfer is an outbound call leg: same checks as any call (ADR 0022).
+        const phone =
+          target && (await checkSend(db, { tenantId, kind: "call", to: target })).ok
+            ? target
+            : null;
         const route = toHandoffRoute(settings?.handoffRoute);
         const people =
           route !== "phone_only" && scope.peopleAvailable
@@ -514,6 +521,28 @@ export async function loadAgentContext(
     recordCalls: settings?.recordCalls ?? false,
     voiceIds: settings?.voiceIds ?? {},
     urgentSituations: settings?.urgentSituations ?? null,
+    ...(await aiPauseFor(db, tenantId, now(), tenant.status)),
     now,
   };
+}
+
+/** Whether this business's conversations run without AI right now (ADR 0022). */
+export async function aiPauseFor(
+  db: Database,
+  tenantId: string,
+  now: Date = new Date(),
+  knownStatus?: string,
+): Promise<Pick<AgentContext, "aiPaused" | "suspended">> {
+  const status =
+    knownStatus ??
+    (
+      await withTenant(db, tenantId, (t) =>
+        t.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, tenantId)),
+      )
+    )[0]?.status;
+  if (status === "suspended") return { aiPaused: "platform", suspended: true };
+  const platform = await getPlatformSpendSettings(db);
+  if (platform.paused.ai) return { aiPaused: "platform", suspended: false };
+  const spend = await spendStatus(db, tenantId, now);
+  return { aiPaused: spend.categories.ai.state === "reached" ? "cap" : null, suspended: false };
 }

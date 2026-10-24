@@ -23,5 +23,12 @@ export interface AgentContext {
   voiceIds?: Record<string, string>;
   /** What counts as urgent for this business (phone transfers to the on-call number). */
   urgentSituations?: string | null;
+  /**
+   * No AI for this conversation (ADR 0022): "cap" when the business's monthly AI cap is
+   * reached, "platform" when the platform owner paused AI. The engine takes messages instead.
+   */
+  aiPaused?: "cap" | "platform" | null;
+  /** The business is suspended: only a fixed "not available" answer. */
+  suspended?: boolean;
   now: () => Date;
 }

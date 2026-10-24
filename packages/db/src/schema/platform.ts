@@ -108,3 +108,46 @@ export const knownDevices = pgTable(
   },
   (t) => [primaryKey({ columns: [t.userId, t.deviceHash] })],
 );
+
+/** Platform-wide spending rules, kill switches and cost estimates (ADR 0022). */
+export interface PlatformSpendSettings {
+  /** Most a business may set each monthly cap to, in pence (billing tiers replace this). */
+  maxCapPence: { ai: number; sms: number; calls: number };
+  /** Cost estimates used to work out spend; update them from provider bills. */
+  costs: {
+    /** Speech recognition + voice + LiveKit, per voice minute (pence). */
+    voicePencePerMinute: number;
+    /** Carrier charge per phone-call minute (pence). */
+    phoneInboundPencePerMinute: number;
+    phoneOutboundPencePerMinute: number;
+    /** Per text segment through a real carrier (pence). */
+    smsPencePerSegment: number;
+    /** AI costs are recorded in US dollars. */
+    usdToGbp: number;
+  };
+  /** Kill switches: every sender checks these. */
+  paused: { outboundCalls: boolean; sms: boolean; ai: boolean };
+  /** ISO countries outbound calls and texts may go to. */
+  allowedCountries: string[];
+}
+
+export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
+  maxCapPence: { ai: 10_000, sms: 10_000, calls: 10_000 },
+  costs: {
+    voicePencePerMinute: 6,
+    phoneInboundPencePerMinute: 1,
+    phoneOutboundPencePerMinute: 3,
+    smsPencePerSegment: 4,
+    usdToGbp: 0.79,
+  },
+  paused: { outboundCalls: false, sms: false, ai: false },
+  allowedCountries: ["GB"],
+};
+
+/** One row ("global"). Readable by everyone; written only under withPlatformAccess. */
+export const platformSettings = pgTable("platform_settings", {
+  id: text("id").primaryKey().default("global"),
+  spend: jsonb("spend").$type<PlatformSpendSettings>().notNull(),
+  updatedBy: uuid("updated_by"),
+  ...timestamps,
+});

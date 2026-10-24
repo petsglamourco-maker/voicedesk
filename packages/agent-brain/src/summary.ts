@@ -10,6 +10,7 @@ import { asc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { LANGUAGE_NAMES, toLang } from "./languages";
 import type { ConversationState } from "./state";
+import { aiPauseFor } from "./services-db";
 import { recordLlmUsage } from "./usage";
 
 /** Post-conversation summary (brief §3.5), written in the business's admin language. */
@@ -76,8 +77,8 @@ export async function summarizeConversation(
   };
 
   let summary: ConversationSummary;
-  if (!(await isLlmAvailable(deps.llm))) {
-    // No AI configured: a basic, factual summary from the engine state.
+  if (!(await isLlmAvailable(deps.llm)) || (await aiPauseFor(deps.db, tenantId)).aiPaused) {
+    // No AI configured, or paused (spend cap / platform): a basic summary from the engine state.
     summary = {
       ...base,
       generatedBy: "basic",

@@ -38,6 +38,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Daily brief:** an email at 07:30 local time.
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
 - **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
+- **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). Batches 1–4 are done: localhost binding, SSRF, two-step login, re-auth, audit gaps, password reset/sessions/Argon2id/lockout, and spending limits with a send guard (ADR 0022). Batches 5–6 remain.
 - **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-20.1 is waiting for the owner's OK.
 
 ## Layout
@@ -195,6 +196,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - API limits are counted per session cookie hash or per IP, in Valkey. Better Auth's limits (`AUTH_RATE_LIMITS`) are off in tests unless `createHarness({ authRateLimit: true })`.
   - Breached-password checks call Have I Been Pwned (`packages/auth/src/breach.ts`, `PASSWORD_BREACH_CHECK`, off in tests). They fail open after 3 s with a log warning: an outage must not block sign-ups.
   - Web forms use `method="post"` so a submit before the page loads never puts fields in the URL.
+- **Spending limits** (ADR 0022):
+  - Every outbound text, call and transfer goes through `checkSend` (agent-brain `send-guard.ts`): pause switches, suspension, caps, allowed countries, no premium numbers. Never send or dial around it.
+  - New AI features must respect `aiPauseFor`; `runTurn` takes messages without AI when `ctx.aiPaused`.
+  - Caps are chosen by the business up to `allowanceFor()`, the only function billing tiers will replace. Price every Phase 7 tier to be profitable from measured unit costs.
+  - `platform_settings` is shared by all tests: don't change it in tests; pass `settings` to `checkSend`.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

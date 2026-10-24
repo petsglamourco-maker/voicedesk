@@ -18,6 +18,7 @@ import {
 import { buildSystemPrompt } from "./prompt";
 import type { AgentServices } from "./services";
 import { initialState, stepNote, type ConversationState, type CreatedRecord } from "./state";
+import { messageOnlyTurn, unavailablePhrase } from "./message-only";
 import { runTool, toolDefinitions } from "./tools";
 
 export type TurnEvent =
@@ -194,6 +195,29 @@ export async function runTurn(
     );
     options.onText?.(reply);
     events.push({ type: "emergency" });
+    return { reply, state, events, usage, latencyMs: Date.now() - started };
+  }
+
+  // Suspended business, or no AI (spend cap reached / paused by the platform): fixed
+  // answers only, never a model call (ADR 0022).
+  if (ctx.suspended || ctx.aiPaused) {
+    let reply: string;
+    if (ctx.suspended) {
+      reply = unavailablePhrase(state.language, ctx.businessName);
+      state.endRequested = true;
+    } else {
+      const result = await messageOnlyTurn(deps.services, ctx, state, callerText);
+      reply = result.reply;
+      const record = result.reference
+        ? state.records.find((r) => r.reference === result.reference)
+        : undefined;
+      if (record) events.push({ type: "record", record });
+    }
+    state.history.push(
+      { role: "user", content: callerText },
+      { role: "assistant", content: reply },
+    );
+    options.onText?.(reply);
     return { reply, state, events, usage, latencyMs: Date.now() - started };
   }
 

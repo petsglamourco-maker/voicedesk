@@ -1,12 +1,18 @@
 import type { EmailProvider, SmsProvider } from "@voicedesk/adapters";
 import {
+  checkSend,
   claimDueBriefs,
+  getPlatformSpendSettings,
+  recordSmsSpend,
+  smsCostsMoney,
+  smsSegments,
   scheduleCallbackFor,
   scheduleConfirmationFor,
   planBookingNotification,
   prepareDailyBrief,
   planBookingReminder,
   planFeedbackRequest,
+  planSpendAlerts,
   planStaffAlert,
   planSupportRequest,
   planTransferContext,
@@ -36,9 +42,26 @@ export interface NotificationDeps {
 /** Sends what the planner decided; never logs message text or numbers (PII). */
 export function createNotificationProcessor(deps: NotificationDeps, log: Logger) {
   async function execute(job: Job<NotificationJob>, tenantId: string, plan: NotificationPlan) {
+    const skipped: string[] = [];
+    const settings = plan.messages.some((m) => m.channel === "sms")
+      ? await getPlatformSpendSettings(deps.db)
+      : undefined;
     for (const m of plan.messages) {
       if (m.channel === "sms") {
+        // Every text: pause switches, suspension, the business's cap, allowed destinations
+        // (ADR 0022). Refused texts are skipped; emails in the same plan still go.
+        const decision =
+          tenantId === "platform"
+            ? ({ ok: false, reason: "invalid" } as const)
+            : await checkSend(deps.db, { tenantId, kind: "sms", to: m.to, settings });
+        if (!decision.ok) {
+          skipped.push(decision.reason);
+          continue;
+        }
         await deps.sms.send({ to: m.to, from: deps.smsFrom, body: m.text });
+        if (smsCostsMoney(deps.sms.name)) {
+          await recordSmsSpend(deps.db, tenantId, smsSegments(m.text), settings);
+        }
       } else {
         await deps.email.send({
           to: m.to,
@@ -69,13 +92,14 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
         jobId: job.id,
         tenantId,
         kind: job.data.kind,
-        sms: plan.messages.filter((m) => m.channel === "sms").length,
+        sms: plan.messages.filter((m) => m.channel === "sms").length - skipped.length,
+        smsSkipped: skipped,
         emails: plan.messages.filter((m) => m.channel === "email").length,
         reminder: plan.reminder?.action ?? null,
       },
       "notification processed",
     );
-    return { sent: plan.messages.length };
+    return { sent: plan.messages.length - skipped.length, skipped };
   }
 
   return async (job: Job<NotificationJob>) => {
@@ -96,7 +120,10 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
           })),
         });
       }
-      return { briefs: due.length };
+      // Spending alerts share the 15-minute tick (ADR 0022).
+      const alerts = await planSpendAlerts(deps.db, now, deps.webOrigin);
+      for (const { tenantId, plan } of alerts) await execute(job, tenantId, plan);
+      return { briefs: due.length, spendAlerts: alerts.length };
     }
     switch (data.kind) {
       case "booking.changed":

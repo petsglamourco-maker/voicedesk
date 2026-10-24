@@ -1,6 +1,9 @@
 import {
   createDbAgentServices,
   LANGUAGES,
+  checkDestination,
+  destinationMessage,
+  getPlatformSpendSettings,
   normalisePhone,
   PERSONA_IDS,
   PERSONAS,
@@ -198,10 +201,21 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
         tx.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, access.tenantId)),
       );
+      const { allowedCountries } = await getPlatformSpendSettings(deps.db);
       const phone = (value: string | null, label: string) => {
         if (!value) return null;
         const e164 = normalisePhone(value, tenant?.c ?? "GB");
         if (!e164) throw new HttpError(400, "INVALID_PHONE", `The ${label} number isn't valid`);
+        // Calls are transferred and texts sent to these numbers: no premium or foreign
+        // destinations (security audit H3).
+        const destination = checkDestination(e164, allowedCountries);
+        if (!destination.ok) {
+          throw new HttpError(
+            400,
+            "PHONE_NOT_ALLOWED",
+            `The ${label} number can't be used: ${destinationMessage(destination.reason)}`,
+          );
+        }
         return e164;
       };
       const settings = {

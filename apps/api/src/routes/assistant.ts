@@ -8,6 +8,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { refuseWhenAiPaused } from "../lib/ai-pause";
 import { cancelBookingAsStaff } from "./agent";
 import { requireTenantAccess, type TenantAccess } from "./guards";
 import { sendStaffReply } from "./inbox";
@@ -72,6 +73,7 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): vo
           "No AI provider is switched on (Platform admin → AI providers)",
         );
       }
+      await refuseWhenAiPaused(deps, access.tenantId);
       const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
         tx.select().from(tenants).where(eq(tenants.id, access.tenantId)),
       );

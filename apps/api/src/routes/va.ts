@@ -18,6 +18,7 @@ import {
 } from "@voicedesk/core";
 import type { ConversationState } from "@voicedesk/agent-brain";
 import {
+  agentSettings,
   channelThreads,
   contacts,
   conversationMessages,
@@ -126,7 +127,48 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "members:read",
       );
-      return { answerers: await listAnswerers(deps.db, access.tenantId) };
+      return {
+        answerers: await listAnswerers(deps.db, access.tenantId),
+        canCallOut: await answerersCanCallOut(deps.db, access.tenantId),
+      };
+    },
+  );
+
+  r.put(
+    "/api/tenants/:tenantId/answerers-call-out",
+    {
+      schema: {
+        tags: ["team"],
+        summary: "Let staff and VAs who answer calls also phone customers (ADR 0022)",
+        params: z.object({ tenantId: z.string() }),
+        body: z.object({ on: z.boolean() }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "members:update_role",
+      );
+      await withTenant(deps.db, access.tenantId, async (tx) => {
+        await tx
+          .insert(agentSettings)
+          .values({ tenantId: access.tenantId, answerersCanCallOut: request.body.on })
+          .onConflictDoUpdate({
+            target: agentSettings.tenantId,
+            set: { answerersCanCallOut: request.body.on },
+          });
+        await recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: access.session.user.id,
+          action: "team.call_out_changed",
+          metadata: { on: request.body.on },
+          ipAddress: request.ip ?? null,
+        });
+      });
+      return { canCallOut: request.body.on };
     },
   );
 
@@ -457,4 +499,14 @@ async function callContext(db: Database, tenantId: string, conversationId: strin
         .map((m) => ({ role: m.role, text: m.content, at: m.createdAt })),
     };
   });
+}
+
+async function answerersCanCallOut(db: Database, tenantId: string): Promise<boolean> {
+  const [row] = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ on: agentSettings.answerersCanCallOut })
+      .from(agentSettings)
+      .where(eq(agentSettings.tenantId, tenantId)),
+  );
+  return row?.on === true;
 }

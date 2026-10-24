@@ -5,6 +5,7 @@ import {
   ClipboardList,
   FileText,
   FlaskConical,
+  Gauge,
   Inbox,
   LayoutDashboard,
   Mail,
@@ -56,6 +57,7 @@ export type NavIcon =
   | "integrations"
   | "console"
   | "members"
+  | "usage"
   | "account";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
@@ -76,5 +78,6 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
   integrations: Plug,
   console: FlaskConical,
   members: UsersRound,
+  usage: Gauge,
   account: UserCog,
 };

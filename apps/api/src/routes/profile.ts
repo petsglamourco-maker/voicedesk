@@ -13,6 +13,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { refuseWhenAiPaused } from "../lib/ai-pause";
 import { requireTenantAccess } from "./guards";
 
 const versionSchema = z.object({
@@ -81,6 +82,7 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
           "Switch on an AI provider in Platform admin → AI providers to generate profiles",
         );
       }
+      await refuseWhenAiPaused(deps, access.tenantId);
       await deps.jobs.enqueueAi({
         kind: "profile.generate",
         tenantId: access.tenantId,

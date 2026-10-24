@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { AppShell, SIDEBAR_COOKIE, type NavGroup } from "@/components/shell/app-shell";
-import { apiGetOrNull, getMe, type TenantDetail } from "@/lib/api";
+import { apiGetOrNull, getMe, type SpendView, type TenantDetail } from "@/lib/api";
 import { THEME_COOKIE, toTheme } from "@/lib/theme";
 import { BusinessSwitcher } from "./business-switcher";
 
@@ -25,6 +25,16 @@ export default async function TenantLayout(props: {
   const jar = await cookies();
   const format = await getFormatter();
   const base = `/t/${tenantId}`;
+  // Owners and admins see spending (ADR 0022); everyone sees a suspension.
+  const canSeeSpend = detail.permissions.includes("tenant:update");
+  const spend = canSeeSpend
+    ? await apiGetOrNull<SpendView>(`/api/tenants/${tenantId}/spend`)
+    : null;
+  const usageLink = (
+    <Link href={`${base}/usage`} className="font-semibold text-primary hover:underline">
+      {s("usageLink")}
+    </Link>
+  );
 
   const groups: NavGroup[] = [
     {
@@ -67,6 +77,9 @@ export default async function TenantLayout(props: {
       label: s("groups.settings"),
       items: [
         { href: `${base}/members`, label: t("members"), icon: "members" },
+        ...(canSeeSpend
+          ? [{ href: `${base}/usage`, label: t("usage"), icon: "usage" as const }]
+          : []),
         { href: `${base}/account`, label: t("account"), icon: "account" },
       ],
     },
@@ -126,6 +139,27 @@ export default async function TenantLayout(props: {
           <Link href="/mfa-required" className="font-semibold text-primary hover:underline">
             {s("mfaSetup")}
           </Link>
+        </Alert>
+      ) : null}
+      {detail.tenant.status === "suspended" ? (
+        <Alert tone="error" className="mb-6" data-testid="suspended-banner">
+          {s("suspendedBanner")}
+        </Alert>
+      ) : spend?.categories.ai.state === "reached" ? (
+        <Alert tone="warning" className="mb-6" data-testid="spend-banner">
+          {s("aiCapBanner")} {usageLink}
+        </Alert>
+      ) : spend && (spend.paused.ai || spend.paused.sms || spend.paused.outboundCalls) ? (
+        <Alert tone="warning" className="mb-6" data-testid="paused-banner">
+          {s("pausedBanner", {
+            what: [
+              spend.paused.ai ? s("pausedWhat.ai") : null,
+              spend.paused.sms ? s("pausedWhat.sms") : null,
+              spend.paused.outboundCalls ? s("pausedWhat.calls") : null,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          })}
         </Alert>
       ) : null}
       {props.children}

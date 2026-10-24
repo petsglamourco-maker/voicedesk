@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isLlmAvailable } from "@voicedesk/adapters";
-import { askHelp, helpFromSearch, type HelpAnswer } from "@voicedesk/agent-brain";
+import { aiPauseFor, askHelp, helpFromSearch, type HelpAnswer } from "@voicedesk/agent-brain";
 import { getMembershipRole, listProviderRows, recordAudit, toView } from "@voicedesk/core";
 import {
   supportRequests,
@@ -119,7 +119,10 @@ export function registerHelpRoutes(app: FastifyInstance, deps: AppDeps): void {
       const who = await asker(request, request.body.tenantId, page);
       // AI answers need a business to record the cost against and a provider switched on;
       // otherwise answer from the help articles alone.
-      const useAi = who.tenantId !== null && (await isLlmAvailable(deps.llm));
+      const useAi =
+        who.tenantId !== null &&
+        (await isLlmAvailable(deps.llm)) &&
+        !(await aiPauseFor(deps.db, who.tenantId)).aiPaused;
       const tenantId = who.tenantId;
       const businessName = tenantId
         ? await withTenant(deps.db, tenantId, async (tx) => {

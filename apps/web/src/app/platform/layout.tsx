@@ -21,6 +21,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
         { href: "/platform/ai", label: t("aiProviders") },
         { href: "/platform/phone-numbers", label: t("phoneNumbers") },
         { href: "/platform/vas", label: t("vas") },
+        { href: "/platform/spending", label: t("spending") },
         { href: "/platform/support", label: t("support") },
       ]}
       helpTenantId={back}

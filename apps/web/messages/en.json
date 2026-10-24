@@ -103,7 +103,8 @@
     "forms": "Forms",
     "vaConsole": "VA console",
     "feedback": "Feedback",
-    "ask": "Ask VoiceDesk"
+    "ask": "Ask VoiceDesk",
+    "usage": "Usage & limits"
   },
   "roles": {
     "owner": "Owner",
@@ -128,7 +129,9 @@
     "readOnly": "Only owners and admins can manage the team.",
     "answersCalls": "Answers calls",
     "va": "VA",
-    "vaHint": "A VA assigned by your VoiceDesk administrator. They answer handed-off calls for you."
+    "vaHint": "A VA assigned by your VoiceDesk administrator. They answer handed-off calls for you.",
+    "callOutTitle": "People who answer calls can also phone customers",
+    "callOutHint": "Owners and admins can always phone customers from the business's number. Turn this on to let staff and VAs who answer calls do it too. Calls cost money and count towards the calls limit."
   },
   "invite": {
     "title": "Join {organization}",
@@ -433,7 +436,8 @@
     "phoneNumbers": "Phone numbers",
     "vas": "VAs",
     "setup": "Setup",
-    "support": "Support requests"
+    "support": "Support requests",
+    "spending": "Spending & limits"
   },
   "voice": {
     "ended": "Call ended",
@@ -1212,7 +1216,16 @@
     "errorBody": "It's usually a brief connection problem. Try again; if it keeps happening, check that VoiceDesk's servers are running.",
     "retry": "Try again",
     "mfaBanner": "To keep your business secure, turn on two-step login by {date}. After that, admin features need it.",
-    "mfaSetup": "Set it up now"
+    "mfaSetup": "Set it up now",
+    "usageLink": "See usage & limits",
+    "suspendedBanner": "This business is suspended. The assistant isn't answering, and texts and calls are stopped. Please contact VoiceDesk support.",
+    "aiCapBanner": "This month's AI limit has been reached, so the assistant is taking messages instead of answering questions.",
+    "pausedBanner": "VoiceDesk has temporarily paused {what} for all businesses.",
+    "pausedWhat": {
+      "ai": "AI answers (the assistant takes messages)",
+      "sms": "texts",
+      "calls": "outbound calls"
+    }
   },
   "design": {
     "title": "Design system",
@@ -1366,5 +1379,94 @@
     "confirm": "Confirm",
     "wrong": "That password isn't right.",
     "tooMany": "Too many tries. Please wait a minute and try again."
+  },
+  "usage": {
+    "title": "Usage & limits",
+    "subtitle": "What your assistant has cost this month, and the monthly limits you choose.",
+    "categories": {
+      "ai": "AI",
+      "sms": "Texts",
+      "calls": "Calls"
+    },
+    "states": {
+      "ok": "Within limit",
+      "warning": "Over 80%",
+      "reached": "Limit reached"
+    },
+    "ofCap": "of {cap}",
+    "progressLabel": "{what} spend this month",
+    "effects": {
+      "ai": "When the limit is reached, the assistant takes messages instead of answering questions.",
+      "sms": "When the limit is reached, confirmations, reminders and alert texts stop. Emails still go.",
+      "calls": "When the limit is reached, outbound calls stop. Incoming calls are still answered."
+    },
+    "capsTitle": "Monthly limits",
+    "capsHint": "Raise or lower them whenever you like. Owners and admins are emailed at 80% and 100%.",
+    "capLabel": "{what} limit (£ per month)",
+    "upTo": "Up to {max}",
+    "save": "Save limits",
+    "saved": "Limits saved.",
+    "invalidAmount": "Enter an amount in pounds, for example 20 or 12.50.",
+    "ownersOnly": "Only the business owner can change the limits.",
+    "estimateNote": "Amounts are estimates from VoiceDesk's provider costs. Months follow your business's time zone.",
+    "suspended": "This business is suspended, so nothing is being spent."
+  },
+  "spending": {
+    "title": "Spending & limits",
+    "subtitle": "Pause sending everywhere, suspend a business, and set how much each business may spend a month.",
+    "businesses": "Businesses",
+    "atLimit": "At a limit",
+    "pausedCount": "Paused switches",
+    "saved": "Saved.",
+    "pause": {
+      "title": "Emergency stop",
+      "hint": "Applies to every business at once. Use it if something is sending or calling when it shouldn't.",
+      "outboundCalls": "Pause all outbound calls",
+      "outboundCallsHint": "The assistant's callbacks and confirmation calls, and people phoning customers. Incoming calls still work.",
+      "outboundCallsConfirm": "Pause all outbound calls for every business?",
+      "sms": "Pause all texts",
+      "smsHint": "Confirmations, reminders and alert texts. Emails still go.",
+      "smsConfirm": "Pause all texts for every business?",
+      "ai": "Pause AI (take messages only)",
+      "aiHint": "The assistant takes messages without AI on every channel, so nothing is spent on AI.",
+      "aiConfirm": "Pause AI for every business? The assistant will only take messages."
+    },
+    "businessesTitle": "This month by business",
+    "businessesHint": "Spend against each business's own limits. Suspending stops a business's assistant, texts and calls straight away.",
+    "business": "Business",
+    "status": "Status",
+    "statuses": {
+      "onboarding": "Setting up",
+      "active": "Live",
+      "suspended": "Suspended"
+    },
+    "suspend": "Suspend",
+    "resume": "Resume",
+    "suspendConfirm": "Suspend {name}? Its assistant stops answering and its texts and calls stop.",
+    "resumeConfirm": "Resume {name}?",
+    "limitsTitle": "Allowance, countries and cost estimates",
+    "limitsHint": "Businesses choose their own monthly limits up to these amounts. With billing, each plan will set them instead.",
+    "maxLabel": "Most a business can set for {what} (£ a month)",
+    "countries": "Countries calls and texts may go to",
+    "countriesHint": "Premium-rate and special-rate numbers are always blocked.",
+    "countryNeeded": "Choose at least one country.",
+    "countryNames": {
+      "GB": "United Kingdom",
+      "IE": "Ireland",
+      "FR": "France",
+      "DE": "Germany",
+      "ES": "Spain",
+      "US": "US & Canada"
+    },
+    "costsTitle": "Cost estimates",
+    "costs": {
+      "voicePencePerMinute": "Voice per minute (p): speech, voice and LiveKit",
+      "phoneInboundPencePerMinute": "Phone line, incoming (p per minute)",
+      "phoneOutboundPencePerMinute": "Phone line, outgoing (p per minute)",
+      "smsPencePerSegment": "Text, per part (p)",
+      "usdToGbp": "US dollars to pounds rate (AI costs are in dollars)"
+    },
+    "costsHint": "Estimates used to work out spend. Update them from your provider bills (Twilio, Deepgram, ElevenLabs, LiveKit).",
+    "save": "Save"
   }
 }

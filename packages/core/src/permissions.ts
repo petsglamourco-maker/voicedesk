@@ -17,6 +17,8 @@ export const PERMISSIONS = [
   "contacts:read",
   "contacts:write",
   "calls:read",
+  /** Phone customers from the business's number (costs money; ADR 0022). */
+  "calls:outbound",
   "records:read",
   "records:write",
   "inbox:read",

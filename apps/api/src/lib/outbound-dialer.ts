@@ -1,5 +1,7 @@
 import {
+  checkSend,
   claimDueOutboundCalls,
+  sendRefusalMessage,
   createOutboundConversation,
   decideOutboundCall,
   finishOutboundAttempt,
@@ -71,6 +73,21 @@ export async function placeOutboundCall(
   if (decision.action === "cancel") {
     await finishOutboundAttempt(db, call, { status: "cancelled", reason: decision.reason });
     return `cancelled: ${decision.reason}`;
+  }
+  // Pause switch, suspension, calls cap and allowed destinations (ADR 0022).
+  const guard = await checkSend(db, { tenantId: call.tenantId, kind: "call", to: call.phone, now });
+  if (!guard.ok) {
+    const reason = sendRefusalMessage(guard.reason, "call");
+    if (guard.reason === "paused") {
+      await finishOutboundAttempt(db, call, {
+        status: "later",
+        at: new Date(now.getTime() + 60 * 60 * 1000),
+        reason,
+      });
+      return `later: ${reason}`;
+    }
+    await finishOutboundAttempt(db, call, { status: "cancelled", reason });
+    return `cancelled: ${reason}`;
   }
   const [number] = await withTenant(db, call.tenantId, (tx) =>
     tx

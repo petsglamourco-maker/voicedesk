@@ -58,6 +58,7 @@ interface TeamData {
   invitations: InvitationRow[];
   /** Who answers handed-off calls, and whether they're your own staff or a VA. */
   answerers: Map<string, string>;
+  canCallOut: boolean;
   error: string | null;
 }
 
@@ -67,18 +68,25 @@ async function fetchTeam(tenantId: string, includeInvitations: boolean): Promise
     includeInvitations
       ? authClient.organization.listInvitations({ query: { organizationId: tenantId } })
       : Promise.resolve({ data: [] as InvitationRow[], error: null }),
-    api<{ answerers: Array<{ userId: string; source: string }> }>(
+    api<{ answerers: Array<{ userId: string; source: string }>; canCallOut?: boolean }>(
       `/api/tenants/${tenantId}/answerers`,
-    ).catch(() => ({ answerers: [] })),
+    ).catch(() => ({ answerers: [], canCallOut: false })),
   ]);
   const answerers = new Map(a.answerers.map((x) => [x.userId, x.source]));
   if (m.error) {
-    return { members: [], invitations: [], answerers, error: m.error.message ?? "error" };
+    return {
+      members: [],
+      invitations: [],
+      answerers,
+      canCallOut: a.canCallOut === true,
+      error: m.error.message ?? "error",
+    };
   }
   return {
     members: m.data?.members ?? [],
     invitations: (i.data ?? []).filter((x) => x.status === "pending"),
     answerers,
+    canCallOut: a.canCallOut === true,
     error: null,
   };
 }
@@ -96,6 +104,7 @@ export function MembersPanel(props: {
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [answerers, setAnswerers] = useState<Map<string, string>>(new Map());
+  const [canCallOut, setCanCallOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -110,6 +119,7 @@ export function MembersPanel(props: {
       setMembers(team.members);
       setInvitations(team.invitations);
       setAnswerers(team.answerers);
+      setCanCallOut(team.canCallOut);
       if (team.error) setError(team.error);
     });
     return () => {
@@ -197,6 +207,35 @@ export function MembersPanel(props: {
       ) : (
         <Alert>{t("readOnly")}</Alert>
       )}
+
+      {props.canManage ? (
+        <Card>
+          <label className="flex items-start gap-3">
+            <Switch
+              className="mt-0.5"
+              checked={canCallOut}
+              disabled={pending}
+              onCheckedChange={(on) =>
+                void run(async () => {
+                  try {
+                    await api(`/api/tenants/${tenantId}/answerers-call-out`, {
+                      method: "PUT",
+                      body: JSON.stringify({ on }),
+                    });
+                    return { error: null };
+                  } catch (e) {
+                    return { error: { message: e instanceof Error ? e.message : undefined } };
+                  }
+                })
+              }
+            />
+            <span>
+              <span className="block text-sm font-semibold">{t("callOutTitle")}</span>
+              <span className="block text-xs text-muted-foreground">{t("callOutHint")}</span>
+            </span>
+          </label>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHead

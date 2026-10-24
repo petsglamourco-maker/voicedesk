@@ -120,6 +120,12 @@ export interface ConversationState {
   transfer?: { to: string; fallback?: string; urgent?: boolean };
   /** Turn the last booking was made in (guards against a duplicate create in one turn). */
   lastBookingTurn?: number;
+  /** Take-a-message mode without AI (spend cap or platform pause; ADR 0022). */
+  messageOnly?: {
+    step: "start" | "name" | "phone" | "message" | "done";
+    name?: string;
+    phone?: string;
+  };
 }
 
 export function initialState(language: Lang, callerPhone: string | null = null): ConversationState {

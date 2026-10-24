@@ -22,12 +22,14 @@ const SCREENS = [
   "/t/:tenant/integrations",
   "/t/:tenant/console",
   "/t/:tenant/members",
+  "/t/:tenant/usage",
   "/t/:tenant/account",
   "/va",
   "/platform/setup",
   "/platform/ai",
   "/platform/phone-numbers",
   "/platform/vas",
+  "/platform/spending",
   "/platform/support",
 ];
 const ROUTES = new Set([...SCREENS, "/onboarding"]);

@@ -36,6 +36,7 @@ import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { registerFormRoutes } from "./routes/forms";
 import { registerVaRoutes } from "./routes/va";
 import { registerOutboundRoutes } from "./routes/outbound";
+import { registerSpendRoutes } from "./routes/spend";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
 import { registerHelpRoutes } from "./routes/help";
@@ -152,6 +153,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerFormRoutes(app, deps);
   registerVaRoutes(app, deps);
   registerOutboundRoutes(app, deps);
+  registerSpendRoutes(app, deps);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);
   registerHelpRoutes(app, deps);

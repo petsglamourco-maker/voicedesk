@@ -75,3 +75,18 @@ export interface AuditEntry {
 }
 
 export const getMe = () => apiGetOrNull<Me>("/api/me");
+
+/** Monthly spending limits (ADR 0022); amounts in pence. */
+export type SpendCategory = "ai" | "sms" | "calls";
+export interface SpendView {
+  month: string;
+  categories: Record<
+    SpendCategory,
+    { spent: number; cap: number; state: "ok" | "warning" | "reached" }
+  >;
+  allowance: Record<SpendCategory, number>;
+  caps: Record<SpendCategory, number>;
+  canEdit: boolean;
+  paused: { outboundCalls: boolean; sms: boolean; ai: boolean };
+  suspended: boolean;
+}
