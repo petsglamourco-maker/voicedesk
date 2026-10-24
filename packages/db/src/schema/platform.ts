@@ -111,8 +111,13 @@ export const knownDevices = pgTable(
 
 /** Platform-wide spending rules, kill switches and cost estimates (ADR 0022). */
 export interface PlatformSpendSettings {
-  /** Most a business may set each monthly cap to, in pence (billing tiers replace this). */
+  /**
+   * Each business's monthly allowance in pence (billing tiers replace this). A business's
+   * limit is its allowance, unless `businessCaps` lets it choose a lower one.
+   */
   maxCapPence: { ai: number; sms: number; calls: number };
+  /** Let businesses set their own (lower) limits within the allowance. Off by default. */
+  businessCaps: boolean;
   /** Cost estimates used to work out spend; update them from provider bills. */
   costs: {
     /** Speech recognition + voice + LiveKit, per voice minute (pence). */
@@ -133,6 +138,7 @@ export interface PlatformSpendSettings {
 
 export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
   maxCapPence: { ai: 10_000, sms: 10_000, calls: 10_000 },
+  businessCaps: false,
   costs: {
     voicePencePerMinute: 6,
     phoneInboundPencePerMinute: 1,

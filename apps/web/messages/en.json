@@ -1219,7 +1219,7 @@
     "mfaSetup": "Set it up now",
     "usageLink": "See usage & limits",
     "suspendedBanner": "This business is suspended. The assistant isn't answering, and texts and calls are stopped. Please contact VoiceDesk support.",
-    "aiCapBanner": "This month's AI limit has been reached, so the assistant is taking messages instead of answering questions.",
+    "aiCapBanner": "This month's AI allowance is used up, so the assistant is taking messages instead of answering questions.",
     "pausedBanner": "VoiceDesk has temporarily paused {what} for all businesses.",
     "pausedWhat": {
       "ai": "AI answers (the assistant takes messages)",
@@ -1387,7 +1387,7 @@
   },
   "usage": {
     "title": "Usage & limits",
-    "subtitle": "What your assistant has cost this month, and the monthly limits you choose.",
+    "subtitle": "What your assistant has cost this month, against your monthly allowance.",
     "categories": {
       "ai": "AI",
       "sms": "Texts",
@@ -1401,12 +1401,12 @@
     "ofCap": "of {cap}",
     "progressLabel": "{what} spend this month",
     "effects": {
-      "ai": "When the limit is reached, the assistant takes messages instead of answering questions.",
-      "sms": "When the limit is reached, confirmations, reminders and alert texts stop. Emails still go.",
-      "calls": "When the limit is reached, outbound calls stop. Incoming calls are still answered."
+      "ai": "When it's used up, the assistant takes messages instead of answering questions.",
+      "sms": "When it's used up, confirmations, reminders and alert texts stop. Emails still go.",
+      "calls": "When it's used up, outbound calls stop. Incoming calls are still answered."
     },
-    "capsTitle": "Monthly limits",
-    "capsHint": "Raise or lower them whenever you like. Owners and admins are emailed at 80% and 100%.",
+    "capsTitle": "Your monthly limits",
+    "capsHint": "Choose lower limits than your allowance if you like, and change them whenever you want. Owners and admins are emailed at 80% and 100%.",
     "capLabel": "{what} limit (£ per month)",
     "upTo": "Up to {max}",
     "save": "Save limits",
@@ -1414,7 +1414,10 @@
     "invalidAmount": "Enter an amount in pounds, for example 20 or 12.50.",
     "ownersOnly": "Only the business owner can change the limits.",
     "estimateNote": "Amounts are estimates from VoiceDesk's provider costs. Months follow your business's time zone.",
-    "suspended": "This business is suspended, so nothing is being spent."
+    "suspended": "This business is suspended, so nothing is being spent.",
+    "allowanceTitle": "Your monthly allowance",
+    "allowanceHint": "What your plan includes each month. Owners and admins are emailed at 80% and 100%.",
+    "planOnly": "Your allowance comes from your plan. If you need more, contact VoiceDesk support (with billing, you'll be able to move to a bigger plan)."
   },
   "spending": {
     "title": "Spending & limits",
@@ -1449,9 +1452,9 @@
     "resume": "Resume",
     "suspendConfirm": "Suspend {name}? Its assistant stops answering and its texts and calls stop.",
     "resumeConfirm": "Resume {name}?",
-    "limitsTitle": "Allowance, countries and cost estimates",
-    "limitsHint": "Businesses choose their own monthly limits up to these amounts. With billing, each plan will set them instead.",
-    "maxLabel": "Most a business can set for {what} (£ a month)",
+    "limitsTitle": "Allowances, countries and cost estimates",
+    "limitsHint": "Each business's monthly allowance. With billing, each plan will set it instead.",
+    "maxLabel": "Monthly allowance for {what} (£)",
     "countries": "Countries calls and texts may go to",
     "countriesHint": "Premium-rate and special-rate numbers are always blocked.",
     "countryNeeded": "Choose at least one country.",
@@ -1472,6 +1475,8 @@
       "usdToGbp": "US dollars to pounds rate (AI costs are in dollars)"
     },
     "costsHint": "Estimates used to work out spend. Update them from your provider bills (Twilio, Deepgram, ElevenLabs, LiveKit).",
-    "save": "Save"
+    "save": "Save",
+    "businessCaps": "Let businesses set their own limits",
+    "businessCapsHint": "Off: each business can use its whole allowance, and is asked to get more when it runs out. On: owners can also choose lower limits within it."
   }
 }

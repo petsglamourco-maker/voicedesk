@@ -201,7 +201,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Spending limits** (ADR 0022):
   - Every outbound text, call and transfer goes through `checkSend` (agent-brain `send-guard.ts`): pause switches, suspension, caps, allowed countries, no premium numbers. Never send or dial around it.
   - New AI features must respect `aiPauseFor`; `runTurn` takes messages without AI when `ctx.aiPaused`.
-  - Caps are chosen by the business up to `allowanceFor()`, the only function billing tiers will replace. Price every Phase 7 tier to be profitable from measured unit costs.
+  - **The plan alone sets what a business can use:** `allowanceFor()` is the only function billing tiers will replace. Running out means "upgrade". Business-set lower limits only apply when the platform switch `businessCaps` is on (off by default). Price every Phase 7 tier to be profitable from measured unit costs.
   - `platform_settings` is shared by all tests: don't change it in tests; pass `settings` to `checkSend`.
   - Website chat trusts the frame's signed token (`widget-token.ts`), never an origin in the request. The bot check is a `HumanCheck` adapter: it fails open when Cloudflare is unreachable and fails closed on "bot". Long-lived chat streams are capped per visitor and per IP via `deps.kv`.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.

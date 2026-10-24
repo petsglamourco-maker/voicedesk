@@ -86,6 +86,8 @@ export interface SpendView {
   >;
   allowance: Record<SpendCategory, number>;
   caps: Record<SpendCategory, number>;
+  /** The platform lets businesses choose their own limits within the allowance. */
+  businessCaps: boolean;
   canEdit: boolean;
   paused: { outboundCalls: boolean; sms: boolean; ai: boolean };
   suspended: boolean;

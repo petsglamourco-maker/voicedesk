@@ -22,6 +22,7 @@ import { formString } from "@/lib/form";
 type Pence = Record<SpendCategory, number>;
 interface Settings {
   maxCapPence: Pence;
+  businessCaps: boolean;
   costs: {
     voicePencePerMinute: number;
     phoneInboundPencePerMinute: number;
@@ -221,6 +222,19 @@ export function SpendingPanel(props: { initial: PlatformSpending }) {
 
       <Card>
         <CardHead icon={<Calculator />} title={t("limitsTitle")} hint={t("limitsHint")} />
+        <label className="mt-5 flex items-start gap-3">
+          <Switch
+            className="mt-0.5"
+            checked={data.settings.businessCaps}
+            disabled={pending}
+            aria-label={t("businessCaps")}
+            onCheckedChange={(on) => void save({ businessCaps: on }, t("saved"))}
+          />
+          <span>
+            <span className="block text-sm font-semibold">{t("businessCaps")}</span>
+            <span className="block text-xs text-muted-foreground">{t("businessCapsHint")}</span>
+          </span>
+        </label>
         <form method="post" onSubmit={onLimits} className="mt-5 space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
             {CATEGORIES.map((c) => (

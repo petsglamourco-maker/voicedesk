@@ -12,7 +12,7 @@ export async function refuseWhenAiPaused(
     throw new HttpError(
       409,
       "AI_CAP_REACHED",
-      "This month's AI limit has been reached. An owner can raise it in Settings → Usage & limits.",
+      "This month's AI allowance is used up. See Settings → Usage & limits.",
     );
   }
   if (aiPaused === "platform") {

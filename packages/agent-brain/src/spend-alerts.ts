@@ -72,22 +72,26 @@ export async function planSpendAlerts(
     for (const { category, level } of due) {
       const { spent, cap } = status.categories[category];
       const reached = level >= 100;
+      const more = status.businessCaps
+        ? "An owner can raise the limit"
+        : "Contact VoiceDesk support for a bigger allowance";
       const what = LABEL[category];
+      const noun = status.businessCaps ? "limit" : "allowance";
       const subject = reached
-        ? `${business?.name ?? "Your business"}: this month's ${what} limit is reached`
-        : `${business?.name ?? "Your business"}: ${level}% of this month's ${what} limit used`;
+        ? `${business?.name ?? "Your business"}: this month's ${what} ${noun} is used up`
+        : `${business?.name ?? "Your business"}: ${level}% of this month's ${what} ${noun} used`;
       const effect =
         category === "ai"
-          ? "The assistant now takes messages instead of answering questions, until next month or until the limit is raised."
+          ? "The assistant now takes messages instead of answering questions, until next month or until the allowance is raised."
           : category === "sms"
-            ? "Texts (confirmations, reminders, alerts) have stopped until next month or until the limit is raised."
-            : "Outbound calls have stopped until next month or until the limit is raised. Incoming calls are still answered.";
+            ? "Texts (confirmations, reminders, alerts) have stopped until next month or until the allowance is raised."
+            : "Outbound calls have stopped until next month or until the allowance is raised. Incoming calls are still answered.";
       const text = [
-        `${pounds(spent)} of the ${pounds(cap)} monthly ${what} limit has been used.`,
+        `${pounds(spent)} of the ${pounds(cap)} monthly ${what} ${noun} has been used.`,
         "",
         reached ? effect : "When it's reached: " + effect.charAt(0).toLowerCase() + effect.slice(1),
         "",
-        `See usage or change the limit: ${link}`,
+        `${more}: ${link}`,
       ].join("\n");
       for (const r of team) {
         messages.push({ channel: "email", to: r.email, subject, text, kind: "spend.alert" });

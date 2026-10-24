@@ -40,6 +40,8 @@ const statusResponse = z.object({
   categories: z.object({ ai: category, sms: category, calls: category }),
   allowance: caps,
   caps,
+  /** The platform lets businesses choose their own limits within the allowance. */
+  businessCaps: z.boolean(),
   canEdit: z.boolean(),
   paused: z.object({ outboundCalls: z.boolean(), sms: z.boolean(), ai: z.boolean() }),
   suspended: z.boolean(),
@@ -47,6 +49,7 @@ const statusResponse = z.object({
 
 const settingsSchema = z.object({
   maxCapPence: caps,
+  businessCaps: z.boolean(),
   costs: z.object({
     voicePencePerMinute: z.number().min(0).max(1000),
     phoneInboundPencePerMinute: z.number().min(0).max(1000),
@@ -91,7 +94,7 @@ export function registerSpendRoutes(app: FastifyInstance, deps: AppDeps): void {
     return {
       ...status,
       caps: saved,
-      canEdit,
+      canEdit: canEdit && status.businessCaps,
       paused: settings.paused,
       suspended: tenant[0]?.status === "suspended",
     };
@@ -136,6 +139,13 @@ export function registerSpendRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "billing:manage",
       );
+      if (!(await getPlatformSpendSettings(deps.db)).businessCaps) {
+        throw new HttpError(
+          409,
+          "PLAN_LIMITS_ONLY",
+          "Your limits come from your plan. Contact VoiceDesk support if you need more.",
+        );
+      }
       const allowance = await allowanceFor(deps.db, access.tenantId);
       for (const c of SPEND_CATEGORIES) {
         const value = request.body[c];
@@ -215,6 +225,7 @@ export function registerSpendRoutes(app: FastifyInstance, deps: AppDeps): void {
       const current = await getPlatformSpendSettings(deps.db);
       const next: PlatformSpendSettings = {
         maxCapPence: { ...current.maxCapPence, ...request.body.maxCapPence },
+        businessCaps: request.body.businessCaps ?? current.businessCaps,
         costs: { ...current.costs, ...request.body.costs },
         paused: { ...current.paused, ...request.body.paused },
         allowedCountries: request.body.allowedCountries ?? current.allowedCountries,

@@ -85,7 +85,11 @@ export function UsageLimits(props: { tenantId: string; initial: SpendView }) {
       </div>
 
       <Card>
-        <CardHead icon={<Gauge />} title={t("capsTitle")} hint={t("capsHint")} />
+        <CardHead
+          icon={<Gauge />}
+          title={view.businessCaps ? t("capsTitle") : t("allowanceTitle")}
+          hint={view.businessCaps ? t("capsHint") : t("allowanceHint")}
+        />
         {error ? (
           <Alert tone="error" className="mt-4">
             {error}
@@ -129,7 +133,9 @@ export function UsageLimits(props: { tenantId: string; initial: SpendView }) {
             </div>
           </form>
         ) : (
-          <p className="mt-4 text-sm text-muted-foreground">{t("ownersOnly")}</p>
+          <p className="mt-4 text-sm text-muted-foreground">
+            {view.businessCaps ? t("ownersOnly") : t("planOnly")}
+          </p>
         )}
         <p className="mt-4 text-xs text-muted-foreground">{t("estimateNote")}</p>
       </Card>

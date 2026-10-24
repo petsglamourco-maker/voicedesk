@@ -33,7 +33,7 @@ export async function checkSend(
   if (tenant?.status === "suspended") return { ok: false, reason: "suspended" };
   const destination = checkDestination(params.to, settings.allowedCountries);
   if (!destination.ok) return destination;
-  const spend = await spendStatus(db, params.tenantId, params.now ?? new Date());
+  const spend = await spendStatus(db, params.tenantId, params.now ?? new Date(), settings);
   const category = params.kind === "sms" ? "sms" : "calls";
   if (spend.categories[category].state === "reached") return { ok: false, reason: "cap" };
   return { ok: true };
@@ -47,7 +47,7 @@ export function sendRefusalMessage(reason: SendRefusal, kind: "sms" | "call"): s
     case "suspended":
       return "This business is suspended";
     case "cap":
-      return `This month's ${kind === "sms" ? "texts" : "calls"} limit has been reached (Settings → Usage & limits)`;
+      return `This month's ${kind === "sms" ? "texts" : "calls"} allowance is used up (Settings → Usage & limits)`;
     case "invalid":
       return "That phone number isn't valid";
     case "country":

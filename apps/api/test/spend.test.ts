@@ -1,7 +1,8 @@
+import type {
+  DEFAULT_CAPS} from "@voicedesk/agent-brain";
 import {
   checkSend,
   createConversation,
-  DEFAULT_CAPS,
   getPlatformSpendSettings,
   loadAgentContext,
   monthWindow,
@@ -97,40 +98,46 @@ describe("spend this month", () => {
     // 90 seconds bills as 2 minutes; a browser call has no carrier charge.
     expect(status.categories.calls.spent).toBeCloseTo(2 * settings.costs.voicePencePerMinute);
     expect(status.categories.sms.spent).toBeCloseTo(3 * settings.costs.smsPencePerSegment);
-    expect(status.categories.ai).toMatchObject({ cap: DEFAULT_CAPS.ai, state: "ok" });
+    // By default a business's limit is its whole allowance (its plan).
+    expect(status.categories.ai).toMatchObject({ cap: settings.maxCapPence.ai, state: "ok" });
   });
 
-  it("pauses the AI when its cap is reached: the assistant takes messages instead", async () => {
+  it("pauses the AI when the allowance is used up: the assistant takes messages instead", async () => {
     const biz = await createOwnerWithTenant(h, "Capped Co");
+    const { maxCapPence, costs } = await getPlatformSpendSettings(h.db);
     await addAiCost(biz.tenantId, 0.2);
     expect((await loadAgentContext(h.db, biz.tenantId, "chat")).aiPaused).toBeNull();
-    await setCaps(biz.tenantId, { ai: 10 });
+    // Enough dollars to pass the AI allowance.
+    await addAiCost(biz.tenantId, maxCapPence.ai / 100 / costs.usdToGbp);
     expect((await loadAgentContext(h.db, biz.tenantId, "chat")).aiPaused).toBe("cap");
   });
 });
 
 describe("spend alerts", () => {
-  it("emails owners at 80% and 100%, once each per month", async () => {
+  it("emails owners at 80% and 100% of the allowance, once each per month", async () => {
     const platform = await signUpVerified(h, "AlertPlatform");
     await makePlatformOwner(h, platform);
     const biz = await createOwnerWithTenant(h, "Alert Co");
-    await setCaps(biz.tenantId, { ai: 100 });
-    await addAiCost(biz.tenantId, 1.05); // about 83p of a £1 cap
+    const { maxCapPence, costs } = await getPlatformSpendSettings(h.db);
+    const dollarsFor = (share: number) => (maxCapPence.ai / 100 / costs.usdToGbp) * share;
+    await addAiCost(biz.tenantId, dollarsFor(0.85));
     const run = () => planSpendAlerts(h.db, new Date(), ORIGIN, [biz.tenantId]);
     const first = await run();
     expect(first).toHaveLength(1);
     const warning = first[0]!.plan.messages;
     expect(warning.filter((m) => m.to === biz.email)).toHaveLength(1);
     expect(warning.find((m) => m.to === biz.email)!.subject).toMatch(
-      /80% of this month's AI limit/,
+      /80% of this month's AI allowance/,
     );
     expect(await run()).toEqual([]); // not again
 
-    await addAiCost(biz.tenantId, 0.5);
+    await addAiCost(biz.tenantId, dollarsFor(0.2));
     const second = await run();
     const reached = second[0]!.plan.messages;
-    expect(reached.find((m) => m.to === biz.email)!.subject).toMatch(/AI limit is reached/);
-    expect(reached.find((m) => m.to === biz.email)!.text).toMatch(/takes messages/);
+    const mine = reached.find((m) => m.to === biz.email)!;
+    expect(mine.subject).toMatch(/AI allowance is used up/);
+    expect(mine.text).toMatch(/takes messages/);
+    expect(mine.text).toMatch(/Contact VoiceDesk support for a bigger allowance/);
     // The platform owners get a copy at 100% (not at 80%).
     expect(reached.find((m) => m.to === platform.email)!.subject).toMatch(/^\[Platform\]/);
     expect(warning.some((m) => m.to === platform.email)).toBe(false);
@@ -138,46 +145,51 @@ describe("spend alerts", () => {
   });
 });
 
-describe("caps set by the business", () => {
-  it("owners set caps within the allowance; other businesses can't touch them", async () => {
-    const biz = await createOwnerWithTenant(h, "Caps Co");
+describe("limits", () => {
+  it("come from the plan by default: businesses can't set their own", async () => {
+    const biz = await createOwnerWithTenant(h, "Plan Co");
     const view = await h.app.inject({
       method: "GET",
       url: `/api/tenants/${biz.tenantId}/spend`,
       headers: as(biz.cookie),
     });
     expect(view.statusCode).toBe(200);
-    expect(view.json()).toMatchObject({ caps: DEFAULT_CAPS, canEdit: true, suspended: false });
-    const allowance = view.json<{ allowance: typeof DEFAULT_CAPS }>().allowance;
-
-    const ok = await h.app.inject({
+    expect(view.json()).toMatchObject({ businessCaps: false, canEdit: false, suspended: false });
+    const refused = await h.app.inject({
       method: "PUT",
       url: `/api/tenants/${biz.tenantId}/spend`,
       headers: as(biz.cookie),
-      payload: { ai: 500, sms: 0 },
+      payload: { ai: 500 },
     });
-    expect(ok.statusCode).toBe(200);
-    expect(ok.json()).toMatchObject({ caps: { ai: 500, sms: 0, calls: DEFAULT_CAPS.calls } });
-    // A zero texts cap means no texts at all.
-    expect(ok.json()).toMatchObject({ categories: { sms: { state: "reached" } } });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({ error: "PLAN_LIMITS_ONLY" });
 
-    const tooHigh = await h.app.inject({
-      method: "PUT",
-      url: `/api/tenants/${biz.tenantId}/spend`,
-      headers: as(biz.cookie),
-      payload: { calls: allowance.calls + 1 },
-    });
-    expect(tooHigh.statusCode).toBe(400);
-    expect(tooHigh.json()).toMatchObject({ error: "ABOVE_ALLOWANCE" });
-
-    const other = await createOwnerWithTenant(h, "Other Caps Co");
+    const other = await createOwnerWithTenant(h, "Other Plan Co");
     const hidden = await h.app.inject({
-      method: "PUT",
+      method: "GET",
       url: `/api/tenants/${biz.tenantId}/spend`,
       headers: as(other.cookie),
-      payload: { ai: 1 },
     });
     expect(hidden.statusCode).toBe(404);
+  });
+
+  it("when the platform allows it, a business's own lower limit applies", async () => {
+    const biz = await createOwnerWithTenant(h, "Own Caps Co");
+    const base = await getPlatformSpendSettings(h.db);
+    await setCaps(biz.tenantId, { ai: 500, sms: 0 });
+    const planOnly = await spendStatus(h.db, biz.tenantId, new Date(), base);
+    expect(planOnly.categories.ai.cap).toBe(base.maxCapPence.ai);
+    const own = await spendStatus(h.db, biz.tenantId, new Date(), { ...base, businessCaps: true });
+    expect(own.categories.ai.cap).toBe(500);
+    // A zero texts limit means no texts at all.
+    expect(own.categories.sms.state).toBe("reached");
+    // A cap above the allowance counts as the allowance.
+    await setCaps(biz.tenantId, { calls: base.maxCapPence.calls * 10 });
+    const capped = await spendStatus(h.db, biz.tenantId, new Date(), {
+      ...base,
+      businessCaps: true,
+    });
+    expect(capped.categories.calls.cap).toBe(base.maxCapPence.calls);
   });
 });
 
@@ -204,8 +216,11 @@ describe("send guard", () => {
     });
     expect(await check("+447700900123", "call", textsPaused)).toEqual({ ok: true });
 
+    // A business's own zero texts limit (when the platform allows own limits).
     await setCaps(biz.tenantId, { sms: 0 });
-    expect(await check("+447700900123", "sms")).toEqual({ ok: false, reason: "cap" });
+    expect(await check("+447700900123", "sms")).toEqual({ ok: true });
+    const ownLimits = { ...base, businessCaps: true };
+    expect(await check("+447700900123", "sms", ownLimits)).toEqual({ ok: false, reason: "cap" });
   });
 
   it("refuses premium numbers as the transfer number", async () => {

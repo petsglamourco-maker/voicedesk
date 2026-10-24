@@ -8,13 +8,14 @@ The security audit (H3, M10) found that nothing on the server limited spending. 
 
 ## Decision
 
-- **Monthly caps per business, chosen by the business.** `agent_settings.ai_cap_pence`, `sms_cap_pence` and `calls_cap_pence` (defaults £20 / £10 / £20). Owners (`billing:manage`) change them on **Settings → Usage & limits**, up to an **allowance** from `allowanceFor()` (`agent-brain/src/spend.ts`). Today the allowance is the platform maximum (`platform_settings`, £100 each by default). With billing it becomes the subscription tier's allowance; only `allowanceFor` changes. Tiers must be priced to be profitable from measured unit costs.
+- **A monthly allowance per business.** `allowanceFor()` (`agent-brain/src/spend.ts`) gives each business's AI / texts / calls allowance. Today that's the platform allowance in `platform_settings` (£100 each by default). With billing it becomes the subscription plan's allowance; only `allowanceFor` changes. **The plan alone decides what a business can use.** VoiceDesk doesn't cap anything the plan covers, and a business that runs out is asked to upgrade (until billing: "contact VoiceDesk support"). Every tier must be priced to be profitable from measured unit costs.
+- **Business-set limits are optional** (owner decision, 2026-10-24). With `platform_settings.businessCaps` (Platform admin → "Let businesses set their own limits", **off by default**), owners can also choose lower limits (`agent_settings.*_cap_pence`) within the allowance. While it's off, the limit is the allowance and `PUT /spend` answers 409 `PLAN_LIMITS_ONLY`.
 - **Spend comes from what's already recorded**, using editable cost estimates in `platform_settings`:
   - AI: `llm_usage.cost_usd` × the USD→GBP rate;
   - calls: voice minutes (rounded up per call) × voice rate, plus the carrier rate for phone calls by direction;
   - texts: `spend_events` rows written when a real carrier sends a text (Mailpit stand-ins cost nothing).
   Months follow the business's time zone.
-- **What a cap does:**
+- **What happens when the limit is reached** (the allowance, or the business's own lower limit):
   - AI: `loadAgentContext` sets `ctx.aiPaused`; `runTurn` takes a fixed **take-a-message** route (name → number → message → `services.takeMessage`) in all six languages with no model call. Ask VoiceDesk, profile generation and AI summaries pause; Help answers from articles only.
   - Texts: skipped in the workers' notification processor (emails still go).
   - Calls: outbound calls refused; incoming calls are still answered (in take-a-message mode if AI is capped too).

@@ -33,6 +33,7 @@ export async function getPlatformSpendSettings(db: Database): Promise<PlatformSp
   const d = DEFAULT_PLATFORM_SPEND_SETTINGS;
   return {
     maxCapPence: { ...d.maxCapPence, ...saved?.maxCapPence },
+    businessCaps: saved?.businessCaps ?? d.businessCaps,
     costs: { ...d.costs, ...saved?.costs },
     paused: { ...d.paused, ...saved?.paused },
     allowedCountries: saved?.allowedCountries ?? d.allowedCountries,
@@ -154,6 +155,8 @@ export interface SpendStatus {
   month: string;
   categories: Record<SpendCategory, { spent: number; cap: number; state: SpendState }>;
   allowance: Pence;
+  /** Whether the business's own limits apply (the platform's `businessCaps` switch). */
+  businessCaps: boolean;
 }
 
 export function stateFor(spent: number, cap: number): SpendState {
@@ -162,13 +165,17 @@ export function stateFor(spent: number, cap: number): SpendState {
   return "ok";
 }
 
-/** This month's spend against the business's caps (a cap above the allowance counts as the allowance). */
+/**
+ * This month's spend against the business's limit: its allowance (its plan), or, when the
+ * platform lets businesses choose, their own cap within it.
+ */
 export async function spendStatus(
   db: Database,
   tenantId: string,
   now: Date = new Date(),
+  platform?: PlatformSpendSettings,
 ): Promise<SpendStatus> {
-  const settings = await getPlatformSpendSettings(db);
+  const settings = platform ?? (await getPlatformSpendSettings(db));
   const [{ month, spent }, caps, allowance] = await Promise.all([
     monthSpend(db, tenantId, now, settings),
     capsFor(db, tenantId),
@@ -176,11 +183,11 @@ export async function spendStatus(
   ]);
   const categories = Object.fromEntries(
     SPEND_CATEGORIES.map((c) => {
-      const cap = Math.min(caps[c], allowance[c]);
+      const cap = settings.businessCaps ? Math.min(caps[c], allowance[c]) : allowance[c];
       return [c, { spent: spent[c], cap, state: stateFor(spent[c], cap) }];
     }),
   ) as SpendStatus["categories"];
-  return { month, categories, allowance };
+  return { month, categories, allowance, businessCaps: settings.businessCaps };
 }
 
 /** Records a text sent through a real carrier (one row per message). */

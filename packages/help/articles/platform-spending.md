@@ -23,6 +23,7 @@ Each change is recorded in the audit log, and asks for your password if you have
 
 ## Allowance, countries and cost estimates
 
-- **Most a business can set**: the highest monthly limit a business may choose for AI, texts and calls. With billing, each plan will set this instead.
+- **Monthly allowance**: what each business can use each month for AI, texts and calls. With billing, each plan will set this instead, and a business that runs out is asked to move to a bigger plan.
+- **Let businesses set their own limits** (off by default): when on, owners can also choose lower limits within their allowance on their Usage & limits page.
 - **Countries**: where calls and texts may go. Premium-rate and special-rate numbers are always blocked.
 - **Cost estimates**: what a voice minute, a phone-line minute and a text cost, and the dollar-to-pound rate (AI costs are recorded in dollars). Update them from your provider bills so the spend figures stay accurate.
