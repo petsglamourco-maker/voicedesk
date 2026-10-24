@@ -3,11 +3,17 @@
 import { Alert, Button, Celebrate, Input, Label, Textarea } from "@voicedesk/ui";
 import { Bot, CheckCircle2, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useCallback, useState, type FormEvent } from "react";
+import { Turnstile } from "@/components/turnstile";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 
-export function EnquiryForm(props: { formKey: string; businessName: string }) {
+export function EnquiryForm(props: {
+  formKey: string;
+  businessName: string;
+  /** Bot check (Turnstile) when the server has it on. */
+  siteKey?: string | null;
+}) {
   const t = useTranslations("hostedForm");
   const common = useTranslations("common");
   // When the page opened: very fast submissions are bots.
@@ -15,6 +21,9 @@ export function EnquiryForm(props: { formKey: string; businessName: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [human, setHuman] = useState<string | null>(null);
+  const [resetHuman, setResetHuman] = useState(0);
+  const onHuman = useCallback((token: string | null) => setHuman(token), []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,11 +48,14 @@ export function EnquiryForm(props: { formKey: string; businessName: string }) {
           marketing: data.get("marketing") === "on",
           website: formString(data, "website"),
           elapsedMs: Date.now() - openedAt,
+          ...(human ? { human } : {}),
         }),
       });
       setDone(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : common("errorGeneric"));
+      // A bot-check token works once: get a fresh one for the next try.
+      setResetHuman((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -119,6 +131,9 @@ export function EnquiryForm(props: { formKey: string; businessName: string }) {
         <Bot className="mt-px size-3.5 shrink-0" aria-hidden />
         <span>{t("aiNote")}</span>
       </p>
+      {props.siteKey ? (
+        <Turnstile siteKey={props.siteKey} onToken={onHuman} resetKey={resetHuman} />
+      ) : null}
       <Button type="submit" size="lg" className="w-full sm:w-auto" disabled={busy}>
         <Send aria-hidden />
         {busy ? common("working") : t("send")}

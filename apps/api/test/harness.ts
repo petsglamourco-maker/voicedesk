@@ -17,7 +17,7 @@ import { expect } from "vitest";
 import { buildApp, type AppDeps } from "../src/app";
 import { createAppAuth, type JobDispatcher } from "../src/container";
 import { freshAuthStore } from "../src/lib/fresh-auth";
-import { memoryKv } from "../src/lib/kv";
+import { memoryKv, type Kv } from "../src/lib/kv";
 import { parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
@@ -38,6 +38,7 @@ export interface TestHarness {
   };
   llm: MockLlmProvider;
   storage: InMemoryObjectStorage;
+  kv: Kv;
   close: () => Promise<void>;
 }
 
@@ -46,7 +47,10 @@ export interface TestHarness {
  * run inline, so tests can assert on processed results without a worker.
  */
 export async function createHarness(
-  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient"> & {
+  options: Pick<
+    AppDeps,
+    "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient" | "humanCheck"
+  > & {
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
     breachCheck?: boolean;
@@ -121,6 +125,7 @@ export async function createHarness(
     calendars: options.calendars,
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
+    humanCheck: options.humanCheck ?? null,
     oauthStateSecret: env.BETTER_AUTH_SECRET,
     freshAuth: freshAuthStore(kv),
     kv,
@@ -136,6 +141,7 @@ export async function createHarness(
     jobs: recorded,
     llm,
     storage,
+    kv,
     close: async () => {
       await app.close();
       await closeDb(db);
@@ -221,4 +227,12 @@ export async function makePlatformOwner(
     .set({ isPlatformOwner: true, twoFactorEnabled: true })
     .where(eq(user.email, account.email));
   await reauth(h, account.cookie);
+}
+
+/** The signed token the website chat frame carries (security audit M3). */
+export async function widgetToken(h: TestHarness, key: string): Promise<string> {
+  const frame = await h.app.inject({ method: "GET", url: `/api/public/chat/${key}/frame` });
+  const token = /"token":"([^"]+)"/.exec(frame.body)?.[1];
+  if (!token) throw new Error("no widget token in the chat frame");
+  return token;
 }

@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
 import { live } from "../lib/live";
+import { signWidgetToken, verifyWidgetToken } from "../lib/widget-token";
 import { chatFrameHtml, WIDGET_JS } from "../lib/widget-assets";
 
 export interface WidgetConfig {
@@ -28,16 +29,11 @@ const visitorId = z.string().regex(/^[A-Za-z0-9_-]{20,64}$/);
 /** Humans take at least this long between opening the chat and sending (bots don't). */
 const MIN_TYPING_MS = 1500;
 
-function originAllowed(
-  endpoint: PublicEndpoint,
-  origin: string | undefined,
-  ownOrigin: string,
-): boolean {
-  if (!origin) return false;
-  if (origin === ownOrigin) return true; // previews inside VoiceDesk
-  const allowed = (endpoint.config as WidgetConfig).allowedOrigins ?? [];
-  return allowed.includes(origin);
-}
+/** Open live-reply streams allowed at once (ADR 0022): per visitor, and per client IP. */
+const MAX_STREAMS_PER_VISITOR = 3;
+const MAX_STREAMS_PER_IP = 20;
+/** A visitor who passed the bot check stays trusted this long. */
+const HUMAN_SECONDS = 2 * 60 * 60;
 
 /**
  * Website chat widget, public side (no sign-in). Identified by the business's widget key and
@@ -47,6 +43,16 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
   const r = app.withTypeProvider<ZodTypeProvider>();
   const tags = ["public chat"];
   const ownOrigin = deps.webOrigin ?? "http://localhost:3000";
+
+  const secret = deps.oauthStateSecret;
+  const humanKey = (key: string, visitor: string) => `human:${key}:${visitor}`;
+
+  /** The frame's signed token replaces any origin the request claims (security audit M3). */
+  function requireWidgetToken(key: string, token: string | undefined) {
+    if (!verifyWidgetToken(secret, key, token)) {
+      throw new HttpError(403, "WIDGET_TOKEN", "Please reload the page to use the chat");
+    }
+  }
 
   async function endpointFor(key: string): Promise<PublicEndpoint> {
     const endpoint = await resolvePublicEndpoint(deps.db, "widget", key);
@@ -94,6 +100,8 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
           .send(
             chatFrameHtml({
               key: request.params.key,
+              token: signWidgetToken(secret, request.params.key),
+              siteKey: deps.humanCheck?.siteKey ?? null,
               title: config.title || ctx.businessName,
               color:
                 config.color && /^#[0-9a-fA-F]{6}$/.test(config.color) ? config.color : "#2563eb",
@@ -119,19 +127,27 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
         tags,
         summary: "Start or resume a website chat",
         params: keyParams,
-        body: z.object({ visitorId: visitorId.nullish(), origin: z.string().max(200).optional() }),
+        body: z.object({
+          visitorId: visitorId.nullish(),
+          /** Signed token from the chat frame. */
+          token: z.string().max(200).optional(),
+          /** Bot-check token (Cloudflare Turnstile), when the check is switched on. */
+          human: z.string().max(2048).optional(),
+        }),
       },
     },
     async (request) => {
       const endpoint = await endpointFor(request.params.key);
-      if (!originAllowed(endpoint, request.body.origin, ownOrigin)) {
-        throw new HttpError(
-          403,
-          "ORIGIN_NOT_ALLOWED",
-          "This website isn't allowed to use this chat",
-        );
-      }
+      requireWidgetToken(request.params.key, request.body.token);
       const id = request.body.visitorId ?? randomBytes(18).toString("base64url");
+      if (deps.humanCheck && !(await deps.kv.get(humanKey(request.params.key, id)))) {
+        const verdict = await deps.humanCheck.verify(request.body.human ?? "", request.ip);
+        if (verdict === "bot") {
+          throw new HttpError(403, "HUMAN_CHECK_FAILED", "Please confirm you're not a robot");
+        }
+        if (verdict === "unavailable") request.log.warn("bot check unavailable; visitor allowed");
+        await deps.kv.set(humanKey(request.params.key, id), "1", HUMAN_SECONDS);
+      }
       const thread = await threadFor(endpoint.tenantId, id);
       const messages = thread?.conversationId
         ? await withTenant(deps.db, endpoint.tenantId, (tx) =>
@@ -175,7 +191,7 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
         body: z.object({
           visitorId,
           text: z.string().trim().min(1).max(1000),
-          origin: z.string().max(200).optional(),
+          token: z.string().max(200).optional(),
           /** Honeypot: hidden from people, filled in by naive bots. */
           website: z.string().max(200).optional(),
           typedMs: z.number().int().min(0).optional(),
@@ -184,12 +200,12 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
     },
     async (request, reply) => {
       const endpoint = await endpointFor(request.params.key);
-      if (!originAllowed(endpoint, request.body.origin, ownOrigin)) {
-        throw new HttpError(
-          403,
-          "ORIGIN_NOT_ALLOWED",
-          "This website isn't allowed to use this chat",
-        );
+      requireWidgetToken(request.params.key, request.body.token);
+      if (
+        deps.humanCheck &&
+        !(await deps.kv.get(humanKey(request.params.key, request.body.visitorId)))
+      ) {
+        throw new HttpError(403, "HUMAN_CHECK_FAILED", "Please reload the page to use the chat");
       }
       if (request.body.website || (request.body.typedMs ?? MIN_TYPING_MS) < MIN_TYPING_MS) {
         throw new HttpError(400, "REJECTED", "Message rejected");
@@ -269,15 +285,39 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
         tags,
         summary: "Live replies from staff (Server-Sent Events)",
         params: keyParams,
-        querystring: z.object({ visitorId }),
+        querystring: z.object({ visitorId, t: z.string().max(200).optional() }),
       },
     },
     async (
-      request: FastifyRequest<{ Params: { key: string }; Querystring: { visitorId: string } }>,
+      request: FastifyRequest<{
+        Params: { key: string };
+        Querystring: { visitorId: string; t?: string };
+      }>,
       reply,
     ) => {
       const endpoint = await endpointFor(request.params.key);
-      const thread = await threadFor(endpoint.tenantId, request.query.visitorId);
+      requireWidgetToken(request.params.key, request.query.t);
+      // Long-lived streams are limited per visitor and per IP, so they can't exhaust the server.
+      const visitorStreams = `streams:v:${request.query.visitorId}`;
+      const ipStreams = `streams:ip:${request.ip}`;
+      const [byVisitor, byIp] = [
+        await deps.kv.incr(visitorStreams, 3600),
+        await deps.kv.incr(ipStreams, 3600),
+      ];
+      const release = async () => {
+        await deps.kv.decr(visitorStreams);
+        await deps.kv.decr(ipStreams);
+      };
+      if (byVisitor > MAX_STREAMS_PER_VISITOR || byIp > MAX_STREAMS_PER_IP) {
+        await release();
+        throw new HttpError(429, "TOO_MANY_STREAMS", "Too many open chats");
+      }
+      const thread = await threadFor(endpoint.tenantId, request.query.visitorId).catch(
+        async (err: unknown) => {
+          await release();
+          throw err;
+        },
+      );
       reply.hijack();
       const raw = reply.raw;
       raw.writeHead(200, {
@@ -289,6 +329,7 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
       raw.write(": connected\n\n");
       if (!thread) {
         // No thread yet: the widget reconnects after its first message.
+        await release();
         raw.end();
         return;
       }
@@ -303,6 +344,7 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
       request.raw.on("close", () => {
         clearInterval(keepAlive);
         unsubscribe();
+        void release();
       });
     },
   );

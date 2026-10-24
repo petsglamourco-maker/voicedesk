@@ -55,7 +55,10 @@ const settingsSchema = z.object({
     usdToGbp: z.number().min(0.1).max(10),
   }),
   paused: z.object({ outboundCalls: z.boolean(), sms: z.boolean(), ai: z.boolean() }),
-  allowedCountries: z.array(z.enum(["GB", "IE", "FR", "DE", "ES", "US"])).min(1).max(6),
+  allowedCountries: z
+    .array(z.enum(["GB", "IE", "FR", "DE", "ES", "US"]))
+    .min(1)
+    .max(6),
 });
 
 async function savedCaps(deps: AppDeps, tenantId: string) {

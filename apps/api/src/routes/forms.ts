@@ -146,6 +146,8 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
         businessName: ctx.businessName,
         title: config.title || null,
         intro: config.intro || null,
+        /** Turnstile site key when the bot check is on (ADR 0022). */
+        siteKey: deps.humanCheck?.siteKey ?? null,
       };
     },
   );
@@ -168,6 +170,8 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
             /** Honeypot: hidden from people, filled in by bots. */
             website: z.string().max(200).optional(),
             elapsedMs: z.number().int().min(0),
+            /** Bot-check token (Cloudflare Turnstile), when the check is switched on. */
+            human: z.string().max(2048).optional(),
           })
           .refine((b) => Boolean(b.email || b.phone), {
             message: "Give an email address or a phone number",
@@ -182,6 +186,13 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
       // Bots: pretend it worked so they don't adapt.
       if (body.website || body.elapsedMs < MIN_FILL_MS)
         return reply.code(202).send({ received: true });
+      if (deps.humanCheck) {
+        const verdict = await deps.humanCheck.verify(body.human ?? "", request.ip);
+        if (verdict === "bot") {
+          throw new HttpError(403, "HUMAN_CHECK_FAILED", "Please confirm you're not a robot");
+        }
+        if (verdict === "unavailable") request.log.warn("bot check unavailable; form allowed");
+      }
       await submit(endpoint, {
         submissionId: randomUUID(),
         name: body.name,

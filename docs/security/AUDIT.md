@@ -4,6 +4,17 @@ This audit checks VoiceDesk against the product security standard: OWASP ASVS L2
 
 The audit was read-only and covers the whole repo on branch `security/hardening`. Each item gives a severity, the file or setting involved, and the fix. Items marked **pre-launch** don't put anything at risk while VoiceDesk runs locally with demo data. They must be fixed before paying customers.
 
+## Progress (branch `security/hardening`)
+
+| Batch | Fixed | Commits |
+| ----- | ----- | ------- |
+| 1 | C2 local services on loopback, Valkey password · C3 SSRF bypass · H2 mailbox hosts | `d695558`, `fa71fee`, `4153a0a` |
+| 2 | C1 two-step login enforced · H1 no one-request business deletion · H6 audit gaps and password re-check | `74676aa`, `fc946fe`, `0241f3a` |
+| 3 | H5 password reset, change password, sessions · M16 Argon2id · H4 lockout, trusted proxies, shared limits, new-device alerts, breached passwords | `be8e363`, `356305c` |
+| 4 | H3 spending limits and send guard · M10 emergency stop and suspension · M3 widget token, bot check, stream limits (ADR 0022) | `32165dc`, `64e566f` and the 4c commit |
+
+Still open: batch 5 (M1 CSRF, M4 CSP/HSTS, M5 uploads), batch 6 (M2 prompt injection, M6–M9, M11–M15, M17–M18, CI), and the pre-launch items.
+
 ## Already solid (keep)
 
 - **Database isolation:**

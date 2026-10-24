@@ -1,5 +1,6 @@
 import type {
   EmbeddingProvider,
+  HumanCheck,
   LlmProvider,
   ObjectStorage,
   TextToSpeechProvider,
@@ -9,7 +10,7 @@ import {
   type MailboxClient,
   type MailboxCredentials,
 } from "@voicedesk/adapters/email/mailbox";
-import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, humanCheckFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
 import {
   createAppLlm,
@@ -121,6 +122,8 @@ export interface Container {
   kv: Kv;
   /** Security emails to account holders (lockout, new device), outside Better Auth. */
   sendAuthEmail: (email: AuthEmail) => Promise<void>;
+  /** Bot check for public chat and forms; null until Turnstile keys are set. */
+  humanCheck?: HumanCheck | null;
   /** Valkey for the API's request limits, shared by every API process. */
   rateLimitRedis?: ReturnType<typeof createRedisConnection>;
   /** Proxies whose X-Forwarded-For is believed (TRUSTED_PROXIES). */
@@ -168,6 +171,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     freshAuth: freshAuthStore(kv),
     kv,
     sendAuthEmail,
+    humanCheck: await humanCheckFromEnv(),
     rateLimitRedis: redis,
     trustedProxies: env.TRUSTED_PROXIES.split(",")
       .map((p) => p.trim())

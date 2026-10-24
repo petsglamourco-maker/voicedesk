@@ -10,6 +10,8 @@ export interface Kv {
   del(key: string): Promise<void>;
   /** Adds one and returns the new count; the expiry is set only when the key is created. */
   incr(key: string, ttlSeconds: number): Promise<number>;
+  /** Takes one off (not below zero). */
+  decr(key: string): Promise<number>;
   /** Seconds until the key expires, or null if it doesn't exist. */
   ttl(key: string): Promise<number | null>;
 }
@@ -29,6 +31,11 @@ export function redisKv(redis: ReturnType<typeof createRedisConnection>): Kv {
         [Error | null, number],
       ];
       return count;
+    },
+    decr: async (key) => {
+      const count = await redis.decr(key);
+      if (count <= 0) await redis.del(key);
+      return Math.max(0, count);
     },
     ttl: async (key) => {
       const seconds = await redis.ttl(key);
@@ -58,6 +65,13 @@ export function memoryKv(now: () => number = Date.now): Kv {
       const hit = live(key);
       const count = Number(hit?.value ?? 0) + 1;
       store.set(key, { value: String(count), until: hit?.until ?? now() + ttl * 1000 });
+      return Promise.resolve(count);
+    },
+    decr: (key) => {
+      const hit = live(key);
+      const count = Math.max(0, Number(hit?.value ?? 0) - 1);
+      if (hit && count > 0) store.set(key, { value: String(count), until: hit.until });
+      else store.delete(key);
       return Promise.resolve(count);
     },
     ttl: (key) => {

@@ -19,7 +19,9 @@ Under **Chat on your website**, click **Turn on**. While it's off, the chat butt
 
 ## Where it can appear
 
-In **Your websites**, list every website the chat may appear on, one per line (for example https://www.example.co.uk). Only these websites can show your chat, which stops other sites copying your snippet.
+In **Your websites**, list every website the chat may appear on, one per line (for example https://www.example.co.uk). Only these websites can show your chat, which stops other sites copying your snippet. The chat window carries a short-lived security code, so copying the chat's address doesn't work either.
+
+When VoiceDesk's bot check is switched on, the chat quietly checks that the visitor is a person before it starts. Most people never see it; occasionally a visitor is asked to tick a box.
 
 ## How it looks
 

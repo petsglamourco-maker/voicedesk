@@ -87,6 +87,7 @@ describe("form capture", () => {
       businessName: "Forms Co",
       title: "Ask us anything",
       intro: null,
+      siteKey: null,
     });
 
     const before = h.jobs.channels.length;

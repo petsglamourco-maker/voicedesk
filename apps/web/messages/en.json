@@ -1317,6 +1317,11 @@
         "name": "Public web address",
         "unlocks": "Website chat on real websites, and hosted forms and rating links that customers can open.",
         "how": "Host VoiceDesk on a server with your own domain (part of Phase 7). Until then it runs on this computer only."
+      },
+      "botCheck": {
+        "name": "Bot check (Cloudflare Turnstile)",
+        "unlocks": "Stops automated programs abusing the website chat and enquiry forms. Free, and usually invisible to people.",
+        "how": "Create a free Cloudflare account, open Turnstile and add a widget for your website address (choose the Invisible or Managed type). Copy its site key and secret key into TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, then restart VoiceDesk."
       }
     },
     "openSupport": "Open support requests"

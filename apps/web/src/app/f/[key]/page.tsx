@@ -10,6 +10,7 @@ interface FormInfo {
   businessName: string;
   title: string | null;
   intro: string | null;
+  siteKey: string | null;
 }
 
 /** Public enquiry form for a business (no sign-in). */
@@ -33,7 +34,7 @@ export default async function HostedFormPage(props: { params: Promise<{ key: str
           {info.intro}
         </p>
       ) : null}
-      <EnquiryForm formKey={key} businessName={info.businessName} />
+      <EnquiryForm formKey={key} businessName={info.businessName} siteKey={info.siteKey} />
     </PublicCard>
   );
 }

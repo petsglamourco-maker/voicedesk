@@ -39,6 +39,7 @@ Never paste keys or passwords into chats or help messages.
 - **Email inbox**: each business connects its own mailbox; the server only needs SETTINGS_ENCRYPTION_KEY.
 - **WhatsApp**: a Meta developer app with the WhatsApp product, plus WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN. While VoiceDesk runs on this computer, run the tunnel so Meta can reach it.
 - **Outbound calls**: a SIP trunk for outgoing calls (Twilio Elastic SIP Trunking or a Telnyx credentials connection) and its SIP_OUTBOUND_ login.
+- **Bot check (Cloudflare Turnstile)**: stops automated programs abusing the website chat and hosted forms. Free: create a Cloudflare account, add a Turnstile widget for your website address, and set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY.
 - **Public web address**: website chat on real websites, hosted forms and rating links. Needs VoiceDesk hosted on a server with your own domain.
 
 ## Ask before spending

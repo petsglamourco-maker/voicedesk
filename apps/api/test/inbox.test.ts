@@ -1,7 +1,13 @@
 import { MockLlmProvider } from "@voicedesk/adapters";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { live, type LiveEvent } from "../src/lib/live";
-import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
+import {
+  createHarness,
+  createOwnerWithTenant,
+  ORIGIN,
+  widgetToken,
+  type TestHarness,
+} from "./harness";
 
 let h: TestHarness;
 let owner: Awaited<ReturnType<typeof createOwnerWithTenant>>;
@@ -38,7 +44,7 @@ beforeAll(async () => {
     await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
-      payload: { origin: SHOP },
+      payload: { token: await widgetToken(h, key) },
     })
   ).json<{ visitorId: string }>().visitorId;
 });
@@ -46,11 +52,11 @@ afterAll(() => h.close());
 
 const auth = (cookie = owner.cookie) => ({ cookie, origin: ORIGIN });
 const base = () => `/api/tenants/${owner.tenantId}/inbox`;
-const chat = (text: string) =>
+const chat = async (text: string) =>
   h.app.inject({
     method: "POST",
     url: `/api/public/chat/${key}/messages`,
-    payload: { visitorId, origin: SHOP, text, typedMs: 3000 },
+    payload: { visitorId, token: await widgetToken(h, key), text, typedMs: 3000 },
   });
 
 describe("unified inbox", () => {
@@ -114,7 +120,7 @@ describe("unified inbox", () => {
     const resumed = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
-      payload: { origin: SHOP, visitorId },
+      payload: { token: await widgetToken(h, key), visitorId },
     });
     const messages = resumed.json<{ messages: Array<{ text: string; authorName?: string }> }>()
       .messages;

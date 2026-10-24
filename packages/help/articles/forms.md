@@ -27,6 +27,8 @@ A ready-made contact form you can link to from your website, social profiles or 
 
 Customers enter their name, email or phone, and their message. They tick a box agreeing that you may contact them about the enquiry, and can optionally agree to news and offers. The form tells them it's read by an AI assistant and the team.
 
+When VoiceDesk's bot check is switched on, the hosted form quietly checks that the visitor is a person before sending. Most people never see it.
+
 ## Option 2 - connect a form you already have
 
 If you use Typeform, Jotform, Webflow, Tally, WordPress or similar, point its webhook at the address shown under **Connect a form you already have**. JSON and normal form posts both work.

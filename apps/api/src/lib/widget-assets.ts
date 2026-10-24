@@ -12,7 +12,7 @@ export const WIDGET_JS = `(() => {
   if (!key || window.__voicedeskWidget) return;
   window.__voicedeskWidget = true;
   const base = new URL(script.src).origin;
-  const frameUrl = base + "/api/public/chat/" + encodeURIComponent(key) + "/frame?origin=" + encodeURIComponent(location.origin);
+  const frameUrl = base + "/api/public/chat/" + encodeURIComponent(key) + "/frame";
   const side = script.getAttribute("data-position") === "left" ? "left" : "right";
   const color = script.getAttribute("data-color") || "#2563eb";
 
@@ -45,6 +45,10 @@ function escapeHtml(s: string): string {
 
 export function chatFrameHtml(params: {
   key: string;
+  /** Signed widget token (see widget-token.ts). */
+  token: string;
+  /** Turnstile site key when the bot check is on. */
+  siteKey: string | null;
   title: string;
   color: string;
   greeting: string;
@@ -54,6 +58,8 @@ export function chatFrameHtml(params: {
 }): string {
   const config = JSON.stringify({
     key: params.key,
+    token: params.token,
+    siteKey: params.siteKey,
     greeting: params.greeting,
   }).replace(/</g, "\\u003c");
   return `<!doctype html>
@@ -92,11 +98,11 @@ export function chatFrameHtml(params: {
   <input name="text" dir="auto" maxlength="1000" placeholder="${escapeHtml(params.placeholder)}" aria-label="${escapeHtml(params.placeholder)}" required>
   <button type="submit">${escapeHtml(params.sendLabel)}</button>
 </form>
+<div id="human"></div>
 <footer>${escapeHtml(params.poweredBy)}</footer>
 <script>
 (() => {
   const cfg = ${config};
-  const origin = new URLSearchParams(location.search).get("origin") || "";
   const api = "/api/public/chat/" + encodeURIComponent(cfg.key);
   const log = document.getElementById("log");
   const form = document.getElementById("form");
@@ -151,8 +157,29 @@ export function chatFrameHtml(params: {
     log.scrollTop = log.scrollHeight;
   }
 
+  // Bot check (Cloudflare Turnstile), only when the server has it switched on.
+  function humanToken() {
+    if (!cfg.siteKey) return Promise.resolve(undefined);
+    return new Promise((resolve) => {
+      const s = document.createElement("script");
+      s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      s.async = true;
+      s.onerror = () => resolve(undefined);
+      s.onload = () => {
+        window.turnstile.render("#human", {
+          sitekey: cfg.siteKey,
+          appearance: "interaction-only",
+          callback: (token) => resolve(token),
+          "error-callback": () => resolve(undefined),
+        });
+      };
+      document.head.appendChild(s);
+    });
+  }
+
   async function start() {
-    const res = await fetch(api + "/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ visitorId, origin }) });
+    const human = await humanToken();
+    const res = await fetch(api + "/session", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ visitorId, token: cfg.token, human }) });
     if (!res.ok) { add("agent", "Chat is unavailable right now."); input.disabled = send.disabled = true; return; }
     const data = await res.json();
     visitorId = data.visitorId;
@@ -163,7 +190,7 @@ export function chatFrameHtml(params: {
   }
 
   function listen() {
-    const es = new EventSource(api + "/events?visitorId=" + encodeURIComponent(visitorId));
+    const es = new EventSource(api + "/events?visitorId=" + encodeURIComponent(visitorId) + "&t=" + encodeURIComponent(cfg.token));
     es.onmessage = (e) => {
       const ev = JSON.parse(e.data);
       if (ev.type === "message" && ev.human) add("agent", ev.text, ev.authorName);
@@ -181,7 +208,7 @@ export function chatFrameHtml(params: {
       const res = await fetch(api + "/messages", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ visitorId, text, origin, website: form.elements.website.value, typedMs: Date.now() - openedAt }),
+        body: JSON.stringify({ visitorId, text, token: cfg.token, website: form.elements.website.value, typedMs: Date.now() - openedAt }),
       });
       if (!res.ok || !res.body) { add("agent", "Sorry, something went wrong. Please try again."); return; }
       const reader = res.body.getReader();

@@ -131,6 +131,8 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Calendar integration (optional; redirect URI `${WEB_ORIGIN}/api/integrations/google/callback`)
 - `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT`: Outlook / Microsoft 365 (optional; redirect URI `${WEB_ORIGIN}/api/integrations/microsoft/callback`)
 - `SMS_PROVIDER` (`mailpit` default; `twilio` / `telnyx` cost money; a list like `telnyx,twilio` falls back in order), `SMS_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`
+- `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`: free Cloudflare bot check on the website chat and hosted forms (off while empty; ADR 0022)
+- `PASSWORD_BREACH_CHECK` (`on`), `TRUSTED_PROXIES` (`127.0.0.1,::1`)
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 
 ## Local URLs
@@ -201,6 +203,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - New AI features must respect `aiPauseFor`; `runTurn` takes messages without AI when `ctx.aiPaused`.
   - Caps are chosen by the business up to `allowanceFor()`, the only function billing tiers will replace. Price every Phase 7 tier to be profitable from measured unit costs.
   - `platform_settings` is shared by all tests: don't change it in tests; pass `settings` to `checkSend`.
+  - Website chat trusts the frame's signed token (`widget-token.ts`), never an origin in the request. The bot check is a `HumanCheck` adapter: it fails open when Cloudflare is unreachable and fails closed on "bot". Long-lived chat streams are capped per visitor and per IP via `deps.kv`.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

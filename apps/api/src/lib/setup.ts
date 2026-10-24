@@ -16,6 +16,7 @@ export interface SetupItem {
     | "mailbox"
     | "whatsapp"
     | "outbound"
+    | "botCheck"
     | "publicAddress";
   state: SetupState;
   /** .env names (or a short instruction code) still needed for "ready". */
@@ -94,6 +95,7 @@ export function setupStatus(env: NodeJS.ProcessEnv, ai: { enabledReady: number }
       true,
     ),
     item("outbound", outboundMissing, true),
+    item("botCheck", lacking(env, ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]), false),
     isLocalHost(env.WEB_ORIGIN)
       ? { id: "publicAddress", state: "local", missing: ["WEB_ORIGIN"], paid: true }
       : item("publicAddress", [], true),
