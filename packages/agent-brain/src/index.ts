@@ -86,6 +86,7 @@ export {
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
+  planSupportRequest,
   planTransferContext,
   type NotificationPlan,
   type OutgoingMessage,
@@ -177,3 +178,12 @@ export {
   type BackOfficeTurn,
   type BackOfficeUser,
 } from "./back-office";
+export {
+  askHelp,
+  helpFromSearch,
+  type HelpAnswer,
+  type HelpDeps,
+  type HelpSearchHit,
+  type HelpTurn,
+  type HelpUser,
+} from "./help";
