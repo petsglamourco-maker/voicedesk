@@ -1,5 +1,12 @@
 import type { Auth } from "@voicedesk/auth";
-import { assertCan, getMembershipRole, type BusinessRole, type Permission } from "@voicedesk/core";
+import {
+  assertCan,
+  getMembershipRole,
+  mfaBlocks,
+  MfaRequiredError,
+  type BusinessRole,
+  type Permission,
+} from "@voicedesk/core";
 import { isUuid, type Database } from "@voicedesk/db";
 import type { FastifyRequest } from "fastify";
 import { getSession } from "../lib/auth-routes";
@@ -34,5 +41,18 @@ export async function requireTenantAccess(
   const role = await getMembershipRole(deps.db, session.user.id, tenantId);
   if (!role) throw notFound();
   assertCan(role, permission);
+  // Owners and admins need two-step login for admin features after the grace period (C1).
+  if (
+    mfaBlocks(
+      {
+        twoFactorEnabled: Boolean(session.user.twoFactorEnabled),
+        createdAt: new Date(session.user.createdAt),
+      },
+      role,
+      permission,
+    )
+  ) {
+    throw new MfaRequiredError();
+  }
   return { session, tenantId, role };
 }

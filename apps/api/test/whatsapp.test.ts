@@ -26,7 +26,10 @@ beforeAll(async () => {
     whatsapp: { accessToken: "token", appSecret: SECRET, verifyToken: VERIFY },
   });
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, platform.email));
   biz = await createOwnerWithTenant(h, "WhatsApp Co");
 });
 afterAll(() => h.close());

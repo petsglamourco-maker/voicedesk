@@ -20,7 +20,10 @@ beforeAll(async () => {
   h = await createHarness();
   owner = await signUpVerified(h, "Platform");
   regular = await signUpVerified(h, "Regular");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, owner.email));
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, owner.email));
 });
 
 afterAll(() => h.close());
@@ -45,6 +48,20 @@ describe("platform AI provider settings API", () => {
     expect(res.statusCode).toBe(404);
     const anon = await h.app.inject({ method: "GET", url: "/api/platform/ai-providers" });
     expect(anon.statusCode).toBe(401);
+  });
+
+  it("requires two-step login before the platform owner can use it (audit C1)", async () => {
+    const noMfa = await signUpVerified(h, "PlatformNoMfa");
+    await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, noMfa.email));
+    const res = await h.app.inject({
+      method: "GET",
+      url: "/api/platform/ai-providers",
+      headers: headers(noMfa),
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json()).toMatchObject({ error: "MFA_REQUIRED" });
+    const me = await h.app.inject({ method: "GET", url: "/api/me", headers: headers(noMfa) });
+    expect(me.json()).toMatchObject({ mfa: { required: true } });
   });
 
   it("lists providers in priority order without exposing secrets", async () => {

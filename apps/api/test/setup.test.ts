@@ -62,7 +62,10 @@ describe("GET /api/platform/setup", () => {
     h = await createHarness();
     owner = await signUpVerified(h, "SetupOwner");
     regular = await signUpVerified(h, "SetupRegular");
-    await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, owner.email));
+    await h.db
+      .update(user)
+      .set({ isPlatformOwner: true, twoFactorEnabled: true })
+      .where(eq(user.email, owner.email));
   });
   afterAll(() => h.close());
 

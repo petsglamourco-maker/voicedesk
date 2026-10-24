@@ -54,7 +54,10 @@ async function newHandoff(reason = "Wants to talk about an invoice") {
 beforeAll(async () => {
   h = await createHarness({ voice });
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, platform.email));
   biz = await createOwnerWithTenant(h, "Handoff Co");
   vaOne = await signUpVerified(h, "Sam");
   vaTwo = await signUpVerified(h, "Alex");

@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:4000";
 
@@ -16,6 +17,11 @@ export class ApiError extends Error {
 export async function apiGet<T>(path: string): Promise<T> {
   const cookie = (await cookies()).toString();
   const res = await fetch(`${API_URL}${path}`, { headers: { cookie }, cache: "no-store" });
+  if (res.status === 403) {
+    // A feature that needs two-step login: send them to turn it on (security audit C1).
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (body?.error === "MFA_REQUIRED") redirect("/mfa-required");
+  }
   if (!res.ok) throw new ApiError(res.status, `GET ${path} failed with ${res.status}`);
   return (await res.json()) as T;
 }
@@ -39,6 +45,8 @@ export interface Me {
     twoFactorEnabled: boolean;
     isPlatformOwner: boolean;
   };
+  /** Two-step login: required for this person, and the deadline while in the grace period. */
+  mfa: { required: boolean; deadline: string | null };
   activeTenantId: string | null;
   tenants: Array<{ tenantId: string; name: string; slug: string; role: string }>;
 }

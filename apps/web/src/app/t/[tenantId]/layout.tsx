@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { Alert } from "@voicedesk/ui";
+import Link from "next/link";
+import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { AppShell, SIDEBAR_COOKIE, type NavGroup } from "@/components/shell/app-shell";
 import { apiGetOrNull, getMe, type TenantDetail } from "@/lib/api";
@@ -21,6 +23,7 @@ export default async function TenantLayout(props: {
   const common = await getTranslations("common");
   const help = await getTranslations("help");
   const jar = await cookies();
+  const format = await getFormatter();
   const base = `/t/${tenantId}`;
 
   const groups: NavGroup[] = [
@@ -115,6 +118,16 @@ export default async function TenantLayout(props: {
         },
       }}
     >
+      {me.mfa.deadline ? (
+        <Alert tone="warning" className="mb-6" data-testid="mfa-banner">
+          {s("mfaBanner", {
+            date: format.dateTime(new Date(me.mfa.deadline), { dateStyle: "long" }),
+          })}{" "}
+          <Link href="/mfa-required" className="font-semibold text-primary hover:underline">
+            {s("mfaSetup")}
+          </Link>
+        </Alert>
+      ) : null}
       {props.children}
     </AppShell>
   );

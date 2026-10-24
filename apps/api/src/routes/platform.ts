@@ -6,6 +6,7 @@ import {
   testProvider,
   toView,
   updateProvider,
+  MfaRequiredError,
 } from "@voicedesk/core";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -19,6 +20,8 @@ import { requireSession } from "./guards";
 export async function requirePlatformOwner(deps: AppDeps, request: FastifyRequest) {
   const session = await requireSession(deps.auth, request);
   if (!session.user.isPlatformOwner) throw notFound();
+  // Platform admin controls keys, phone routing and every business: two-step login first (C1).
+  if (!session.user.twoFactorEnabled) throw new MfaRequiredError();
   return session;
 }
 

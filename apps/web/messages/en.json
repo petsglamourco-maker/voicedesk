@@ -1180,7 +1180,9 @@
     },
     "errorTitle": "This page didn't load",
     "errorBody": "It's usually a brief connection problem. Try again; if it keeps happening, check that VoiceDesk's servers are running.",
-    "retry": "Try again"
+    "retry": "Try again",
+    "mfaBanner": "To keep your business secure, turn on two-step login by {date}. After that, admin features need it.",
+    "mfaSetup": "Set it up now"
   },
   "design": {
     "title": "Design system",
@@ -1319,5 +1321,12 @@
     "replySubject": "Your VoiceDesk support request",
     "markResolved": "Mark resolved",
     "reopen": "Reopen"
+  },
+  "mfa": {
+    "title": "Turn on two-step login",
+    "subtitle": "A code from your phone, as well as your password, keeps your business safe.",
+    "why": "Two-step login is required for business owners, admins and the platform owner to use admin features. Set it up below with an authenticator app (for example Google Authenticator or Microsoft Authenticator).",
+    "done": "Two-step login is on. You can use every feature again.",
+    "back": "Back to your business"
   }
 }

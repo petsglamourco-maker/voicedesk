@@ -1,22 +1,10 @@
 // The Help assistant opens on any screen with starter questions, and Contact support can be
 // opened and cancelled. Sends no AI request and no email (no question asked, nothing sent).
-import { readFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
-
-const env = Object.fromEntries(
-  readFileSync(new URL("../../../.env", import.meta.url), "utf8")
-    .split(/\r?\n/)
-    .filter((l) => /^[A-Z_]+=/.test(l))
-    .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
-);
+import { signUpWithBusiness } from "./accounts";
 
 test("Help opens with starter questions; Contact support opens and cancels", async ({ page }) => {
-  test.skip(!env.PLATFORM_OWNER_EMAIL, "needs the platform owner in .env");
-  await page.goto("/sign-in");
-  await page.getByLabel(/email/i).fill(env.PLATFORM_OWNER_EMAIL!);
-  await page.getByLabel(/password/i).fill(env.PLATFORM_OWNER_PASSWORD!);
-  await page.getByRole("button", { name: /sign in/i }).click();
-  await page.waitForURL(/\/t\//);
+  await signUpWithBusiness(page, `Help Co ${Date.now()}`);
 
   // (In development, keep the Next.js dev badge bottom-left; it would cover this button.)
   await page.getByTestId("help-button").click();

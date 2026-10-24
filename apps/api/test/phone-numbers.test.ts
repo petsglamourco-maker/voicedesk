@@ -57,7 +57,10 @@ const unique = () => `+44 20 ${Math.floor(1000_0000 + Math.random() * 8999_9999)
 beforeAll(async () => {
   h = await createHarness({ sip });
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, platform.email));
   bizA = await createOwnerWithTenant(h, "Phone A");
   bizB = await createOwnerWithTenant(h, "Phone B");
 });

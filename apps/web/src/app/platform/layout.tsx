@@ -9,6 +9,7 @@ export default async function PlatformLayout({ children }: { children: ReactNode
   const me = await getMe();
   if (!me) redirect("/sign-in?redirect=/platform/setup");
   if (!me.user.isPlatformOwner) notFound();
+  if (!me.user.twoFactorEnabled) redirect("/mfa-required");
   const t = await getTranslations("platform");
   const back = me.activeTenantId ?? me.tenants[0]?.tenantId;
   return (

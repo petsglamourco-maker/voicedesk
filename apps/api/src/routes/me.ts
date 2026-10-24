@@ -1,4 +1,4 @@
-import { listUserTenants } from "@voicedesk/core";
+import { listUserTenants, mfaDeadline } from "@voicedesk/core";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -14,6 +14,8 @@ const meResponse = z.object({
     twoFactorEnabled: z.boolean(),
     isPlatformOwner: z.boolean(),
   }),
+  /** Two-step login: whether this person must have it, and by when (business roles). */
+  mfa: z.object({ required: z.boolean(), deadline: z.string().nullable() }),
   activeTenantId: z.string().nullable(),
   tenants: z.array(
     z.object({ tenantId: z.string(), name: z.string(), slug: z.string(), role: z.string() }),
@@ -33,6 +35,8 @@ export function registerMeRoutes(app: FastifyInstance, deps: AppDeps): void {
     async (request) => {
       const session = await requireSession(deps.auth, request);
       const { user } = session;
+      const tenants = await listUserTenants(deps.db, user.id);
+      const admin = tenants.some((t) => t.role === "owner" || t.role === "admin");
       return {
         user: {
           id: user.id,
@@ -42,8 +46,15 @@ export function registerMeRoutes(app: FastifyInstance, deps: AppDeps): void {
           twoFactorEnabled: Boolean(user.twoFactorEnabled),
           isPlatformOwner: Boolean(user.isPlatformOwner),
         },
+        mfa: {
+          required: Boolean(user.isPlatformOwner) || admin,
+          deadline:
+            admin && !user.twoFactorEnabled
+              ? mfaDeadline(new Date(user.createdAt)).toISOString()
+              : null,
+        },
         activeTenantId: session.session.activeOrganizationId ?? null,
-        tenants: await listUserTenants(deps.db, user.id),
+        tenants,
       };
     },
   );

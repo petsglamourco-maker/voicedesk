@@ -91,7 +91,9 @@ export async function saveMailbox(
     autoSend: input.autoSend,
     status: "active",
     lastError: null,
-    ...(input.password ? { passwordEncrypted: box.encrypt(input.password, context(tenantId)) } : {}),
+    ...(input.password
+      ? { passwordEncrypted: box.encrypt(input.password, context(tenantId)) }
+      : {}),
     ...(serverChanged ? { uidValidity: null, lastUid: 0 } : {}),
     updatedAt: new Date(),
   };

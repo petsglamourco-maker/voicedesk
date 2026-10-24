@@ -52,7 +52,10 @@ const NIGHT = new Date("2026-10-20T21:30:00Z");
 beforeAll(async () => {
   h = await createHarness({ sip, voice });
   const platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, platform.email));
   biz = await createOwnerWithTenant(h, "Callback Co");
   await h.app.inject({
     method: "POST",
