@@ -10,6 +10,7 @@ import { mailboxes, withTenant } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
+import { readableError } from "../src/routes/mailbox";
 
 const sent: OutgoingEmail[] = [];
 const logins: MailboxCredentials[] = [];
@@ -46,6 +47,34 @@ const settings = {
   folder: "INBOX",
   autoSend: false,
 };
+
+describe("mailbox security (audit H2)", () => {
+  it("only accepts standard mail ports", async () => {
+    const res = await h.app.inject({
+      method: "PUT",
+      url: url(),
+      headers: headers(),
+      payload: {
+        ...settings,
+        password: "x",
+        imap: { host: "imap.gmail.com", port: 6379, secure: false },
+      },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("explains failures without echoing raw server errors", () => {
+    const blocked = Object.assign(new Error("That host isn't on the public internet"), {
+      name: "BlockedHostError",
+    });
+    expect(readableError(new Error("IMAP login failed", { cause: blocked }))).toMatch(
+      /isn't allowed/,
+    );
+    expect(readableError(Object.assign(new Error("x"), { code: "EAUTH" }))).toMatch(/app password/);
+    const raw = readableError(new Error("connect ECONNREFUSED 10.0.0.7:6379 -ERR redis banner"));
+    expect(raw).not.toMatch(/10\.0\.0\.7|6379|redis/);
+  });
+});
 
 describe("mailbox settings", () => {
   it("logs in before saving, never returns the password, and starts polling", async () => {
