@@ -1,0 +1,6 @@
+# VoiceDesk security contact (RFC 9116). Before launch, replace the contact with a monitored
+# address on VoiceDesk's own domain and add the Canonical URL.
+Contact: mailto:security@voicedesk.example
+Expires: 2027-10-25T00:00:00.000Z
+Preferred-Languages: en
+Policy: https://github.com/voicedesk/voicedesk/blob/main/SECURITY.md

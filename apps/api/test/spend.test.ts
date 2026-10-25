@@ -292,8 +292,12 @@ describe("platform: spending overview and suspend", () => {
       headers: as(p.cookie),
     });
     expect(overview.statusCode).toBe(200);
-    const body = overview.json<{ businesses: Array<{ tenantId: string }> }>();
-    expect(body.businesses.some((b) => b.tenantId === biz.tenantId)).toBe(true);
+    const body = overview.json<{
+      businesses: Array<{ tenantId: string; spend: { categories: unknown } }>;
+    }>();
+    const mine = body.businesses.find((b) => b.tenantId === biz.tenantId);
+    // The grouped overview agrees with the per-business calculation.
+    expect(mine?.spend.categories).toEqual((await spendStatus(h.db, biz.tenantId)).categories);
 
     const setStatus = (status: "active" | "suspended") =>
       h.app.inject({

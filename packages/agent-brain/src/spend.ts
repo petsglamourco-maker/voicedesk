@@ -6,6 +6,7 @@ import {
   platformSettings,
   spendEvents,
   tenants,
+  withPlatformAccess,
   withTenant,
   type Database,
   type PlatformSpendSettings,
@@ -44,8 +45,28 @@ export async function getPlatformSpendSettings(db: Database): Promise<PlatformSp
  * The most a business may set each cap to. Today: the platform maximum. With billing
  * (Phase 7) this becomes the business's subscription tier allowance — change only this.
  */
-export async function allowanceFor(db: Database, _tenantId: string): Promise<Pence> {
-  return (await getPlatformSpendSettings(db)).maxCapPence;
+export async function allowanceFor(
+  db: Database,
+  _tenantId: string,
+  settings?: PlatformSpendSettings,
+): Promise<Pence> {
+  return (settings ?? (await getPlatformSpendSettings(db))).maxCapPence;
+}
+
+function toStatus(
+  month: string,
+  spent: Pence,
+  caps: Pence,
+  allowance: Pence,
+  businessCaps: boolean,
+): SpendStatus {
+  const categories = Object.fromEntries(
+    SPEND_CATEGORIES.map((c) => {
+      const cap = businessCaps ? Math.min(caps[c], allowance[c]) : allowance[c];
+      return [c, { spent: spent[c], cap, state: stateFor(spent[c], cap) }];
+    }),
+  ) as SpendStatus["categories"];
+  return { month, categories, allowance, businessCaps };
 }
 
 /** Start and end (exclusive) of the current calendar month in the business's time zone. */
@@ -179,15 +200,101 @@ export async function spendStatus(
   const [{ month, spent }, caps, allowance] = await Promise.all([
     monthSpend(db, tenantId, now, settings),
     capsFor(db, tenantId),
-    allowanceFor(db, tenantId),
+    allowanceFor(db, tenantId, settings),
   ]);
-  const categories = Object.fromEntries(
-    SPEND_CATEGORIES.map((c) => {
-      const cap = settings.businessCaps ? Math.min(caps[c], allowance[c]) : allowance[c];
-      return [c, { spent: spent[c], cap, state: stateFor(spent[c], cap) }];
-    }),
-  ) as SpendStatus["categories"];
-  return { month, categories, allowance, businessCaps: settings.businessCaps };
+  return toStatus(month, spent, caps, allowance, settings.businessCaps);
+}
+
+/**
+ * Every business's spend this month in three grouped queries (Platform admin overview), each
+ * business's month in its own time zone. Same rules as spendStatus.
+ */
+export async function spendOverview(
+  db: Database,
+  actorUserId: string,
+  now: Date = new Date(),
+): Promise<Array<{ tenantId: string; name: string; status: string; spend: SpendStatus }>> {
+  const settings = await getPlatformSpendSettings(db);
+  const inMonth = (column: unknown) =>
+    sql`date_trunc('month', ${column} at time zone ${tenants.timezone}) = date_trunc('month', ${now} at time zone ${tenants.timezone})`;
+  return withPlatformAccess(db, { actorUserId, reason: "spending overview" }, async (tx) => {
+    const rows = await tx
+      .select({
+        id: tenants.id,
+        name: tenants.name,
+        status: tenants.status,
+        timezone: tenants.timezone,
+        ai: agentSettings.aiCapPence,
+        sms: agentSettings.smsCapPence,
+        calls: agentSettings.callsCapPence,
+      })
+      .from(tenants)
+      .leftJoin(agentSettings, eq(agentSettings.tenantId, tenants.id))
+      .orderBy(tenants.name);
+    const ai = await tx
+      .select({ id: llmUsage.tenantId, usd: sql<string>`sum(${llmUsage.costUsd})` })
+      .from(llmUsage)
+      .innerJoin(tenants, eq(tenants.id, llmUsage.tenantId))
+      .where(inMonth(llmUsage.createdAt))
+      .groupBy(llmUsage.tenantId);
+    const sms = await tx
+      .select({ id: spendEvents.tenantId, pence: sql<string>`sum(${spendEvents.amountPence})` })
+      .from(spendEvents)
+      .innerJoin(tenants, eq(tenants.id, spendEvents.tenantId))
+      .where(and(eq(spendEvents.category, "sms"), inMonth(spendEvents.createdAt)))
+      .groupBy(spendEvents.tenantId);
+    const calls = await tx
+      .select({
+        id: conversations.tenantId,
+        phone: sql<boolean>`${conversations.phoneNumberId} is not null`,
+        direction: conversations.direction,
+        minutes: sql<string>`sum(ceil(extract(epoch from (coalesce(${conversations.endedAt}, now()) - ${conversations.startedAt})) / 60.0))`,
+      })
+      .from(conversations)
+      .innerJoin(tenants, eq(tenants.id, conversations.tenantId))
+      .where(and(eq(conversations.channel, "voice"), inMonth(conversations.startedAt)))
+      .groupBy(conversations.tenantId, sql`2`, conversations.direction);
+
+    const aiBy = new Map(ai.map((r) => [r.id, Number(r.usd)]));
+    const smsBy = new Map(sms.map((r) => [r.id, Number(r.pence)]));
+    const callsBy = new Map<string, number>();
+    for (const r of calls) {
+      const carrier = !r.phone
+        ? 0
+        : r.direction === "outbound"
+          ? settings.costs.phoneOutboundPencePerMinute
+          : settings.costs.phoneInboundPencePerMinute;
+      const pence = Number(r.minutes) * (settings.costs.voicePencePerMinute + carrier);
+      callsBy.set(r.id, (callsBy.get(r.id) ?? 0) + pence);
+    }
+    const out = [];
+    for (const t of rows) {
+      const spent: Pence = {
+        ai: (aiBy.get(t.id) ?? 0) * 100 * settings.costs.usdToGbp,
+        sms: smsBy.get(t.id) ?? 0,
+        calls: callsBy.get(t.id) ?? 0,
+      };
+      const caps: Pence = {
+        ai: t.ai ?? DEFAULT_CAPS.ai,
+        sms: t.sms ?? DEFAULT_CAPS.sms,
+        calls: t.calls ?? DEFAULT_CAPS.calls,
+      };
+      const allowance = await allowanceFor(db, t.id, settings);
+      out.push({
+        tenantId: t.id,
+        name: t.name,
+        status: t.status,
+        spend: toStatus(
+          monthWindow(now, t.timezone).month,
+          spent,
+          caps,
+          allowance,
+          settings.businessCaps,
+        ),
+      });
+    }
+    return out;
+  });
 }
 
 /** Records a text sent through a real carrier (one row per message). */

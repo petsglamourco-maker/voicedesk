@@ -38,7 +38,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Daily brief:** an email at 07:30 local time.
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
 - **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
-- **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). Batches 1–5 are done: localhost binding, SSRF, two-step login, re-auth, audit gaps, password reset/sessions/Argon2id/lockout, spending limits with a send guard (ADR 0022), and browser and upload protections (CSP report-only). Batch 6 remains.
+- **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). All six batches are done (see `docs/security/REPORT.md`): every critical and high item except H7 (data on the dev machine) and all medium items. Remaining: enforce CSP, the pre-launch list, and pushing to GitHub so CI runs.
 - **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
 
 ## Layout
@@ -116,6 +116,17 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Actions are pinned to commit SHAs (with the tag in a comment) and compose images to digests; Dependabot proposes updates with a 14-day cooldown.
   - CI runs Semgrep (`semgrep==1.180.0`, fails on findings) and builds a CycloneDX SBOM.
   - A false positive gets `// nosemgrep: <rule-id> -- reviewed: <why>` on the line before. Locally, run Semgrep in Docker with the Norton CA (see `SECURITY.md`).
+- **Security documents:** `SECURITY.md` (controls, threat model, runbooks), `docs/security/AUDIT.md` (gap list) and `docs/security/REPORT.md` (what was fixed). Keep SECURITY.md current when a control changes.
+- **Mobile app (when built):** the MASVS requirements in `SECURITY.md` are binding:
+  - tokens in Keychain/Keystore only;
+  - certificate pinning;
+  - no secrets in the bundle; obfuscated release builds;
+  - a jailbreak/root warning;
+  - sensitive screens hidden in the app switcher;
+  - biometric unlock without storing the password;
+  - push notifications without sensitive content;
+  - validated deep links;
+  - the same server-side auth, tenancy and spending rules.
 - **Commits:** small, conventional (`feat(scope): …`), with the Co-Authored-By trailer.
 
 ## Environment variables

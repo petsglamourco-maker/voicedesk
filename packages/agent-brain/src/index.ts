@@ -199,6 +199,7 @@ export {
   monthWindow,
   recordSmsSpend,
   smsSegments,
+  spendOverview,
   spendStatus,
   stateFor,
   type Pence,

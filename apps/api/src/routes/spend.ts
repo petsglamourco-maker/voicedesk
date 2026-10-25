@@ -2,6 +2,7 @@ import {
   allowanceFor,
   getPlatformSpendSettings,
   SPEND_CATEGORIES,
+  spendOverview,
   spendStatus,
 } from "@voicedesk/agent-brain";
 import { can, recordAudit } from "@voicedesk/core";
@@ -13,7 +14,7 @@ import {
   withTenant,
   type PlatformSpendSettings,
 } from "@voicedesk/db";
-import { asc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
@@ -193,20 +194,7 @@ export function registerSpendRoutes(app: FastifyInstance, deps: AppDeps): void {
     async (request) => {
       const session = await requirePlatformOwner(deps, request);
       const settings = await getPlatformSpendSettings(deps.db);
-      const list = await withPlatformAccess(
-        deps.db,
-        { actorUserId: session.user.id, reason: "spending overview" },
-        (tx) =>
-          tx
-            .select({ id: tenants.id, name: tenants.name, status: tenants.status })
-            .from(tenants)
-            .orderBy(asc(tenants.name)),
-      );
-      const businesses = [];
-      for (const t of list) {
-        const status = await spendStatus(deps.db, t.id);
-        businesses.push({ tenantId: t.id, name: t.name, status: t.status, spend: status });
-      }
+      const businesses = await spendOverview(deps.db, session.user.id);
       return { settings, businesses };
     },
   );

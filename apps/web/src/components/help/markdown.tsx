@@ -24,7 +24,11 @@ function inline(text: string, keyBase: string): ReactNode[] {
           {m[2]}
         </code>,
       );
-    } else if (m[4]!.startsWith("/") && !m[4]!.startsWith("//") && !m[4]!.includes(":tenant")) {
+    } else if (
+      // In-app paths only: browsers read "//host" and "/\\host" as other sites.
+      /^\/(?![/\\])/.test(m[4]!) &&
+      !m[4]!.includes(":tenant")
+    ) {
       out.push(
         <Link
           key={key}
