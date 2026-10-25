@@ -7,6 +7,13 @@ packages:
 # pick ones at least two weeks old. Never add minimumReleaseAgeExclude.
 minimumReleaseAge: 1440
 
+# Security fixes for transitive dependencies (pnpm audit, high): both come in through the voice
+# worker's turn-detection plugin (onnxruntime-node -> adm-zip, @huggingface/transformers ->
+# sharp). Remove once those packages depend on fixed versions themselves.
+overrides:
+  adm-zip: 0.6.1
+  sharp: 0.35.5
+
 # Only these dependencies may run install scripts.
 allowBuilds:
   esbuild: true
