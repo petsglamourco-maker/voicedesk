@@ -14,7 +14,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { apiGetOrNull, type TenantDetail } from "@/lib/api";
+import { apiGetOrNull, type DepartmentsView, type TenantDetail } from "@/lib/api";
 import { AiCalls } from "./ai-calls";
 import { formatDuration, latencyStatus, type CallRow } from "./format";
 import { ChannelDot } from "@/components/channels";
@@ -51,13 +51,22 @@ interface NumbersResponse {
 
 const ms = (v: number | null) => (v === null ? "—" : `${v} ms`);
 
-export default async function CallsPage(props: { params: Promise<{ tenantId: string }> }) {
+export default async function CallsPage(props: {
+  params: Promise<{ tenantId: string }>;
+  searchParams: Promise<{ department?: string }>;
+}) {
   const { tenantId } = await props.params;
-  const [data, numbers, detail] = await Promise.all([
-    apiGetOrNull<CallsResponse>(`/api/tenants/${tenantId}/calls`),
+  const { department } = await props.searchParams;
+  const filter = department && /^[0-9a-f-]{36}$/i.test(department) ? department : null;
+  const [data, numbers, detail, departmentList] = await Promise.all([
+    apiGetOrNull<CallsResponse>(
+      `/api/tenants/${tenantId}/calls${filter ? `?department=${filter}` : ""}`,
+    ),
     apiGetOrNull<NumbersResponse>(`/api/tenants/${tenantId}/phone-numbers`),
     apiGetOrNull<TenantDetail>(`/api/tenants/${tenantId}`),
+    apiGetOrNull<DepartmentsView>(`/api/tenants/${tenantId}/departments`),
   ]);
+  const departments = departmentList?.departments ?? [];
   if (!data) notFound();
   const t = await getTranslations("calls");
   const shell = await getTranslations("shell");
@@ -217,6 +226,29 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
         </Card>
       </div>
 
+      {departments.length ? (
+        <nav
+          aria-label={t("departmentFilter")}
+          className="flex flex-wrap gap-2"
+          data-testid="department-filter"
+        >
+          {[{ id: null as string | null, name: t("allDepartments") }, ...departments].map((d) => (
+            <Link
+              key={d.id ?? "all"}
+              href={d.id ? `/t/${tenantId}/calls?department=${d.id}` : `/t/${tenantId}/calls`}
+              aria-current={filter === d.id ? "page" : undefined}
+              className={
+                filter === d.id
+                  ? "rounded-full border border-primary/40 bg-primary/12 px-3 py-1 text-sm font-semibold text-primary"
+                  : "rounded-full border border-border px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+              }
+            >
+              {d.name}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+
       <Card className="overflow-hidden p-0">
         {data.calls.length === 0 ? (
           <EmptyState icon={PhoneOff} title={t("empty")} />
@@ -269,6 +301,14 @@ export default async function CallsPage(props: { params: Promise<{ tenantId: str
                       </td>
                       <td className="min-w-64 px-4 py-3" dir="auto">
                         <span className="flex flex-wrap items-center gap-1.5">
+                          {c.missedByTeam ? (
+                            <StatusPill
+                              tone="warning"
+                              icon={PhoneForwarded}
+                              label={t("missedByTeam")}
+                            />
+                          ) : null}
+                          {c.department ? <Badge tone="primary">{c.department}</Badge> : null}
                           <span>{c.outcome ?? c.flow}</span>
                           {c.records.map((r) => (
                             <Badge key={r.reference} tone="secondary" className="font-mono">

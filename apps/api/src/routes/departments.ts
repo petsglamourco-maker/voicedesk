@@ -111,7 +111,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
     const live = list.filter((d) => d.enabled);
     return {
       menuEnabled: data.settings?.menuEnabled ?? false,
-      menuHours: (data.settings?.menuHours === "open" ? "open" : "always"),
+      menuHours: data.settings?.menuHours === "open" ? "open" : "always",
       menuOnChat: data.settings?.menuOnChat ?? false,
       departments: list,
       /** What callers hear after the greeting (English preview). */

@@ -83,6 +83,8 @@ export interface AgentServices {
   registerCustomer(input: SignupInput): Promise<Created>;
   /** Logs a question the assistant couldn't answer, so the business can fill the gap. */
   noteKnowledgeGap(question: string): Promise<void>;
+  /** ADR 0025: saves the conversation's department ("keypad", "speech", "chat", "assistant"). */
+  chooseDepartment?(departmentId: string, via: string): Promise<void>;
 }
 
 /** In-memory services for tests, evals and the simulated-call harness. */
@@ -190,6 +192,13 @@ export class InMemoryAgentServices implements AgentServices {
 
   noteKnowledgeGap(question: string): Promise<void> {
     this.knowledgeGaps.push(question);
+    return Promise.resolve();
+  }
+
+  readonly departmentChoices: Array<{ departmentId: string; via: string }> = [];
+
+  chooseDepartment(departmentId: string, via: string): Promise<void> {
+    this.departmentChoices.push({ departmentId, via });
     return Promise.resolve();
   }
 

@@ -766,6 +766,35 @@ export const TOOLS = {
     },
   }),
 
+  set_department: define({
+    description:
+      "Puts the conversation in one of the business's departments (see Departments). Call it when it's clear which department the customer needs, or when the topic moves to another one.",
+    input: z.object({
+      key: z.number().int().min(1).max(9).describe("The department's number"),
+    }),
+    run: async (env, { key }) => {
+      const department = env.ctx.menu?.departments.find((d) => d.key === key);
+      if (!department) {
+        return error(
+          env.ctx.menu?.departments.length
+            ? `There is no department ${key}.`
+            : "This business has no departments.",
+        );
+      }
+      if (env.state.department?.id === department.id) {
+        return { result: { department: department.name, unchanged: true } };
+      }
+      const moved = Boolean(env.state.department);
+      env.state.department = { id: department.id, key: department.key, name: department.name };
+      await env.services.chooseDepartment?.(department.id, moved ? "assistant" : "speech");
+      return {
+        result: {
+          department: department.name,
+          next: "Carry on helping the customer, following this department's instructions. Don't announce the department change unless it helps.",
+        },
+      };
+    },
+  }),
   request_human: define({
     description:
       "Only when the caller explicitly asks to speak to a person now. Never when they are just saying goodbye or thanks. Not for callback requests: those go on the complaint (wantsCallback) or a message.",

@@ -23,7 +23,12 @@ import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env"
 import {
   backWithAssistantPhrase,
   createConversation,
+  departmentByKey,
+  departmentChosenPhrase,
   endConversation,
+  menuActive,
+  menuLine,
+  personRequestText,
   finishOutboundAttempt,
   outboundCallById,
   voicemailMessage,
@@ -68,6 +73,7 @@ import { OutboundOpener } from "./outbound";
 import {
   activePhoneNumber,
   callerFromSip,
+  forwardedFromSip,
   loadGreeting,
   parseJobMetadata,
   ringSecondsFor,
@@ -176,6 +182,8 @@ export default defineAgent({
 
     let ids: JobIds;
     let state: ConversationState;
+    /** Phone calls: the department menu was spoken after the greeting (ADR 0025). */
+    let offerMenu = false;
     let opening: string | null;
     /** Phone calls: the caller's SIP participant (transfers act on it). */
     let callerIdentity: string | null = null;
@@ -223,7 +231,17 @@ export default defineAgent({
       const participant = await ctx.waitForParticipant();
       callerIdentity = participant.identity;
       const caller = callerFromSip(participant.attributes);
+      // ADR 0025: forwarded from the business's main line (missed by the team), or the
+      // business says every call here is a backup; and the department menu when it's on.
+      const entry = forwardedFromSip(participant.attributes)
+        ? "forwarded"
+        : agentCtx.callEntry === "backup"
+          ? "backup"
+          : "direct";
+      offerMenu = menuActive(agentCtx.menu, agentCtx.profile, agentCtx.timezone, new Date());
       const created = await createConversation(db, agentCtx, {
+        entry,
+        menu: offerMenu ? "voice" : null,
         tenantId: job.tenantId,
         channel: "voice",
         callerPhone: caller.callerPhone
@@ -463,6 +481,9 @@ export default defineAgent({
     });
     // Silence: ask once, then say goodbye and end the call.
     const silence = new SilenceHandler({
+      menuPending: () => offerMenu && !bridge.department,
+      repeatMenu: () =>
+        session.say(menuLine(bridge.language, agentCtx.menu?.departments ?? [])).waitForPlayout(),
       stillThere: () => session.say(stillTherePhrase(bridge.language)).waitForPlayout(),
       goodbye: async () => {
         await session.say(silentGoodbyePhrase(bridge.language)).waitForPlayout();
@@ -475,6 +496,31 @@ export default defineAgent({
       void silence.onUserState(e.newState).catch(() => undefined);
     });
     session.on(voice.AgentSessionEventTypes.Close, () => ctx.shutdown("session closed"));
+
+    // Keypad (ADR 0025): 1–9 picks a department without the AI, 0 asks for a person, * or #
+    // repeats the menu. Only the caller's presses count.
+    ctx.room.on(RoomEvent.DtmfReceived, (_code, digit, participant) => {
+      if (!callerIdentity || participant.identity !== callerIdentity) return;
+      if (bridge.humanActive || !agentCtx.menu?.departments.length) return;
+      if (digit === "*" || digit === "#") {
+        session.say(menuLine(bridge.language, agentCtx.menu.departments));
+        return;
+      }
+      if (digit === "0") {
+        session.interrupt();
+        session.generateReply({ userInput: personRequestText(bridge.language) });
+        return;
+      }
+      const chosen = departmentByKey(agentCtx.menu, Number(digit));
+      if (!chosen) return;
+      jobLog.info({ key: chosen.key }, "department chosen by keypad");
+      const spoken = departmentChosenPhrase(bridge.language, chosen);
+      session.interrupt();
+      void bridge.chooseDepartment(chosen, spoken).then(() => {
+        session.say(spoken);
+        publish({ type: "department", key: chosen.key, name: chosen.name });
+      });
+    });
 
     const agent = new EngineVoiceAgent(bridge, {
       pending: () => {

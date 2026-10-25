@@ -1,3 +1,4 @@
+import { loadMenu, recordDepartmentChoice } from "./departments";
 import { checkSend } from "./send-guard";
 import { getPlatformSpendSettings, spendStatus } from "./spend";
 import type { EmbeddingProvider } from "@voicedesk/adapters";
@@ -404,6 +405,10 @@ export function createDbAgentServices(
       return { id, reference };
     },
 
+    async chooseDepartment(departmentId, via) {
+      await recordDepartmentChoice(db, { tenantId, conversationId, departmentId, via });
+    },
+
     async noteKnowledgeGap(question) {
       await tx((t) =>
         t
@@ -521,6 +526,9 @@ export async function loadAgentContext(
     recordCalls: settings?.recordCalls ?? false,
     voiceIds: settings?.voiceIds ?? {},
     urgentSituations: settings?.urgentSituations ?? null,
+    menu: await loadMenu(db, tenantId),
+    callEntry: settings?.callEntry === "backup" ? "backup" : "direct",
+    ringFirst: settings?.ringFirst ?? false,
     ...(await aiPauseFor(db, tenantId, now(), tenant.status)),
     now,
   };

@@ -3,6 +3,8 @@ import { can, recordAudit } from "@voicedesk/core";
 import {
   conversationMessages,
   conversations,
+  departmentMoves,
+  departments,
   handoffs,
   phoneNumbers,
   user,
@@ -36,7 +38,7 @@ type ConversationRow = typeof conversations.$inferSelect;
 
 function callView(
   row: ConversationRow,
-  number: { e164: string | null; carrier: string | null },
+  number: { e164: string | null; carrier: string | null; department?: string | null },
   showPhone: boolean,
 ) {
   const state = row.state as unknown as ConversationState;
@@ -63,6 +65,10 @@ function callView(
     outcome: summary?.outcome ?? null,
     hasRecording: row.recordingKey !== null,
     medianLatencyMs: row.voiceMetrics?.medianMs ?? null,
+    /** ADR 0025: the caller's department, and whether the team missed the call first. */
+    departmentId: row.departmentId,
+    department: number.department ?? null,
+    missedByTeam: row.entry === "forwarded" || row.entry === "backup",
   };
 }
 
@@ -77,6 +83,7 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
         tags,
         summary: "Voice calls (phone and browser tests), newest first, with 7-day latency",
         params,
+        querystring: z.object({ department: z.string().uuid().optional() }),
       },
     },
     async (request) => {
@@ -90,10 +97,24 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
       const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
       return withTenant(deps.db, access.tenantId, async (tx) => {
         const rows = await tx
-          .select({ call: conversations, e164: phoneNumbers.e164, carrier: phoneNumbers.provider })
+          .select({
+            call: conversations,
+            e164: phoneNumbers.e164,
+            carrier: phoneNumbers.provider,
+            department: departments.name,
+          })
           .from(conversations)
           .leftJoin(phoneNumbers, eq(conversations.phoneNumberId, phoneNumbers.id))
-          .where(and(eq(conversations.tenantId, access.tenantId), eq(conversations.style, "voice")))
+          .leftJoin(departments, eq(conversations.departmentId, departments.id))
+          .where(
+            and(
+              eq(conversations.tenantId, access.tenantId),
+              eq(conversations.style, "voice"),
+              request.query.department
+                ? eq(conversations.departmentId, request.query.department)
+                : undefined,
+            ),
+          )
           .orderBy(desc(conversations.startedAt))
           .limit(100);
         const recent = await tx
@@ -159,9 +180,15 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
       const showPhone = can(access.role, "contacts:read");
       return withTenant(deps.db, access.tenantId, async (tx) => {
         const [found] = await tx
-          .select({ call: conversations, e164: phoneNumbers.e164, carrier: phoneNumbers.provider })
+          .select({
+            call: conversations,
+            e164: phoneNumbers.e164,
+            carrier: phoneNumbers.provider,
+            department: departments.name,
+          })
           .from(conversations)
           .leftJoin(phoneNumbers, eq(conversations.phoneNumberId, phoneNumbers.id))
+          .leftJoin(departments, eq(conversations.departmentId, departments.id))
           .where(
             and(
               eq(conversations.id, request.params.callId),
@@ -188,8 +215,16 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
           .leftJoin(user, eq(user.id, handoffs.answeredBy))
           .where(eq(handoffs.conversationId, found.call.id))
           .orderBy(asc(handoffs.queuedAt));
+        // ADR 0025: each department choice or move, in order.
+        const moves = await tx
+          .select({ at: departmentMoves.at, via: departmentMoves.via, name: departments.name })
+          .from(departmentMoves)
+          .leftJoin(departments, eq(departments.id, departmentMoves.departmentId))
+          .where(eq(departmentMoves.conversationId, found.call.id))
+          .orderBy(asc(departmentMoves.at));
         return {
           ...callView(found.call, found, showPhone),
+          departmentMoves: moves,
           summary: found.call.summary,
           latency: found.call.voiceMetrics,
           handoffs: handoffRows.map(({ handoff, name }) => ({

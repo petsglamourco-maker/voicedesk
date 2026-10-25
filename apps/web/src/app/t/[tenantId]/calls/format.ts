@@ -29,6 +29,10 @@ export interface CallRow {
   outcome: string | null;
   hasRecording: boolean;
   medianLatencyMs: number | null;
+  /** ADR 0025: the caller's department, and whether the team missed the call first. */
+  departmentId?: string | null;
+  department?: string | null;
+  missedByTeam?: boolean;
 }
 
 export function formatDuration(seconds: number | null): string {

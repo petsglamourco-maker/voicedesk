@@ -8,11 +8,11 @@ import {
 import { detectLanguage } from "@voicedesk/knowledge";
 import type { AgentContext } from "./context";
 import { isLang, type Lang } from "./languages";
+import { chatMenuText, menuLine } from "./departments";
 import {
   emergencyMessage,
-  greeting,
   looksLikeLifeThreateningEmergency,
-  recordingNotice,
+  openingGreeting,
   troubleMessage,
 } from "./phrases";
 import { buildSystemPrompt } from "./prompt";
@@ -138,22 +138,39 @@ export class RepeatFilter {
 /** Opens a conversation: fixed greeting with the mandatory AI disclosure. */
 export function startConversation(
   ctx: AgentContext,
-  options: { language?: Lang; callerPhone?: string | null; recordingNotice?: boolean } = {},
+  options: {
+    language?: Lang;
+    callerPhone?: string | null;
+    recordingNotice?: boolean;
+    /** Phone calls: forwarded or backup calls get the missed-call opening (ADR 0025). */
+    entry?: "direct" | "forwarded" | "backup";
+    /** Speak / show the department menu after the greeting. */
+    menu?: "voice" | "chat" | null;
+  } = {},
 ): { state: ConversationState; greeting: string } {
   const language = options.language ?? ctx.defaultLanguage;
   const state = initialState(language, options.callerPhone ?? null);
-  const hello = greeting(language, {
-    business: ctx.businessName,
-    name: ctx.personaName,
-    gender: ctx.persona.gender,
-  });
-  // Recording notice (brief §3.3) goes right after the AI disclosure, before the question.
-  // A suspended business (ADR 0022) only says the service isn't available.
+  if (options.entry) state.entry = options.entry;
+  const departments = ctx.menu?.departments ?? [];
+  const menu =
+    options.menu === "voice" && departments.length
+      ? menuLine(language, departments)
+      : options.menu === "chat" && departments.length
+        ? chatMenuText(language, departments)
+        : null;
+  // AI disclosure first; then the missed-call line, the recording notice (brief §3.3) and
+  // the question or menu. A suspended business (ADR 0022) only says it isn't available.
   const text = ctx.suspended
     ? unavailablePhrase(language, ctx.businessName)
-    : options.recordingNotice
-      ? `${hello} ${recordingNotice(language)}`
-      : hello;
+    : openingGreeting(
+        language,
+        { business: ctx.businessName, name: ctx.personaName, gender: ctx.persona.gender },
+        {
+          missed: options.entry === "forwarded" || options.entry === "backup",
+          recordingNotice: options.recordingNotice,
+          menu,
+        },
+      );
   // The API requires the first message to come from the user; mark the connection.
   state.history.push(
     { role: "user", content: "[Conversation started]" },

@@ -219,3 +219,48 @@ export async function recordDepartmentChoice(
     });
   });
 }
+
+const CHOSEN: Record<Lang, (name: string) => string> = {
+  en: (n) => `You're through to ${n}. How can I help?`,
+  es: (n) => `Ha elegido ${n}. ¿En qué puedo ayudarle?`,
+  fr: (n) => `Vous avez choisi ${n}. Comment puis-je vous aider ?`,
+  de: (n) => `Sie sind bei ${n}. Wie kann ich helfen?`,
+  zh: (n) => `您选择了${n}。请问有什么可以帮您？`,
+  ar: (n) => `لقد اخترت ${n}. كيف يمكنني مساعدتك؟`,
+};
+
+/** Said (not generated) after a keypad choice. */
+export function departmentChosenPhrase(lang: Lang, d: DepartmentInfo): string {
+  return CHOSEN[lang](spoken(d, lang));
+}
+
+const PERSON: Record<Lang, string> = {
+  en: "I'd like to speak to a person, please.",
+  es: "Quisiera hablar con una persona, por favor.",
+  fr: "Je voudrais parler à une personne, s'il vous plaît.",
+  de: "Ich möchte bitte mit einer Person sprechen.",
+  zh: "我想和真人通话。",
+  ar: "أريد التحدث إلى شخص من فضلك.",
+};
+
+/** Pressing 0 is the caller asking for a person, in their language. */
+export function personRequestText(lang: Lang): string {
+  return PERSON[lang];
+}
+
+/** The departments section of the system prompt (stable per business). */
+export function departmentsPromptSegment(list: DepartmentInfo[]): string {
+  if (list.length === 0) return "";
+  const lines = list.map((d) => {
+    const extra = [
+      d.instructions?.trim()
+        ? `instructions from the business: ${neutraliseMarkers(d.instructions.trim())}`
+        : null,
+      d.paymentLink ? "can send the business's secure payment link (send_payment_link)" : null,
+    ].filter(Boolean);
+    return `${d.key}. ${d.name}${extra.length ? ` (${extra.join("; ")})` : ""}`;
+  });
+  return `Departments (set up by the business):
+${lines.join("\n")}
+When it's clear which department the customer needs, call set_department with its number (callers can also press its key). While in a department, follow its instructions. If the topic changes, call set_department again. Never take card details over the phone or in chat: for payments, send the payment link when the department has one, otherwise take a message.`;
+}

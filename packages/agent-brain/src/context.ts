@@ -1,3 +1,4 @@
+import type { MenuSettings } from "./departments";
 import type { Lang } from "./languages";
 import type { Persona } from "./personas";
 import type { BusinessProfile } from "./profile";
@@ -30,5 +31,11 @@ export interface AgentContext {
   aiPaused?: "cap" | "platform" | null;
   /** The business is suspended: only a fixed "not available" answer. */
   suspended?: boolean;
+  /** Departments and the phone menu (ADR 0025). */
+  menu?: MenuSettings;
+  /** "backup": the business's main line forwards here when nobody answers. */
+  callEntry?: "direct" | "backup";
+  /** Ring the people who answer calls before the assistant takes over. */
+  ringFirst?: boolean;
   now: () => Date;
 }

@@ -23,12 +23,18 @@ export async function createConversation(
     createdBy?: string | null;
     phoneNumberId?: string | null;
     callerNumberWithheld?: boolean;
+    /** Phone calls: how the call arrived (forwarded / backup = missed by the team). */
+    entry?: "direct" | "forwarded" | "backup";
+    /** Speak or show the department menu after the greeting (ADR 0025). */
+    menu?: "voice" | "chat" | null;
   },
 ): Promise<{ conversationId: string; state: ConversationState; greeting: string }> {
   const { state, greeting } = startConversation(ctx, {
     language: params.language,
     callerPhone: params.callerPhone ?? null,
     recordingNotice: ctx.style === "voice" && ctx.recordCalls === true,
+    entry: params.entry,
+    menu: params.menu ?? null,
   });
   const known = await recogniseCaller(db, params.tenantId, params.callerPhone ?? null);
   if (known) {
@@ -61,6 +67,7 @@ export async function createConversation(
         createdBy: params.createdBy ?? null,
         phoneNumberId: params.phoneNumberId ?? null,
         callerNumberWithheld: params.callerNumberWithheld ?? false,
+        entry: params.entry ?? "direct",
         contactId: known?.contactId ?? null,
       })
       .returning({ id: conversations.id });

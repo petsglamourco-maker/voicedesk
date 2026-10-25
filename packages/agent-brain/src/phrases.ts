@@ -31,6 +31,46 @@ export function greeting(lang: Lang, args: GreetingArgs): string {
   return GREETINGS[lang](args);
 }
 
+/** The question that ends each greeting (replaced by the menu when there is one). */
+const QUESTION: Record<Lang, string> = {
+  en: "How can I help you today?",
+  es: "¿En qué puedo ayudarle hoy?",
+  fr: "Comment puis-je vous aider aujourd'hui ?",
+  de: "Wie kann ich Ihnen heute helfen?",
+  zh: "请问今天有什么可以帮您？",
+  ar: "كيف يمكنني مساعدتك اليوم؟",
+};
+
+/** Missed-call receptionist (ADR 0025): said after the AI disclosure. */
+const MISSED: Record<Lang, string> = {
+  en: "The team couldn't get to the phone just now, but I can book you in, arrange a call back or take a message.",
+  es: "El equipo no ha podido atender ahora mismo, pero puedo darle una cita, programar una llamada o tomar un mensaje.",
+  fr: "L'équipe n'a pas pu répondre pour le moment, mais je peux vous donner un rendez-vous, organiser un rappel ou prendre un message.",
+  de: "Das Team konnte gerade nicht rangehen, aber ich kann einen Termin vereinbaren, einen Rückruf einplanen oder eine Nachricht aufnehmen.",
+  zh: "团队刚才没能接听电话，不过我可以帮您预约、安排回电或留言。",
+  ar: "لم يتمكن الفريق من الرد الآن، لكن يمكنني حجز موعد لك أو ترتيب معاودة الاتصال أو تسجيل رسالة.",
+};
+
+/**
+ * The opening: always the greeting with the AI disclosure first, then (optionally) the
+ * missed-call line and the recording notice, then the question or the department menu.
+ */
+export function openingGreeting(
+  lang: Lang,
+  args: GreetingArgs,
+  options: { missed?: boolean; recordingNotice?: boolean; menu?: string | null } = {},
+): string {
+  const full = GREETINGS[lang](args);
+  const intro = full.endsWith(QUESTION[lang])
+    ? full.slice(0, -QUESTION[lang].length).trimEnd()
+    : full;
+  const parts = [intro];
+  if (options.missed) parts.push(MISSED[lang]);
+  if (options.recordingNotice) parts.push(RECORDING_NOTICE[lang]);
+  parts.push(options.menu ?? QUESTION[lang]);
+  return parts.join(lang === "zh" ? "" : " ");
+}
+
 const RECORDING_NOTICE: Record<Lang, string> = {
   en: "Just so you know, this call is recorded for quality and training.",
   es: "Le informamos de que esta llamada se graba con fines de calidad y formación.",

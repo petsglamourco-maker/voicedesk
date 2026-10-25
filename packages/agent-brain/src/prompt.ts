@@ -1,5 +1,6 @@
 import type { AgentContext } from "./context";
 import { formatProfileForPrompt } from "./profile";
+import { departmentsPromptSegment } from "./departments";
 import { UNTRUSTED_RULE } from "./untrusted";
 
 /**
@@ -9,7 +10,7 @@ import { UNTRUSTED_RULE } from "./untrusted";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-24.1";
+export const PROMPT_VERSION = "2026-10-25.1";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -82,10 +83,11 @@ function profileSegment(ctx: AgentContext): string {
   const urgent = ctx.urgentSituations?.trim()
     ? `\n\nUrgent situations for this business: ${ctx.urgentSituations.trim()}. If the caller describes one of these, give any immediate safety advice from the profile, then call request_human with urgent true.`
     : "";
+  const departments = departmentsPromptSegment(ctx.menu?.departments ?? []);
   return `Business profile (approved by the business; with tool results, your only source of business facts):
 ${formatProfileForPrompt(ctx.profile)}
 
-Business time zone: ${ctx.timezone}.${urgent}`;
+Business time zone: ${ctx.timezone}.${urgent}${departments ? `\n\n${departments}` : ""}`;
 }
 
 export function buildSystemPrompt(ctx: AgentContext): string[] {

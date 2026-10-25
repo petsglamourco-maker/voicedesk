@@ -1,3 +1,8 @@
+import {
+  createConversation,
+  loadAgentContext,
+  recordDepartmentChoice,
+} from "@voicedesk/agent-brain";
 import { auditLog, withTenant } from "@voicedesk/db";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -151,5 +156,64 @@ describe("departments and the phone menu", () => {
       headers: as(other.cookie),
     });
     expect(res.statusCode).toBe(404);
+  });
+
+  it("calls show their department, a filter, the moves and missed calls", async () => {
+    const biz = await createOwnerWithTenant(h, "Calls Dept Co");
+    const saved = (
+      await save(biz, {
+        departments: [
+          { key: 1, name: "Sales" },
+          { key: 2, name: "Support" },
+        ],
+      })
+    ).json<MenuView>();
+    const [sales, support] = saved.departments;
+    const ctx = await loadAgentContext(h.db, biz.tenantId, "voice");
+    const missed = await createConversation(h.db, ctx, {
+      tenantId: biz.tenantId,
+      channel: "voice",
+      entry: "forwarded",
+      menu: "voice",
+    });
+    expect(missed.greeting).toContain("For Sales, press 1");
+    expect(missed.greeting).toContain("couldn't get to the phone");
+    await recordDepartmentChoice(h.db, {
+      tenantId: biz.tenantId,
+      conversationId: missed.conversationId,
+      departmentId: sales!.id,
+      via: "keypad",
+    });
+    await recordDepartmentChoice(h.db, {
+      tenantId: biz.tenantId,
+      conversationId: missed.conversationId,
+      departmentId: support!.id,
+      via: "assistant",
+    });
+    const other = await createConversation(h.db, ctx, { tenantId: biz.tenantId, channel: "voice" });
+
+    const list = await h.app.inject({
+      method: "GET",
+      url: `/api/tenants/${biz.tenantId}/calls?department=${support!.id}`,
+      headers: as(biz.cookie),
+    });
+    const calls = list.json<{
+      calls: Array<{ id: string; department: string; missedByTeam: boolean }>;
+    }>().calls;
+    expect(calls.map((c) => c.id)).toEqual([missed.conversationId]);
+    expect(calls[0]).toMatchObject({ department: "Support", missedByTeam: true });
+    expect(calls.some((c) => c.id === other.conversationId)).toBe(false);
+
+    const detail = await h.app.inject({
+      method: "GET",
+      url: `/api/tenants/${biz.tenantId}/calls/${missed.conversationId}`,
+      headers: as(biz.cookie),
+    });
+    expect(
+      detail.json<{ departmentMoves: Array<{ via: string; name: string }> }>().departmentMoves,
+    ).toEqual([
+      expect.objectContaining({ via: "keypad", name: "Sales" }),
+      expect.objectContaining({ via: "assistant", name: "Support" }),
+    ]);
   });
 });

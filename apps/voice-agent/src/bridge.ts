@@ -2,6 +2,8 @@ import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
 import {
   createDbAgentServices,
   persistTurn,
+  recordDepartmentChoice,
+  type DepartmentInfo,
   runTurn,
   type AgentContext,
   type DbServiceDeps,
@@ -166,6 +168,53 @@ export class EngineBridge {
           metadata: { channel: "voice", withPerson: true },
         }),
       ).catch((error: unknown) => this.hooks.onError?.(error));
+    };
+    const next = this.queue.then(run, run);
+    this.queue = next;
+    return next;
+  }
+
+  /** The department the caller is in (keypad, speech or moved by the assistant). */
+  get department(): { id: string; key: number; name: string } | null {
+    return this.state.department ?? null;
+  }
+
+  /**
+   * A keypad choice (ADR 0025): no model call. The department is saved now; the note and the
+   * fixed sentence that was spoken go into the history, saved with the next turn.
+   */
+  chooseDepartment(d: DepartmentInfo, spoken: string): Promise<void> {
+    const run = async () => {
+      this.state = {
+        ...this.state,
+        department: { id: d.id, key: d.key, name: d.name },
+        history: [
+          ...this.state.history,
+          {
+            role: "system",
+            content: `[Engine note] The caller pressed ${d.key} for ${d.name}. You said: "${spoken}"`,
+          },
+        ],
+      };
+      try {
+        await recordDepartmentChoice(this.deps.db, {
+          ...this.ids,
+          departmentId: d.id,
+          via: "keypad",
+        });
+        await withTenant(this.deps.db, this.ids.tenantId, (tx) =>
+          tx.insert(conversationMessages).values({
+            tenantId: this.ids.tenantId,
+            conversationId: this.ids.conversationId,
+            role: "agent",
+            content: spoken,
+            language: this.state.language,
+            metadata: { channel: "voice", keypad: d.key },
+          }),
+        );
+      } catch (error) {
+        this.hooks.onError?.(error);
+      }
     };
     const next = this.queue.then(run, run);
     this.queue = next;

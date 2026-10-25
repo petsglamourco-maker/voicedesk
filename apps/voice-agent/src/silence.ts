@@ -12,8 +12,13 @@ export class SilenceHandler {
     private readonly actions: {
       stillThere: () => Promise<unknown>;
       goodbye: () => Promise<unknown>;
+      /** ADR 0025: true while the menu was offered and nothing has been chosen yet. */
+      menuPending?: () => boolean;
+      repeatMenu?: () => Promise<unknown>;
     },
   ) {}
+
+  private menuRepeated = false;
 
   async onUserState(state: string): Promise<void> {
     if (state === "speaking") {
@@ -21,6 +26,12 @@ export class SilenceHandler {
       return;
     }
     if (state !== "away") return;
+    // The first quiet spell after the menu repeats it once (not counted as a check-in).
+    if (!this.menuRepeated && this.actions.menuPending?.() && this.actions.repeatMenu) {
+      this.menuRepeated = true;
+      await this.actions.repeatMenu();
+      return;
+    }
     this.prompts++;
     if (this.prompts === 1) await this.actions.stillThere();
     else if (this.prompts === 2) await this.actions.goodbye();

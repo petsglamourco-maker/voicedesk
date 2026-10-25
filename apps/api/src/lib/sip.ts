@@ -9,6 +9,12 @@ import {
 const SIP_TRANSPORT_TCP = 2 as CreateSipOutboundTrunkOptions["transport"];
 import { VOICE_AGENT_NAME } from "./voice";
 
+/** SIP headers that show a call was forwarded, mapped to participant attributes. */
+export const FORWARDING_HEADERS = {
+  Diversion: "vd.diversion",
+  "X-Forwarded-From": "vd.forwardedFrom",
+};
+
 /** Dispatch metadata for phone calls (read by apps/voice-agent `parseJobMetadata`). */
 export interface PhoneJobMetadata {
   tenantId: string;
@@ -108,6 +114,8 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
       const trunk = await sip.createSipInboundTrunk(`voicedesk ${e164}`, [e164], {
         ...security(carrier),
         metadata: JSON.stringify(metadata),
+        // Forwarded calls (missed by the team, ADR 0025) are detected from these headers.
+        headersToAttributes: FORWARDING_HEADERS,
       });
       try {
         const rule = await sip.createSipDispatchRule(

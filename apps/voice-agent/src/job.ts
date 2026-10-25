@@ -61,6 +61,14 @@ export function callerFromSip(attributes: Record<string, string>): {
   return { callerPhone: digits.startsWith("+") ? digits : `+${digits}`, withheld: false };
 }
 
+/**
+ * Whether the call was forwarded to us (ADR 0025): carriers add a Diversion header, and a
+ * Twilio TwiML Bin can pass X-Forwarded-From. The inbound trunk maps both to attributes.
+ */
+export function forwardedFromSip(attributes: Record<string, string>): boolean {
+  return Boolean(attributes["vd.diversion"]?.trim() || attributes["vd.forwardedFrom"]?.trim());
+}
+
 /** The conversation's first agent message: the fixed greeting with the AI disclosure. */
 export async function loadGreeting(db: Database, ids: JobIds): Promise<string | null> {
   const [first] = await withTenant(db, ids.tenantId, (tx) =>

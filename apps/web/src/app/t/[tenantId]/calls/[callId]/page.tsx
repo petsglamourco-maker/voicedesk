@@ -45,6 +45,7 @@ interface CallDetail extends CallRow {
     }>;
   } | null;
   messages: Array<{ role: string; content: string; createdAt: string; withPerson?: boolean }>;
+  departmentMoves?: Array<{ at: string; via: string; name: string | null }>;
   handoffs?: Array<{
     status: string;
     reason: string | null;
@@ -191,6 +192,23 @@ export default async function CallPage(props: {
         </div>
 
         <div className="space-y-4">
+          {call.missedByTeam || call.departmentMoves?.length ? (
+            <Card className="p-4" data-testid="call-department">
+              <CardHead icon={<Flag />} title={t("routingTitle")} color="var(--color-primary)" />
+              <ul className="mt-3 space-y-2 text-sm">
+                {call.missedByTeam ? (
+                  <li>
+                    <StatusPill tone="warning" icon={PhoneForwarded} label={t("missedByTeam")} />
+                  </li>
+                ) : null}
+                {call.departmentMoves?.map((m, i) => (
+                  <li key={i}>
+                    {t(`departmentVia.${m.via}`, { name: m.name ?? t("removedDepartment") })}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
           {call.handoffs?.length ? (
             <Card className="p-4" data-testid="handoffs">
               <CardHead icon={<Headset />} title={t("handoffTitle")} color="var(--color-accent)" />

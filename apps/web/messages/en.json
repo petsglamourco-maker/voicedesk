@@ -550,7 +550,18 @@
       "failed": "couldn't call"
     },
     "aiCancel": "Cancel",
-    "open": "Open"
+    "open": "Open",
+    "departmentFilter": "Filter calls by department",
+    "allDepartments": "All departments",
+    "missedByTeam": "Missed by the team",
+    "routingTitle": "Department and routing",
+    "removedDepartment": "a removed department",
+    "departmentVia": {
+      "keypad": "Caller pressed the key for {name}",
+      "speech": "Caller asked for {name}",
+      "chat": "Customer chose {name}",
+      "assistant": "Assistant moved the call to {name}"
+    }
   },
   "phoneNumbers": {
     "title": "Phone numbers",

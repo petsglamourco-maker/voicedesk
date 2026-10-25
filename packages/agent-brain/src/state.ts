@@ -120,6 +120,10 @@ export interface ConversationState {
   transfer?: { to: string; fallback?: string; urgent?: boolean };
   /** Turn the last booking was made in (guards against a duplicate create in one turn). */
   lastBookingTurn?: number;
+  /** ADR 0025: the department the caller chose (keypad, speech or chat). */
+  department?: { id: string; key: number; name: string };
+  /** Phone calls: how the call arrived ("forwarded"/"backup": missed by the team). */
+  entry?: "direct" | "forwarded" | "backup";
   /** Take-a-message mode without AI (spend cap or platform pause; ADR 0022). */
   messageOnly?: {
     step: "start" | "name" | "phone" | "message" | "done";
@@ -245,6 +249,14 @@ export function stepNote(
     const count = k.upcoming.length;
     lines.push(
       `Returning customer (recognised by their phone number, which can be faked): ${k.name ?? "name not on file"}.${count ? ` They have ${count} upcoming booking${count === 1 ? "" : "s"}.` : ""} You may greet them by first name. Don't mention booking details, times or references until find_booking has confirmed them with the name the booking was made under.`,
+    );
+  }
+  if (state.department) {
+    lines.push(`Current department: ${state.department.key}. ${state.department.name}.`);
+  }
+  if (state.entry && state.entry !== "direct" && state.turns <= 2) {
+    lines.push(
+      "This call came through because nobody could answer the business's main line: be warm, help fully, and offer a booking, a call back or a message.",
     );
   }
   switch (state.flow) {
