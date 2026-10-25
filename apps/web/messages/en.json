@@ -710,7 +710,13 @@
     "routePeopleOnly": "VA console only",
     "routePhoneOnly": "Phone number only",
     "routeHint": "The VA console rings people who answer calls for you (Team page) and are set to Available.",
-    "ringSeconds": "Seconds the VA console rings before giving up"
+    "ringSeconds": "Seconds the VA console rings before giving up",
+    "callEntry": "How calls reach VoiceDesk",
+    "callEntryDirect": "VoiceDesk answers my number straight away",
+    "callEntryBackup": "My main line forwards to VoiceDesk when nobody answers",
+    "callEntryHint": "Backup: callers hear that the team couldn't get to the phone, and the assistant books, arranges a call back or takes a message. Forwarded calls are also recognised automatically.",
+    "ringFirst": "Ring the team first",
+    "ringFirstHint": "People who answer calls are rung (in VoiceDesk and on their phones) before the assistant helps. If nobody picks up, the assistant carries on."
   },
   "websiteChat": {
     "title": "Website chat",
@@ -1620,7 +1626,8 @@
       "chats": "Chats waiting",
       "missed": "Missed calls today",
       "messages": "Messages to return",
-      "callbacks": "Callbacks booked"
+      "callbacks": "Callbacks booked",
+      "missedByTeam": "Missed calls the assistant took"
     },
     "bookings": {
       "title": "Today's bookings",

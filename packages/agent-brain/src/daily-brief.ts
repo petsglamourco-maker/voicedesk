@@ -40,6 +40,8 @@ interface Labels {
   tickets: string;
   messages: string;
   missedHandoffs: string;
+  /** ADR 0025: calls the team missed (forwarded / backup) that the assistant took. */
+  missedByTeam: string;
   unanswered: string;
   rating: (pct: number, n: number) => string;
   today: string;
@@ -63,6 +65,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "New tickets",
     messages: "New messages",
     missedHandoffs: "Callers nobody could take",
+    missedByTeam: "Missed calls the assistant handled",
     unanswered: "Questions the assistant couldn't answer",
     rating: (p, n) => `Satisfied customers: ${p}% (${n} ratings)`,
     today: "Today",
@@ -84,6 +87,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "Incidencias nuevas",
     messages: "Mensajes nuevos",
     missedHandoffs: "Llamadas que nadie pudo atender",
+    missedByTeam: "Llamadas perdidas atendidas por el asistente",
     unanswered: "Preguntas sin respuesta del asistente",
     rating: (p, n) => `Clientes satisfechos: ${p}% (${n} valoraciones)`,
     today: "Hoy",
@@ -105,6 +109,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "Nouveaux tickets",
     messages: "Nouveaux messages",
     missedHandoffs: "Appels que personne n'a pu prendre",
+    missedByTeam: "Appels manqués pris en charge par l'assistant",
     unanswered: "Questions restées sans réponse",
     rating: (p, n) => `Clients satisfaits : ${p} % (${n} avis)`,
     today: "Aujourd'hui",
@@ -126,6 +131,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "Neue Tickets",
     messages: "Neue Nachrichten",
     missedHandoffs: "Anrufer, die niemand übernehmen konnte",
+    missedByTeam: "Verpasste Anrufe, die der Assistent übernommen hat",
     unanswered: "Fragen, die die Assistenz nicht beantworten konnte",
     rating: (p, n) => `Zufriedene Kunden: ${p} % (${n} Bewertungen)`,
     today: "Heute",
@@ -147,6 +153,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "新工单",
     messages: "新留言",
     missedHandoffs: "无人接听的转人工来电",
+    missedByTeam: "助理处理的未接来电",
     unanswered: "助理未能回答的问题",
     rating: (p, n) => `满意客户：${p}%（${n} 个评分）`,
     today: "今天",
@@ -168,6 +175,7 @@ const LABELS: Record<Lang, Labels> = {
     tickets: "تذاكر جديدة",
     messages: "رسائل جديدة",
     missedHandoffs: "متصلون لم يتمكن أحد من الرد عليهم",
+    missedByTeam: "مكالمات فائتة تولاها المساعد",
     unanswered: "أسئلة لم يجب عنها المساعد",
     rating: (p, n) => `العملاء الراضون: ${p}% (${n} تقييمات)`,
     today: "اليوم",
@@ -189,6 +197,7 @@ export interface BriefNumbers {
   tickets: number;
   messages: number;
   missedHandoffs: number;
+  missedByTeam: number;
   unanswered: number;
   csat: number | null;
   ratings: number;
@@ -223,6 +232,7 @@ export async function briefNumbers(
     const [conv] = await tx
       .select({
         calls: sql<number>`count(*) filter (where ${conversations.channel} = 'voice')::int`,
+        missedByTeam: sql<number>`count(*) filter (where ${conversations.channel} = 'voice' and ${conversations.entry} <> 'direct')::int`,
         chats: sql<number>`count(*) filter (where ${conversations.channel} in ('web_chat','whatsapp','email','web_form'))::int`,
       })
       .from(conversations)
@@ -315,6 +325,7 @@ export async function briefNumbers(
       tickets: newTickets?.n ?? 0,
       messages: newMessages?.n ?? 0,
       missedHandoffs: missed?.n ?? 0,
+      missedByTeam: conv?.missedByTeam ?? 0,
       unanswered: gaps?.n ?? 0,
       csat: stats.csat,
       ratings: stats.answered,
@@ -344,6 +355,7 @@ export function renderBrief(
     `- ${l.tickets}: ${n.tickets}`,
     `- ${l.messages}: ${n.messages}`,
   ];
+  if (n.missedByTeam) lines.push(`- ${l.missedByTeam}: ${n.missedByTeam}`);
   if (n.missedHandoffs) lines.push(`- ${l.missedHandoffs}: ${n.missedHandoffs}`);
   if (n.unanswered) lines.push(`- ${l.unanswered}: ${n.unanswered}`);
   if (n.csat !== null) lines.push(`- ${l.rating(n.csat, n.ratings)}`);

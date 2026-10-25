@@ -146,6 +146,7 @@ export interface TodayView {
     items: Array<{ conversationId: string; at: string; urgent: boolean }>;
   };
   callbacks: { count: number };
+  missedByTeam: { count: number };
   messages: {
     count: number;
     items: Array<{

@@ -2,6 +2,7 @@ import { localDateString, zonedToUtc } from "@voicedesk/agent-brain";
 import {
   bookings,
   channelThreads,
+  conversations,
   handoffs,
   outboundCalls,
   staffMessages,
@@ -54,6 +55,8 @@ const todayView = z.object({
     items: z.array(z.object({ conversationId: z.string(), at: z.string(), urgent: z.boolean() })),
   }),
   callbacks: z.object({ count: z.number() }),
+  /** ADR 0025: calls the team missed that the assistant took today. */
+  missedByTeam: z.object({ count: z.number() }),
   messages: z.object({
     count: z.number(),
     items: z.array(
@@ -138,6 +141,17 @@ export function registerTodayRoutes(app: FastifyInstance, deps: AppDeps): void {
           .from(outboundCalls)
           .where(and(eq(outboundCalls.purpose, "callback"), eq(outboundCalls.status, "scheduled")));
 
+        const [missedByTeam] = await tx
+          .select({ n: count })
+          .from(conversations)
+          .where(
+            and(
+              eq(conversations.channel, "voice"),
+              ne(conversations.entry, "direct"),
+              gte(conversations.startedAt, start),
+            ),
+          );
+
         const messagesWhere = eq(staffMessages.status, "new");
         const [messages] = await tx.select({ n: count }).from(staffMessages).where(messagesWhere);
         const messageItems = await tx
@@ -176,6 +190,7 @@ export function registerTodayRoutes(app: FastifyInstance, deps: AppDeps): void {
             })),
           },
           callbacks: { count: callbacks?.n ?? 0 },
+          missedByTeam: { count: missedByTeam?.n ?? 0 },
           messages: {
             count: messages?.n ?? 0,
             items: messageItems.map((m) => ({

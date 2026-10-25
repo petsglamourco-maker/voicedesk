@@ -30,6 +30,18 @@ describe("buildCallSummaryEmail", () => {
     link: "http://localhost:3000/t/x/calls/y",
   };
 
+  it("missed calls and departments are in the headline (ADR 0025)", () => {
+    const { subject, text } = buildCallSummaryEmail({
+      ...base,
+      missedByTeam: true,
+      department: "Support",
+    });
+    expect(subject).toContain("[Support]");
+    expect(subject).toContain("Missed by the team, handled by the assistant");
+    expect(text.split("\n")[0]).toBe("Missed by the team, handled by the assistant");
+    expect(text).toContain("Department: Support");
+  });
+
   it("gives the business what it needs to act, without the transcript", () => {
     const { subject, text } = buildCallSummaryEmail(base);
     expect(subject).toBe("Bright Dental: new call (booking)");

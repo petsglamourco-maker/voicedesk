@@ -740,7 +740,7 @@ export async function planRingingPush(
  * ADR 0025: who besides the owners and admins hears about a conversation's records: its
  * department's people (email and push) and the department's email address.
  */
-async function departmentAudience(
+export async function departmentAudience(
   db: Database,
   tenantId: string,
   conversationId: string | null,

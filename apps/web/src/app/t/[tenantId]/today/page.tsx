@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Gauge,
   MessageSquareText,
+  PhoneForwarded,
   PhoneMissed,
   PhoneOutgoing,
   StickyNote,
@@ -52,6 +53,13 @@ export default async function TodayPage(props: { params: Promise<{ tenantId: str
       n: today.missedCalls.count,
       Icon: PhoneMissed,
       tone: "danger" as const,
+    },
+    {
+      href: `${base}/calls`,
+      label: t("chips.missedByTeam"),
+      n: today.missedByTeam.count,
+      Icon: PhoneForwarded,
+      tone: "info" as const,
     },
     {
       href: `${base}/records`,

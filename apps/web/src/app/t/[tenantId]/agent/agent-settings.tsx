@@ -62,6 +62,8 @@ interface Settings {
   urgentSituations: string | null;
   handoffRoute: string;
   ringSeconds: number;
+  callEntry: string;
+  ringFirst: boolean;
   feedbackEnabled: boolean;
   feedbackAfterCalls: boolean;
   npsEvery: number;
@@ -393,6 +395,24 @@ export function AgentSettingsForm(props: {
             color="var(--color-info)"
           />
           <div className="mt-5 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+            <div>
+              <Label htmlFor="callEntry">{tt("callEntry")}</Label>
+              <Select
+                id="callEntry"
+                value={settings.callEntry}
+                onChange={(e) => update({ callEntry: e.target.value })}
+              >
+                <option value="direct">{tt("callEntryDirect")}</option>
+                <option value="backup">{tt("callEntryBackup")}</option>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">{tt("callEntryHint")}</p>
+            </div>
+            <ToggleRow
+              checked={settings.ringFirst}
+              onChange={(on) => update({ ringFirst: on })}
+              label={tt("ringFirst")}
+              hint={tt("ringFirstHint")}
+            />
             <div>
               <Label htmlFor="handoffRoute">{tt("route")}</Label>
               <Select

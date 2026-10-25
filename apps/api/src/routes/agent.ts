@@ -61,6 +61,10 @@ const settingsSchema = z.object({
     .enum(["people_then_phone", "people_only", "phone_only"])
     .default("people_then_phone"),
   ringSeconds: z.number().int().min(10).max(120).default(30),
+  /** ADR 0025: "backup" = the main line forwards here when nobody answers. */
+  callEntry: z.enum(["direct", "backup"]).default("direct"),
+  /** ADR 0025: ring the people who answer calls before the assistant helps. */
+  ringFirst: z.boolean().default(false),
   feedbackEnabled: z.boolean().default(true),
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
@@ -86,6 +90,8 @@ const settingsResponse = z.object({
   urgentSituations: z.string().nullable(),
   handoffRoute: z.string(),
   ringSeconds: z.number(),
+  callEntry: z.string(),
+  ringFirst: z.boolean(),
   feedbackEnabled: z.boolean(),
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
@@ -111,6 +117,8 @@ const DEFAULTS = {
   urgentSituations: null as string | null,
   handoffRoute: "people_then_phone",
   ringSeconds: 30,
+  callEntry: "direct",
+  ringFirst: false,
   feedbackEnabled: true,
   feedbackAfterCalls: false,
   npsEvery: 0,
@@ -174,6 +182,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               urgentSituations: row.urgentSituations,
               handoffRoute: row.handoffRoute,
               ringSeconds: row.ringSeconds,
+              callEntry: row.callEntry,
+              ringFirst: row.ringFirst,
               feedbackEnabled: row.feedbackEnabled,
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,
@@ -201,6 +211,8 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
         tx.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, access.tenantId)),
       );
+      // Ringing the team first uses the VA console and phone app (a plan feature).
+      if (request.body.ringFirst) await requireFeature(deps.db, access.tenantId, "va_console");
       if (request.body.aiCallbacks || request.body.confirmationCalls) {
         await requireFeature(deps.db, access.tenantId, "ai_calls");
       }

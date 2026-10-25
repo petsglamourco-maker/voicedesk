@@ -12,6 +12,7 @@ const EMPTY: BriefNumbers = {
   tickets: 0,
   messages: 0,
   missedHandoffs: 0,
+  missedByTeam: 0,
   unanswered: 0,
   csat: null,
   ratings: 0,
