@@ -27,5 +27,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0021](0021-help-assistant.md)                 | In-app Help assistant and Contact support             | Accepted           |
 | [0022](0022-spending-limits.md)                | Spending limits, safe destinations, emergency stop    | Accepted           |
 | [0023](0023-plans-and-billing.md)              | Plans and billing (Stripe)                            | Accepted           |
+| [0024](0024-mobile-web-app.md)                 | Mobile web app, push, testing over home Wi-Fi         | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.

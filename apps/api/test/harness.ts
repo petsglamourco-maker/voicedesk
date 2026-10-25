@@ -62,6 +62,7 @@ export async function createHarness(
     | "humanCheck"
     | "billing"
     | "billingPrices"
+    | "push"
   > & {
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
@@ -146,6 +147,7 @@ export async function createHarness(
     humanCheck: options.humanCheck ?? null,
     billing: options.billing ?? null,
     billingPrices: options.billingPrices ?? {},
+    push: options.push ?? null,
     oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,

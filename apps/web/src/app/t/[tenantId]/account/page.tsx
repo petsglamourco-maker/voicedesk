@@ -5,6 +5,7 @@ import { ScreenHero } from "@/components/screen-hero";
 import { getMe } from "@/lib/api";
 import { NameSettings } from "./name-settings";
 import { PasswordSettings } from "./password-settings";
+import { PushSettings } from "./push-settings";
 import { SessionsSettings } from "./sessions-settings";
 import { TwoFactorSettings } from "./two-factor-settings";
 
@@ -21,6 +22,7 @@ export default async function AccountPage() {
       <NameSettings name={me.user.name} />
       <TwoFactorSettings enabled={me.user.twoFactorEnabled} />
       <PasswordSettings />
+      <PushSettings />
       <SessionsSettings />
     </div>
   );

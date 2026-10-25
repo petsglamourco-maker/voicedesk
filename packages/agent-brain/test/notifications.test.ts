@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { MockEmbeddingProvider } from "@voicedesk/adapters";
-import { agentSettings, bookings, closeDb, member, user, withTenant } from "@voicedesk/db";
+import {
+  agentSettings,
+  bookings,
+  closeDb,
+  member,
+  user,
+  vaAssignments,
+  withTenant,
+} from "@voicedesk/db";
 import { connectTestDbs, createTestTenant, type TestDbs } from "@voicedesk/db/testing";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -8,6 +16,7 @@ import {
   customerBookingText,
   planBookingNotification,
   planBookingReminder,
+  planRingingPush,
   planStaffAlert,
 } from "../src/notifications";
 import { createConversation } from "../src/persistence";
@@ -188,11 +197,44 @@ describe("staff alerts", () => {
       { tenantId, record: "ticket", id: ticket.id },
       "https://app.test",
     );
-    expect(plan.messages.map((m) => [m.channel, m.to])).toEqual([
+    expect(plan.messages.map((m) => [m.channel, m.channel === "push" ? "user" : m.to])).toEqual([
       ["email", ownerEmail],
       ["sms", "+447700900999"],
+      ["push", "user"],
     ]);
     expect(plan.messages[0]!.text).toContain("Filling fell out");
     expect(plan.messages[0]!.text).toContain(`https://app.test/t/${tenantId}/records`);
+    // The phone notification says what kind of thing happened, never who or what was said.
+    const push = plan.messages[2]!;
+    expect(push).toMatchObject({
+      text: "Urgent issue",
+      path: `/t/${tenantId}/records`,
+      urgent: true,
+    });
+    expect(JSON.stringify(push)).not.toMatch(/Filling|\+44|Invoice/);
+  });
+});
+
+describe("ringing calls", () => {
+  it("pushes to the people who answer calls, with no caller details", async () => {
+    const [va] = await dbs.app
+      .insert(user)
+      .values({ name: "VA", email: `va-${randomUUID()}@example.com` })
+      .returning();
+    await withTenant(dbs.app, tenantId, (tx) =>
+      tx.insert(vaAssignments).values({ tenantId, userId: va!.id, source: "business" }),
+    );
+    const handoffId = randomUUID();
+    const plan = await planRingingPush(dbs.app, { tenantId, handoffId });
+    expect(plan.messages).toEqual([
+      expect.objectContaining({
+        channel: "push",
+        to: va!.id,
+        text: "A call is waiting for you",
+        path: "/va",
+        urgent: true,
+        tag: `call-${handoffId}`,
+      }),
+    ]);
   });
 });

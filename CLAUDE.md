@@ -44,7 +44,12 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - The **Plan & billing** page uses Stripe Checkout and the customer portal, with a signed webhook.
   - In Platform admin the owner can give a plan free or restart a trial.
   - Live tests need a Stripe test key (`pnpm billing:prices`, `pnpm billing:listen`).
-- **Next:** Phase 7a part B, the mobile web app (ADR 0024). Then the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
+- **Phase 7a, mobile web app (ADR 0024): built.**
+  - An installable PWA: manifest, service worker (offline page only) and phone tabs (Today, Inbox, Calls, More).
+  - The **Today** page; Inbox list and thread full screen on phones.
+  - Web push (`push_subscriptions` per sign-in, encrypted) for waiting chats, ringing calls, urgent alerts and allowance warnings.
+  - Tested on the owner's phone over home Wi-Fi with `pnpm mobile:lan`.
+- **Next:** the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
 
 ## Layout
 
@@ -87,6 +92,8 @@ packages/config   tsconfig bases + loadRootEnv()
 | `RUN_LIVE_LLM=1 pnpm --filter @voicedesk/adapters test`         | Live Anthropic adapter tests (fractions of a cent)                                                                                                |
 | `RUN_LOCAL_EMBEDDINGS=1 pnpm --filter @voicedesk/adapters test` | Local embedding model tests (downloads ~120 MB once)                                                                                              |
 | `pnpm --filter @voicedesk/auth generate-schema`                 | Regenerate the Better Auth tables after changing auth plugins                                                                                     |
+| `pnpm mobile:lan`                                               | https proxy on this PC's Wi-Fi address (:8443, mkcert) so a phone on the home network can open VoiceDesk; add its origin to `EXTRA_WEB_ORIGINS`   |
+| `pnpm push:keys`                                                | Make the VAPID keys for push notifications (free; prints the `.env` lines)                                                                        |
 | `pnpm billing:prices` / `pnpm billing:listen`                   | Create the plans in Stripe **test mode** (refuses live keys) / forward Stripe test webhooks to the local API (Stripe CLI)                         |
 
 Tests need the Docker infra running. They use the separate `voicedesk_test` database; e2e uses the dev database.
@@ -159,6 +166,8 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`: free Cloudflare bot check on the website chat and hosted forms (off while empty; ADR 0022)
 - `PASSWORD_BREACH_CHECK` (`on`), `TRUSTED_PROXIES` (`127.0.0.1,::1`)
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER|GROWTH|PRO`: billing (ADR 0023; off until set; test keys only before launch)
+- `EXTRA_WEB_ORIGINS`: https home-network origins for phone testing (`pnpm mobile:lan`; validated, comma-separated)
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: push notifications (ADR 0024; off until set)
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 
 ## Local URLs
@@ -186,6 +195,12 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **Mobile and push** (ADR 0024):
+  - The service worker caches only `/offline` and icons. Never cache pages or API responses.
+  - Push messages go through the planners' `push` channel (`to` = user id). Text is the event kind and business name only; never customer names, numbers or message text.
+  - Paths must be internal.
+  - New phone-sized UI goes under `md:` breakpoints, and fixed bottom elements must clear the tab bar (`env(safe-area-inset-bottom)`).
+  - Keep the Next dev badge off (it covers the tab bar).
 - **Plans** (ADR 0023):
   - The plan is the only source of allowances and features. Gate new paid features with `requireFeature` (API, 402) and check `planAllows` in background jobs.
   - `subscriptions` is written only by the Stripe webhook and Platform admin (platform login).

@@ -63,7 +63,7 @@ export async function planSpendAlerts(
       tx.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, tenantId)),
     );
     const team = await db
-      .select({ email: user.email })
+      .select({ email: user.email, userId: user.id })
       .from(member)
       .innerJoin(user, eq(user.id, member.userId))
       .where(and(eq(member.organizationId, tenantId), inArray(member.role, ["owner", "admin"])));
@@ -100,6 +100,17 @@ export async function planSpendAlerts(
       ].join("\n");
       for (const r of team) {
         messages.push({ channel: "email", to: r.email, subject, text, kind: "spend.alert" });
+        // Phones (ADR 0024): the subject only (business name and allowance, no customer data).
+        messages.push({
+          channel: "push",
+          to: r.userId,
+          subject: business?.name ?? "VoiceDesk",
+          text: subject.replace(/^.*?: /, ""),
+          path: new URL(link).pathname,
+          urgent: reached,
+          tag: `spend-${category}`,
+          kind: "spend.alert",
+        });
       }
       if (reached) {
         for (const p of platformOwners) {

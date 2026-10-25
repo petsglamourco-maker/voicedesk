@@ -240,7 +240,28 @@ Today the data is on the owner's computer: keep **BitLocker** on and back up the
 
 ## Mobile app: binding requirements (OWASP MASVS)
 
-There is no mobile app yet. When it's built, it **must**:
+### Today: the installable web app (ADR 0024)
+
+The phone app is the web app installed to the home screen. It applies MASVS as follows:
+
+- **Storage:**
+  - the session stays in an HttpOnly cookie;
+  - nothing sensitive is kept in localStorage;
+  - the service worker caches only the offline page and icons, never pages or API responses.
+- **Push:**
+  - notifications carry no names, numbers or message text, only the kind of event and the business name;
+  - tapping one opens only internal paths;
+  - subscriptions are stored encrypted (SecretBox, bound to the person) and belong to one sign-in, so signing out or revoking the session deletes them;
+  - endpoints must be a browser push service (allow-list), so the server can't be pointed elsewhere.
+- **Network:**
+  - phone testing uses `pnpm mobile:lan`, an https proxy on the Wi-Fi address that refuses non-private clients and runs only while started;
+  - its origin must be listed in `EXTRA_WEB_ORIGINS`, which accepts only https home-network addresses;
+  - the services themselves stay on 127.0.0.1.
+- **API rules:** every API call goes through the same rules as the desktop.
+
+### Later: native store apps
+
+A native app (for example a Capacitor shell for the stores) **must**:
 
 - **MASVS-STORAGE:**
   - keep session tokens only in the iOS Keychain or Android Keystore, never in plain storage, logs or backups;

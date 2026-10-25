@@ -269,6 +269,16 @@ export function AppShell(props: {
                 {brand(false)}
                 <div className="px-4 pb-4">{props.businessSwitcher}</div>
                 {navList(false)}
+                {/* Phones: answer handed-over calls and chats from here (ADR 0024). */}
+                <div className="border-t border-border p-3">
+                  <Link
+                    href="/va"
+                    className="flex min-h-11 items-center gap-3 rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Headphones className="size-[18px]" aria-hidden />
+                    {labels.vaConsole}
+                  </Link>
+                </div>
               </DrawerContent>
             </Dialog>
             <button

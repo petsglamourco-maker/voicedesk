@@ -15,6 +15,7 @@ import {
   Textarea,
 } from "@voicedesk/ui";
 import {
+  ArrowLeft,
   Bot,
   Hand,
   Headset,
@@ -267,7 +268,13 @@ export function InboxView(props: {
         />
       </ScreenHero>
       <div className="grid gap-4 lg:grid-cols-[360px_1fr] [&>*]:min-w-0">
-        <Card className="flex max-h-[440px] flex-col overflow-hidden p-0 lg:h-[680px] lg:max-h-none">
+        {/* Phones show the list, then the conversation full width (ADR 0024). */}
+        <Card
+          className={cn(
+            "flex max-h-[calc(100dvh-14rem)] flex-col overflow-hidden p-0 lg:flex lg:h-[680px] lg:max-h-none",
+            selected && "max-lg:hidden",
+          )}
+        >
           <div className="border-b border-border p-2">
             <div className="flex gap-1 rounded-full bg-muted/60 p-1" role="tablist">
               {filters.map(([f, text, n]) => (
@@ -387,7 +394,12 @@ export function InboxView(props: {
           </p>
         </Card>
 
-        <Card className="flex h-[640px] flex-col overflow-hidden p-0 lg:h-[680px]">
+        <Card
+          className={cn(
+            "flex h-[calc(100dvh-12rem)] min-h-[420px] flex-col overflow-hidden p-0 lg:flex lg:h-[680px]",
+            !selected && "max-lg:hidden",
+          )}
+        >
           {!detail ? (
             <EmptyState
               icon={MessagesSquare}
@@ -404,6 +416,18 @@ export function InboxView(props: {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="lg:hidden"
+                  aria-label={t("backToList")}
+                  onClick={() => {
+                    setSelected(null);
+                    setDetail(null);
+                  }}
+                >
+                  <ArrowLeft className="rtl:rotate-180" />
+                </Button>
                 <span className="relative shrink-0">
                   <Avatar
                     name={detail.thread.name ?? detail.thread.externalId ?? t("visitor")}

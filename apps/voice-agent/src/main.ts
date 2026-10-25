@@ -398,6 +398,10 @@ export default defineAgent({
             urgent,
           });
           handoffLive(row.id);
+          // Phones of the people who answer calls (ADR 0024); never blocks the call.
+          void notify({ kind: "call.ringing", tenantId: ids.tenantId, handoffId: row.id }).catch(
+            () => undefined,
+          );
           return row.id;
         },
         markMissed: async (id) => {

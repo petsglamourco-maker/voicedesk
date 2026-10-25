@@ -13,7 +13,8 @@
     "number:add": "tsx src/number-add.ts",
     "number:sync": "tsx src/number-sync.ts",
     "number:remove": "tsx src/number-remove.ts",
-    "billing:prices": "tsx src/billing-prices.ts"
+    "billing:prices": "tsx src/billing-prices.ts",
+    "push:keys": "tsx src/push-keys.ts"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.4",

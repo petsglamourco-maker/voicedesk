@@ -16,6 +16,7 @@ import {
   Settings2,
   ShieldCheck,
   CreditCard,
+  BellRing,
   type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -47,6 +48,7 @@ const ICON: Record<string, LucideIcon | typeof WhatsAppIcon> = {
   outbound: PhoneOutgoing,
   botCheck: ShieldCheck,
   billing: CreditCard,
+  push: BellRing,
   publicAddress: Globe2,
 };
 

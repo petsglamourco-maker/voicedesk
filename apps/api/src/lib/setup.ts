@@ -18,6 +18,7 @@ export interface SetupItem {
     | "outbound"
     | "botCheck"
     | "billing"
+    | "push"
     | "publicAddress";
   state: SetupState;
   /** .env names (or a short instruction code) still needed for "ready". */
@@ -97,6 +98,7 @@ export function setupStatus(env: NodeJS.ProcessEnv, ai: { enabledReady: number }
     ),
     item("outbound", outboundMissing, true),
     item("botCheck", lacking(env, ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]), false),
+    item("push", lacking(env, ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"]), false),
     // Card fees only on real payments; test mode is free.
     item(
       "billing",

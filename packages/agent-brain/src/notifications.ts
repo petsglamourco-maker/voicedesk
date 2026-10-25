@@ -20,6 +20,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { toLang, type Lang } from "./languages";
 import { openSurvey, shortSurveyQuestion, surveyLinkInvite } from "./feedback";
 import { getApprovedProfile } from "./profile-store";
+import { listAnswerers } from "@voicedesk/core";
 
 /**
  * Customer confirmations, reminders and staff alerts (Phase 3, ADR 0015). Pure text builders
@@ -175,7 +176,8 @@ export function customerBookingText(
 }
 
 export interface OutgoingMessage {
-  channel: "sms" | "email";
+  /** "push": `to` is a user id; subject/text are the title/body and carry no customer details. */
+  channel: "sms" | "email" | "push";
   to: string;
   subject?: string;
   text: string;
@@ -183,6 +185,10 @@ export interface OutgoingMessage {
   kind: string;
   /** Email only: where a reply goes (e.g. the person who asked for support). */
   replyTo?: string;
+  /** Push only: the page to open, whether it's urgent, and a tag that replaces older ones. */
+  path?: string;
+  urgent?: boolean;
+  tag?: string;
 }
 
 export interface NotificationPlan {
@@ -348,6 +354,8 @@ const ALERT: Record<
     withheld: string;
     handoff: string;
     feedback: string;
+    /** Push to people who answer calls: a handed-over call is ringing. */
+    ringing: string;
   }
 > = {
   en: {
@@ -359,6 +367,7 @@ const ALERT: Record<
     withheld: "number withheld",
     handoff: "A customer is asking for a person",
     feedback: "Low rating from a customer",
+    ringing: "A call is waiting for you",
   },
   es: {
     ticket: "Incidencia urgente",
@@ -369,6 +378,7 @@ const ALERT: Record<
     withheld: "número oculto",
     handoff: "Un cliente pide hablar con una persona",
     feedback: "Valoración baja de un cliente",
+    ringing: "Una llamada le está esperando",
   },
   fr: {
     ticket: "Problème urgent",
@@ -379,6 +389,7 @@ const ALERT: Record<
     withheld: "numéro masqué",
     handoff: "Un client demande à parler à quelqu'un",
     feedback: "Note faible d'un client",
+    ringing: "Un appel vous attend",
   },
   de: {
     ticket: "Dringendes Anliegen",
@@ -389,6 +400,7 @@ const ALERT: Record<
     withheld: "Nummer unterdrückt",
     handoff: "Ein Kunde möchte mit einer Person sprechen",
     feedback: "Schlechte Bewertung eines Kunden",
+    ringing: "Ein Anruf wartet auf Sie",
   },
   zh: {
     ticket: "紧急问题",
@@ -399,6 +411,7 @@ const ALERT: Record<
     withheld: "隐藏号码",
     handoff: "有客户要求人工服务",
     feedback: "客户给出了低评分",
+    ringing: "有来电等待您接听",
   },
   ar: {
     ticket: "مشكلة عاجلة",
@@ -409,6 +422,7 @@ const ALERT: Record<
     withheld: "رقم محجوب",
     handoff: "عميل يطلب التحدث إلى شخص",
     feedback: "تقييم منخفض من عميل",
+    ringing: "مكالمة بانتظارك",
   },
 };
 
@@ -493,14 +507,15 @@ export async function planStaffAlert(
     }
   });
   if (!line) return { messages: [] };
-  const link =
+  const path =
     job.record === "handoff"
-      ? `${webOrigin}/t/${job.tenantId}/inbox/${job.id}`
+      ? `/t/${job.tenantId}/inbox/${job.id}`
       : job.record === "feedback"
-        ? `${webOrigin}/t/${job.tenantId}/feedback${feedbackConversation ? `?c=${feedbackConversation}` : ""}`
-        : `${webOrigin}/t/${job.tenantId}/records`;
+        ? `/t/${job.tenantId}/feedback${feedbackConversation ? `?c=${feedbackConversation}` : ""}`
+        : `/t/${job.tenantId}/records`;
+  const link = `${webOrigin}${path}`;
   const recipients = await db
-    .select({ email: user.email })
+    .select({ email: user.email, userId: user.id })
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
     .where(and(eq(member.organizationId, job.tenantId), inArray(member.role, ["owner", "admin"])));
@@ -516,6 +531,30 @@ export async function planStaffAlert(
       channel: "sms",
       to: business.alertPhone,
       text: `${business.name}: ${line}`.slice(0, 300),
+      kind: "staff.alert",
+    });
+  }
+  // Phones (ADR 0024): a short heads-up with no customer details; the app shows the rest.
+  // A chat waiting for a person also goes to the people who answer for the business.
+  const pushTo = new Set(recipients.map((r) => r.userId));
+  if (job.record === "handoff") {
+    for (const a of await listAnswerers(db, job.tenantId)) pushTo.add(a.userId);
+  }
+  const heading = {
+    handoff: l.handoff,
+    ticket: l.ticket,
+    message: l.message,
+    feedback: l.feedback,
+  }[job.record];
+  for (const userId of pushTo) {
+    messages.push({
+      channel: "push",
+      to: userId,
+      subject: business.name,
+      text: heading,
+      path,
+      urgent: job.record !== "feedback",
+      tag: `${job.record}-${job.id}`,
       kind: "staff.alert",
     });
   }
@@ -639,6 +678,27 @@ export async function planSupportRequest(
       text,
       kind: "support.request",
       replyTo: asker.email,
+    })),
+  };
+}
+
+/** Push to the people who answer calls for a business: a handed-over call is ringing. */
+export async function planRingingPush(
+  db: Database,
+  job: { tenantId: string; handoffId: string },
+): Promise<NotificationPlan> {
+  const business = await loadBusiness(db, job.tenantId);
+  const answerers = await listAnswerers(db, job.tenantId);
+  return {
+    messages: answerers.map((a) => ({
+      channel: "push" as const,
+      to: a.userId,
+      subject: business.name,
+      text: ALERT[business.adminLanguage].ringing,
+      path: "/va",
+      urgent: true,
+      tag: `call-${job.handoffId}`,
+      kind: "call.ringing",
     })),
   };
 }

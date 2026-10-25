@@ -177,7 +177,26 @@
     "thisDevice": "This device",
     "lastActive": "Last active {when}",
     "signOutDevice": "Sign out",
-    "signOutEverywhere": "Sign out all other devices"
+    "signOutEverywhere": "Sign out all other devices",
+    "push": {
+      "title": "Notifications on this device",
+      "hint": "Get a notification when a customer is waiting for a person, a call is ringing for you, there's an urgent message, or your allowance is running low.",
+      "turnOn": "Turn on notifications",
+      "turnOff": "Turn off",
+      "test": "Send a test",
+      "onPill": "On",
+      "on": "Notifications are on for this device.",
+      "off": "Notifications are off for this device.",
+      "testSent": "Test sent. It should arrive in a few seconds.",
+      "blocked": "Notifications are blocked for VoiceDesk in this browser's settings. Allow them there, then try again.",
+      "notSetUp": "Notifications aren't switched on for VoiceDesk yet (the platform owner sets this up).",
+      "support": {
+        "insecure": "Notifications need a secure (https) address. On your phone, open VoiceDesk through the address from pnpm mobile:lan.",
+        "unsupported": "This browser can't receive notifications. Try Chrome, Edge, Firefox or Safari.",
+        "install": "On iPhone, add VoiceDesk to your Home Screen first (Share → Add to Home Screen), then open it from there and turn notifications on."
+      },
+      "privacy": "Notifications never include customer names, numbers or messages. Signing out of this device turns them off."
+    }
   },
   "knowledge": {
     "title": "Knowledge",
@@ -741,7 +760,8 @@
     "email": "Email",
     "noEmail": "This customer didn't leave an email address. Call them back instead.",
     "shortcutMove": "move",
-    "shortcutReply": "reply"
+    "shortcutReply": "reply",
+    "backToList": "Back to the inbox"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -1341,6 +1361,11 @@
         "name": "Payments (Stripe)",
         "unlocks": "Businesses can choose a plan and pay by card on Stripe's own pages, and change or cancel it themselves.",
         "how": "Create a free Stripe account and stay in test mode. Put the test secret key in STRIPE_SECRET_KEY, run pnpm billing:prices to create the three plans and copy the printed STRIPE_PRICE_* lines, then run pnpm billing:listen and copy its signing secret into STRIPE_WEBHOOK_SECRET. Restart VoiceDesk."
+      },
+      "push": {
+        "name": "Phone notifications (web push)",
+        "unlocks": "Notifications on people's phones and browsers when a customer is waiting, a call is ringing, or something is urgent. Free.",
+        "how": "Run pnpm push:keys and copy the three VAPID lines it prints into .env, then restart VoiceDesk. Each person then turns notifications on under Account."
       }
     },
     "openSupport": "Open support requests"

@@ -15,6 +15,7 @@ import {
   type BillingProvider,
   type BillingSubscription,
 } from "./billing/types";
+import type { PushMessage, PushProvider, PushSubscriptionData } from "./push/types";
 import type { LlmContentBlock, LlmProvider, LlmRequest, LlmResponse } from "./llm/types";
 import type {
   SmsMessage,
@@ -362,5 +363,18 @@ export class MockBilling implements BillingProvider {
 
   getSubscription(id: string) {
     return Promise.resolve(this.subscriptions.get(id) ?? null);
+  }
+}
+
+/** Records pushes; endpoints containing "gone" act like an expired subscription. */
+export class MockPush implements PushProvider {
+  readonly name = "mock-push";
+  readonly publicKey = "BMockPublicKeyForTests";
+  readonly sent: Array<{ endpoint: string; message: PushMessage }> = [];
+
+  send(subscription: PushSubscriptionData, message: PushMessage) {
+    if (subscription.endpoint.includes("gone")) return Promise.resolve("gone" as const);
+    this.sent.push({ endpoint: subscription.endpoint, message });
+    return Promise.resolve("sent" as const);
   }
 }

@@ -4,6 +4,7 @@ import type { EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
 import type { HumanCheck } from "./human/types";
 import type { BillingProvider } from "./billing/types";
+import type { PushProvider } from "./push/types";
 import type { LlmProvider } from "./llm/types";
 import type { SmsProvider } from "./messaging/types";
 import { MockEmbeddingProvider, MockLlmProvider } from "./mocks";
@@ -126,4 +127,15 @@ export function billingPricesFromEnv(env: Env = process.env): Record<string, str
     if (id) prices[plan] = id;
   }
   return prices;
+}
+
+/** Web push for the mobile app (ADR 0024); null (off) until the VAPID keys are set. */
+export async function pushFromEnv(env: Env = process.env): Promise<PushProvider | null> {
+  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return null;
+  const { WebPushProvider } = await import("./push/web-push");
+  return new WebPushProvider({
+    publicKey: env.VAPID_PUBLIC_KEY,
+    privateKey: env.VAPID_PRIVATE_KEY,
+    subject: env.VAPID_SUBJECT || "mailto:security@voicedesk.invalid",
+  });
 }

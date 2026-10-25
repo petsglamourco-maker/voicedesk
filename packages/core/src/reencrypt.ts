@@ -2,10 +2,12 @@ import {
   aiProviders,
   calendarConnections,
   mailboxes,
+  pushSubscriptions,
   withPlatformAccess,
   type Database,
 } from "@voicedesk/db";
 import { eq, inArray } from "drizzle-orm";
+import { pushContext } from "./push";
 import type { SecretBox } from "./secret-box";
 
 /**
@@ -72,6 +74,17 @@ export async function reencryptAll(
             .update(calendarConnections)
             .set({ refreshTokenEncrypted: next })
             .where(eq(calendarConnections.id, row.id));
+        }
+      }
+      // Per person, not per business: only on a full run.
+      if (!options.tenants) {
+        for (const row of await tx.select().from(pushSubscriptions)) {
+          const next = reseal(row.subscription, pushContext(row.userId));
+          if (next)
+            await tx
+              .update(pushSubscriptions)
+              .set({ subscription: next })
+              .where(eq(pushSubscriptions.id, row.id));
         }
       }
       const boxes = await tx

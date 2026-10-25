@@ -1,6 +1,7 @@
 import type {
   EmbeddingProvider,
   BillingProvider,
+  PushProvider,
   HumanCheck,
   LlmProvider,
   ObjectStorage,
@@ -14,6 +15,7 @@ import {
 import {
   billingFromEnv,
   billingPricesFromEnv,
+  pushFromEnv,
   embeddingsFromEnv,
   humanCheckFromEnv,
   storageFromEnv,
@@ -149,6 +151,8 @@ export interface Container {
   billing?: BillingProvider | null;
   /** Stripe Price id per paid plan (STRIPE_PRICE_*). */
   billingPrices?: Record<string, string>;
+  /** Web push to phones (ADR 0024); null until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set. */
+  push?: PushProvider | null;
   /** Valkey for the API's request limits, shared by every API process. */
   rateLimitRedis?: ReturnType<typeof createRedisConnection>;
   /** Proxies whose X-Forwarded-For is believed (TRUSTED_PROXIES). */
@@ -207,6 +211,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     humanCheck: await humanCheckFromEnv(),
     billing: await billingFromEnv(),
     billingPrices: billingPricesFromEnv(),
+    push: await pushFromEnv(),
     rateLimitRedis: redis,
     trustedProxies: env.TRUSTED_PROXIES.split(",")
       .map((p) => p.trim())

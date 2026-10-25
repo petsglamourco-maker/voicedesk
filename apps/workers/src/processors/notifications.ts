@@ -1,4 +1,4 @@
-import type { EmailProvider, SmsProvider } from "@voicedesk/adapters";
+import type { EmailProvider, PushProvider, SmsProvider } from "@voicedesk/adapters";
 import {
   checkSend,
   claimDueBriefs,
@@ -14,11 +14,13 @@ import {
   planFeedbackRequest,
   planSpendAlerts,
   planStaffAlert,
+  planRingingPush,
   planSupportRequest,
   planTransferContext,
   type NotificationPlan,
 } from "@voicedesk/agent-brain";
 import type { Logger } from "@voicedesk/compliance/logger";
+import { sendPush, type SecretBox } from "@voicedesk/core";
 import type { Database } from "@voicedesk/db";
 import { reminderJobId, type Job, type NotificationJob } from "@voicedesk/jobs";
 
@@ -26,6 +28,8 @@ export interface NotificationDeps {
   db: Database;
   sms: SmsProvider;
   email: EmailProvider;
+  /** Web push to phones (ADR 0024); null until VAPID keys are set (pushes are skipped). */
+  push?: { provider: PushProvider | null; box: SecretBox | null };
   /** Sender shown on texts: an alphanumeric ID (e.g. "VoiceDesk") or an E.164 number. */
   smsFrom: string;
   webOrigin: string;
@@ -46,7 +50,30 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
     const settings = plan.messages.some((m) => m.channel === "sms")
       ? await getPlatformSpendSettings(deps.db)
       : undefined;
+    let pushed = 0;
     for (const m of plan.messages) {
+      if (m.channel === "push") {
+        // Free and carries no customer details; a failure never stops the emails and texts.
+        const push = deps.push;
+        if (!push?.provider || !push.box) continue;
+        try {
+          const result = await sendPush(
+            { db: deps.db, box: push.box, push: push.provider },
+            [m.to],
+            {
+              title: m.subject ?? "VoiceDesk",
+              body: m.text,
+              path: m.path ?? "/today",
+              ...(m.tag ? { tag: m.tag } : {}),
+              ...(m.urgent ? { urgent: true } : {}),
+            },
+          );
+          pushed += result.sent;
+        } catch (error) {
+          log.warn({ jobId: job.id, err: (error as Error).name }, "push failed");
+        }
+        continue;
+      }
       if (m.channel === "sms") {
         // Every text: pause switches, suspension, the business's cap, allowed destinations
         // (ADR 0022). Refused texts are skipped; emails in the same plan still go.
@@ -95,6 +122,7 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
         sms: plan.messages.filter((m) => m.channel === "sms").length - skipped.length,
         smsSkipped: skipped,
         emails: plan.messages.filter((m) => m.channel === "email").length,
+        pushes: pushed,
         reminder: plan.reminder?.action ?? null,
       },
       "notification processed",
@@ -149,6 +177,8 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       }
       case "transfer.context":
         return execute(job, data.tenantId, await planTransferContext(deps.db, data));
+      case "call.ringing":
+        return execute(job, data.tenantId, await planRingingPush(deps.db, data));
       case "support.request":
         return execute(job, "platform", await planSupportRequest(deps.db, data, deps.webOrigin));
     }

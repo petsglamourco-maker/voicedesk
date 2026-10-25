@@ -2,7 +2,12 @@ import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { ImapMailbox } from "@voicedesk/adapters/email/mailbox";
 import { ReservedDomainRouter, SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
-import { embeddingsFromEnv, smsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import {
+  embeddingsFromEnv,
+  pushFromEnv,
+  smsFromEnv,
+  storageFromEnv,
+} from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
@@ -150,6 +155,7 @@ const workers = [
         email,
         smsFrom: env.SMS_FROM,
         webOrigin: env.WEB_ORIGIN,
+        push: { provider: await pushFromEnv(), box },
         reminders: {
           schedule: async (job, runAt) => {
             const id = reminderJobId(job.bookingId);

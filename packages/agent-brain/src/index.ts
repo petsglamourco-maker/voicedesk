@@ -87,6 +87,7 @@ export {
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
+  planRingingPush,
   planSupportRequest,
   planTransferContext,
   type NotificationPlan,
