@@ -106,7 +106,8 @@
     "ask": "Ask VoiceDesk",
     "usage": "Usage & limits",
     "billing": "Plan & billing",
-    "today": "Today"
+    "today": "Today",
+    "departments": "Departments & menu"
   },
   "roles": {
     "owner": "Owner",
@@ -1586,7 +1587,8 @@
       "va_console": "Virtual assistants and people answering calls",
       "feedback": "Customer feedback surveys",
       "daily_brief": "Daily brief email",
-      "ai_calls": "AI callbacks and confirmation calls"
+      "ai_calls": "AI callbacks and confirmation calls",
+      "departments": "Departments and a phone menu (press 1 for Sales…)"
     },
     "ownersOnly": "Only the business owner can change the plan.",
     "notReady": "Payments aren't switched on yet. Plans can be chosen once VoiceDesk's Stripe account is connected.",
@@ -1644,5 +1646,54 @@
       "title": "This month's allowance",
       "details": "Details"
     }
+  },
+  "departments": {
+    "title": "Departments & phone menu",
+    "subtitle": "Let callers choose a department after the greeting: “for Sales press 1, for Support press 2…”. They can also just say what they need. The assistant then carries on with that department's instructions.",
+    "planNeeded": "Departments and the phone menu are included in the Growth and Pro plans.",
+    "seePlans": "See plans",
+    "saved": "Menu saved.",
+    "menuTitle": "Phone menu",
+    "menuHint": "Callers always hear the AI greeting first, then the menu. Pressing 0 always asks for a person.",
+    "menuOn": "Play the menu after the greeting",
+    "menuOnHint": "Off: the assistant asks how it can help, and still sorts calls into departments by what callers say.",
+    "hoursLabel": "When to play it",
+    "hours": {
+      "always": "At all times",
+      "open": "Only during opening hours"
+    },
+    "chatOn": "Offer departments in chat and WhatsApp",
+    "chatOnHint": "Website chat shows buttons; WhatsApp gets a numbered list.",
+    "previewLabel": "Callers hear (after the greeting)",
+    "key": "Key",
+    "name": "Department",
+    "namePlaceholder": "e.g. Sales",
+    "off": "Off",
+    "details": "Details",
+    "remove": "Remove {name}",
+    "instructions": "Instructions for the assistant",
+    "instructionsHint": "What the assistant should know or ask in this department, e.g. “Ask for the order number first.”",
+    "routing": "When a caller asks for a person",
+    "routings": {
+      "people_then_phone": "Ring this department's people, then the transfer number",
+      "people_only": "Ring this department's people only",
+      "phone_only": "Transfer to the phone number",
+      "message_only": "Take a message"
+    },
+    "transferPhone": "Transfer number",
+    "transferPhoneHint": "Optional. Their desk phone or call centre (transfers cost call minutes).",
+    "notifyEmail": "Email for messages",
+    "notifyEmailHint": "Optional. Messages, callback requests and call summaries for this department.",
+    "paymentLink": "Payment link",
+    "paymentLinkHint": "Optional. Your own secure link (Stripe, SumUp, PayPal…). The assistant can text or email it; it never takes card details.",
+    "people": "People in this department",
+    "peopleHint": "They're rung for this department's calls (if they answer calls) and get its alerts.",
+    "ringFirst": "Ring the team first",
+    "ringFirstHint": "After a caller picks this department, ring its people; the assistant carries on if nobody answers.",
+    "enabled": "In the menu",
+    "add": "Add department",
+    "save": "Save menu",
+    "ownersOnly": "Only owners and admins can change the menu.",
+    "zeroNote": "Keys 1–9 are yours to choose. 0 always means “speak to a person”."
   }
 }

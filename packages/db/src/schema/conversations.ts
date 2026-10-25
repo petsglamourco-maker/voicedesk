@@ -79,6 +79,16 @@ export const agentSettings = pgTable("agent_settings", {
   callsCapPence: integer("calls_cap_pence").notNull().default(2000),
   /** Staff and VAs who answer calls may also phone customers (owners/admins always can). */
   answerersCanCallOut: boolean("answerers_can_call_out").notNull().default(false),
+  /** ADR 0025: the department menu after the greeting ("press 1 for Sales…"). */
+  menuEnabled: boolean("menu_enabled").notNull().default(false),
+  /** "always", or "open": outside opening hours the assistant answers directly. */
+  menuHours: text("menu_hours").notNull().default("always"),
+  /** Offer the same departments as buttons in website chat and a list in WhatsApp. */
+  menuOnChat: boolean("menu_on_chat").notNull().default(false),
+  /** "direct": VoiceDesk answers; "backup": the main line forwards here when unanswered. */
+  callEntry: text("call_entry").notNull().default("direct"),
+  /** Ring the people who answer calls first; the assistant answers when nobody does. */
+  ringFirst: boolean("ring_first").notNull().default(false),
   ...timestamps,
 });
 
@@ -164,6 +174,10 @@ export const conversations = pgTable(
     recordingKey: text("recording_key"),
     /** Voice calls: per-turn latency, written by the voice worker when the call ends. */
     voiceMetrics: jsonb("voice_metrics").$type<VoiceMetrics>(),
+    /** ADR 0025: the department the caller chose (or the assistant moved them to). */
+    departmentId: uuid("department_id"),
+    /** Phone calls: "direct", "forwarded" (detected) or "backup" (the business's setting). */
+    entry: text("entry").notNull().default("direct"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
   },

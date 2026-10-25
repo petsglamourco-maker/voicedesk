@@ -224,3 +224,4 @@ export {
 } from "./send-guard";
 export { planSpendAlerts } from "./spend-alerts";
 export { claimInbound } from "./inbound-dedupe";
+export * from "./departments";

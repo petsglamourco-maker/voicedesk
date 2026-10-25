@@ -20,6 +20,7 @@ export const PLAN_FEATURES = [
   "feedback",
   "daily_brief",
   "ai_calls",
+  "departments",
 ] as const;
 export type PlanFeature = (typeof PLAN_FEATURES)[number];
 
@@ -162,6 +163,7 @@ const FEATURE_NAMES: Record<PlanFeature, string> = {
   feedback: "customer feedback surveys",
   daily_brief: "the daily brief",
   ai_calls: "AI callbacks and confirmation calls",
+  departments: "departments and the phone menu",
 };
 
 /** Throws a PlanLimitError (API: 402) when the plan doesn't include the feature. */

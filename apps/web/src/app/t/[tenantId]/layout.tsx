@@ -83,6 +83,7 @@ export default async function TenantLayout(props: {
       label: s("groups.assistant"),
       items: [
         { href: `${base}/agent`, label: t("agent"), icon: "agent" },
+        { href: `${base}/departments`, label: t("departments"), icon: "departments" },
         { href: `${base}/knowledge`, label: t("knowledge"), icon: "knowledge" },
         { href: `${base}/profile`, label: t("profile"), icon: "profile" },
         { href: `${base}/integrations`, label: t("integrations"), icon: "integrations" },

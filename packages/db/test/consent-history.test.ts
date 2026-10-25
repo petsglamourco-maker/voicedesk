@@ -64,6 +64,7 @@ describe("consent_events", () => {
       "spend_events",
       "spend_alerts",
       "processed_messages",
+      "department_moves",
     ]) {
       const rows = await dbs.owner.execute<{ u: boolean; d: boolean }>(
         sql`select has_table_privilege('voicedesk_app', ${table}, 'UPDATE') as u,

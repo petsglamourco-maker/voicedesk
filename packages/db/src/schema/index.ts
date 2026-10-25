@@ -5,3 +5,4 @@ export * from "./conversations";
 export * from "./platform";
 export * from "./billing";
 export * from "./push";
+export * from "./departments";

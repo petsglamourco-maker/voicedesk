@@ -9,6 +9,7 @@ import {
   Gauge,
   Inbox,
   LayoutDashboard,
+  ListOrdered,
   Mail,
   MessageSquareText,
   Phone,
@@ -55,6 +56,7 @@ export type NavIcon =
   | "email"
   | "forms"
   | "agent"
+  | "departments"
   | "knowledge"
   | "profile"
   | "integrations"
@@ -78,6 +80,7 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
   email: Mail,
   forms: ClipboardList,
   agent: Bot,
+  departments: ListOrdered,
   knowledge: BookOpen,
   profile: Building2,
   integrations: Plug,

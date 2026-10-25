@@ -87,7 +87,37 @@ export interface BillingPlan {
   aiPence: number;
   phoneNumbers: number;
   seats: number;
-  features: Array<"whatsapp" | "va_console" | "feedback" | "daily_brief" | "ai_calls">;
+  features: Array<
+    "whatsapp" | "va_console" | "feedback" | "daily_brief" | "ai_calls" | "departments"
+  >;
+}
+
+/** One department of the phone menu (ADR 0025). */
+export interface DepartmentInput {
+  id?: string;
+  key: number;
+  name: string;
+  spokenNames: Record<string, string>;
+  instructions: string | null;
+  routing: "people_then_phone" | "people_only" | "phone_only" | "message_only";
+  transferPhone: string | null;
+  notifyEmail: string | null;
+  paymentLink: string | null;
+  ringFirst: boolean;
+  enabled: boolean;
+  memberIds: string[];
+}
+
+/** GET /api/tenants/:id/departments. */
+export interface DepartmentsView {
+  menuEnabled: boolean;
+  menuHours: "always" | "open";
+  menuOnChat: boolean;
+  departments: Array<DepartmentInput & { id: string }>;
+  preview: string | null;
+  team: Array<{ userId: string; name: string }>;
+  planAllows: boolean;
+  canEdit: boolean;
 }
 
 /** GET /api/tenants/:id/today (ADR 0024). */

@@ -330,6 +330,20 @@
       "when": 1792938171135,
       "tag": "0046_push_subscriptions",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1792942761730,
+      "tag": "0047_departments",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792942770683,
+      "tag": "0048_departments_rls",
+      "breakpoints": true
     }
   ]
 }

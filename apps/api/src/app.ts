@@ -42,6 +42,7 @@ import { registerSpendRoutes } from "./routes/spend";
 import { registerBillingRoutes } from "./routes/billing";
 import { registerTodayRoutes } from "./routes/today";
 import { registerPushRoutes } from "./routes/push";
+import { registerDepartmentRoutes } from "./routes/departments";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
 import { registerHelpRoutes } from "./routes/help";
@@ -179,6 +180,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerBillingRoutes(app, deps);
   registerTodayRoutes(app, deps);
   registerPushRoutes(app, deps);
+  registerDepartmentRoutes(app, deps);
   registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);

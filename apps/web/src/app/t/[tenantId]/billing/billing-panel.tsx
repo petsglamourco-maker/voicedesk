@@ -7,7 +7,14 @@ import { useState, type ReactNode } from "react";
 import type { BillingPlan, BillingView } from "@/lib/api";
 import { api } from "@/lib/client-api";
 
-const FEATURES = ["whatsapp", "va_console", "feedback", "daily_brief", "ai_calls"] as const;
+const FEATURES = [
+  "whatsapp",
+  "va_console",
+  "feedback",
+  "daily_brief",
+  "ai_calls",
+  "departments",
+] as const;
 
 /** The business's plan, its status and the plans to move to (ADR 0023). */
 export function BillingPanel(props: {
