@@ -50,6 +50,8 @@ interface ThreadSummary {
   assignedToMe: boolean;
   lastMessageAt: string;
   lastPreview: string | null;
+  /** ADR 0025 */
+  department?: string | null;
 }
 
 interface ThreadDetail {
@@ -362,8 +364,9 @@ export function InboxView(props: {
                       >
                         {th.subject ?? th.lastPreview}
                       </span>
-                      {th.needsHuman || th.mode === "human" || th.unread > 0 ? (
+                      {th.needsHuman || th.mode === "human" || th.unread > 0 || th.department ? (
                         <span className="mt-1.5 flex flex-wrap items-center gap-1">
+                          {th.department ? <Badge tone="primary">{th.department}</Badge> : null}
                           {th.needsHuman ? (
                             <StatusPill tone="warning" icon={Hand} label={t("wantsPerson")} live />
                           ) : null}

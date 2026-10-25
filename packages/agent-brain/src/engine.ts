@@ -8,7 +8,13 @@ import {
 import { detectLanguage } from "@voicedesk/knowledge";
 import type { AgentContext } from "./context";
 import { isLang, type Lang } from "./languages";
-import { chatMenuText, menuLine } from "./departments";
+import {
+  chatMenuText,
+  departmentByKey,
+  departmentChosenPhrase,
+  digitChoice,
+  menuLine,
+} from "./departments";
 import {
   emergencyMessage,
   looksLikeLifeThreateningEmergency,
@@ -144,8 +150,11 @@ export function startConversation(
     recordingNotice?: boolean;
     /** Phone calls: forwarded or backup calls get the missed-call opening (ADR 0025). */
     entry?: "direct" | "forwarded" | "backup";
-    /** Speak / show the department menu after the greeting. */
-    menu?: "voice" | "chat" | null;
+    /**
+     * The department menu after the greeting: spoken ("voice"), a numbered list ("chat", e.g.
+     * WhatsApp) or buttons shown by the website chat itself ("buttons": greeting unchanged).
+     */
+    menu?: "voice" | "chat" | "buttons" | null;
     /** Phone calls: the team is rung before the assistant helps (ADR 0025). */
     ringFirst?: boolean;
   } = {},
@@ -154,6 +163,7 @@ export function startConversation(
   const state = initialState(language, options.callerPhone ?? null);
   if (options.entry) state.entry = options.entry;
   const departments = ctx.menu?.departments ?? [];
+  if (options.menu && departments.length) state.menuOffered = true;
   const menu =
     options.menu === "voice" && departments.length
       ? menuLine(language, departments)
@@ -222,6 +232,23 @@ export async function runTurn(
     options.onText?.(reply);
     events.push({ type: "emergency" });
     return { reply, state, events, usage, latencyMs: Date.now() - started };
+  }
+
+  // ADR 0025: in chat, a bare number after the menu picks that department (no model call).
+  if (state.menuOffered && !state.department && ctx.style !== "voice" && !ctx.suspended) {
+    const key = digitChoice(callerText);
+    const chosen = key === null ? null : departmentByKey(ctx.menu, key);
+    if (chosen) {
+      state.department = { id: chosen.id, key: chosen.key, name: chosen.name };
+      await deps.services.chooseDepartment?.(chosen.id, "chat");
+      const reply = departmentChosenPhrase(state.language, chosen);
+      state.history.push(
+        { role: "user", content: callerText },
+        { role: "assistant", content: reply },
+      );
+      options.onText?.(reply);
+      return { reply, state, events, usage, latencyMs: Date.now() - started };
+    }
   }
 
   // Suspended business, or no AI (spend cap reached / paused by the platform): fixed

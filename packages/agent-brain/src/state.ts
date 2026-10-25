@@ -122,6 +122,8 @@ export interface ConversationState {
   lastBookingTurn?: number;
   /** ADR 0025: the department the caller chose (keypad, speech or chat). */
   department?: { id: string; key: number; name: string };
+  /** The department menu was offered (a bare number picks a department in chat). */
+  menuOffered?: boolean;
   /** Phone calls: how the call arrived ("forwarded"/"backup": missed by the team). */
   entry?: "direct" | "forwarded" | "backup";
   /** Take-a-message mode without AI (spend cap or platform pause; ADR 0022). */

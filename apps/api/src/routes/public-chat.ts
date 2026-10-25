@@ -110,6 +110,9 @@ export function registerPublicChatRoutes(app: FastifyInstance, deps: AppDeps): v
                 name: ctx.personaName,
                 gender: ctx.persona.gender,
               }),
+              departments: ctx.menu?.onChat
+                ? ctx.menu.departments.map((d) => ({ key: d.key, name: d.name }))
+                : [],
               placeholder: "Type your message…",
               sendLabel: "Send",
               poweredBy: "AI assistant · VoiceDesk",

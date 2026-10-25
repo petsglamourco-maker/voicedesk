@@ -10,7 +10,8 @@ import {
   type DepartmentInfo,
   type MenuSettings,
 } from "../src/departments";
-import { startConversation } from "../src/engine";
+import { MockLlmProvider } from "@voicedesk/adapters";
+import { runTurn, startConversation } from "../src/engine";
 import { LANGUAGES } from "../src/languages";
 import { greeting } from "../src/phrases";
 import { buildSystemPrompt } from "../src/prompt";
@@ -155,5 +156,22 @@ describe("departments in the conversation", () => {
       { ctx, services, state },
     );
     expect(noAddress.isError).toBe(true);
+  });
+
+  it("in chat, a bare number after the menu picks the department without the AI", async () => {
+    const llm = new MockLlmProvider();
+    const services = new InMemoryAgentServices();
+    const ctx = makeContext({ menu: MENU });
+    const { state, greeting: text } = startConversation(ctx, { language: "en", menu: "chat" });
+    expect(text).toContain("1 Sales");
+    const result = await runTurn({ llm, services }, ctx, state, "2");
+    expect(result.reply).toBe("You're through to Support. How can I help?");
+    expect(result.state.department).toEqual({ id: "d-2", key: 2, name: "Support" });
+    expect(services.departmentChoices).toEqual([{ departmentId: "d-2", via: "chat" }]);
+    expect(llm.requests).toHaveLength(0);
+    // Website chat shows buttons itself: the greeting stays as it was.
+    const buttons = startConversation(ctx, { language: "en", menu: "buttons" });
+    expect(buttons.greeting).not.toContain("1 Sales");
+    expect(buttons.state.menuOffered).toBe(true);
   });
 });

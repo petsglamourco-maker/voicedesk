@@ -140,6 +140,8 @@ export async function openThread(
     tenantId,
     channel: who.channel,
     callerPhone: who.phone ?? null,
+    // ADR 0025: departments as buttons (website chat) or a numbered list (WhatsApp).
+    menu: ctx.menu?.onChat ? (who.channel === "web_chat" ? "buttons" : "chat") : null,
   });
   const contactId = await withTenant(db, tenantId, async (tx) => {
     const [conv] = await tx

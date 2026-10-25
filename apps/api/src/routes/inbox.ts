@@ -4,6 +4,7 @@ import {
   contacts,
   conversationMessages,
   conversations,
+  departments,
   withTenant,
 } from "@voicedesk/db";
 import { and, asc, desc, eq, gt, ilike, or, sql, type SQL } from "drizzle-orm";
@@ -46,6 +47,8 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
           filter: z.enum(["all", "unread", "needs_human", "mine"]).default("all"),
           channel: z.enum(["web_chat", "whatsapp", "email", "web_form"]).optional(),
           q: z.string().trim().max(100).optional(),
+          /** ADR 0025: only this department's conversations. */
+          department: z.string().uuid().optional(),
         }),
       },
     },
@@ -56,13 +59,14 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "inbox:read",
       );
-      const { filter, channel, q } = request.query;
+      const { filter, channel, q, department } = request.query;
       const conditions: Array<SQL | undefined> = [eq(channelThreads.tenantId, access.tenantId)];
       if (filter === "unread") conditions.push(gt(channelThreads.unread, 0));
       if (filter === "needs_human") conditions.push(eq(channelThreads.needsHuman, true));
       if (filter === "mine")
         conditions.push(eq(channelThreads.assigneeUserId, access.session.user.id));
       if (channel) conditions.push(eq(channelThreads.channel, channel));
+      if (department) conditions.push(eq(conversations.departmentId, department));
       if (q) {
         const term = `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
         conditions.push(
@@ -75,9 +79,15 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
       }
       const rows = await withTenant(deps.db, access.tenantId, (tx) =>
         tx
-          .select({ thread: channelThreads, contactName: contacts.fullName })
+          .select({
+            thread: channelThreads,
+            contactName: contacts.fullName,
+            department: departments.name,
+          })
           .from(channelThreads)
           .leftJoin(contacts, eq(contacts.id, channelThreads.contactId))
+          .leftJoin(conversations, eq(conversations.id, channelThreads.conversationId))
+          .leftJoin(departments, eq(departments.id, conversations.departmentId))
           .where(and(...conditions))
           .orderBy(desc(channelThreads.lastMessageAt))
           .limit(200),
@@ -92,7 +102,7 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
           .where(eq(channelThreads.tenantId, access.tenantId)),
       );
       return {
-        threads: rows.map(({ thread, contactName }) => ({
+        threads: rows.map(({ thread, contactName, department: departmentName }) => ({
           id: thread.id,
           channel: thread.channel,
           name: contactName ?? thread.displayName ?? null,
@@ -104,6 +114,7 @@ export function registerInboxRoutes(app: FastifyInstance, deps: AppDeps): void {
           assignedToMe: thread.assigneeUserId === access.session.user.id,
           lastMessageAt: thread.lastMessageAt,
           lastPreview: thread.lastPreview,
+          department: departmentName ?? null,
         })),
         counts: counts ?? { unread: 0, needsHuman: 0 },
       };

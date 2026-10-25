@@ -26,7 +26,7 @@ export async function createConversation(
     /** Phone calls: how the call arrived (forwarded / backup = missed by the team). */
     entry?: "direct" | "forwarded" | "backup";
     /** Speak or show the department menu after the greeting (ADR 0025). */
-    menu?: "voice" | "chat" | null;
+    menu?: "voice" | "chat" | "buttons" | null;
     /** Phone calls: ring the team before the assistant helps (ADR 0025). */
     ringFirst?: boolean;
   },

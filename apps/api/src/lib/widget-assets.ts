@@ -52,6 +52,8 @@ export function chatFrameHtml(params: {
   title: string;
   color: string;
   greeting: string;
+  /** ADR 0025: department buttons under the greeting (when the business offers them). */
+  departments?: Array<{ key: number; name: string }>;
   placeholder: string;
   sendLabel: string;
   poweredBy: string;
@@ -61,6 +63,7 @@ export function chatFrameHtml(params: {
     token: params.token,
     siteKey: params.siteKey,
     greeting: params.greeting,
+    departments: params.departments ?? [],
   }).replace(/</g, "\\u003c");
   return `<!doctype html>
 <html lang="en">
@@ -86,6 +89,8 @@ export function chatFrameHtml(params: {
   .survey { align-self: stretch; background: transparent; border: 1px dashed #d1d5db; border-radius: 12px; padding: 8px 10px; font-size: 14px; }
   .survey .scale { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
   .survey .scale button { padding: 6px 10px; min-width: 34px; }
+  .choices { display: flex; flex-wrap: wrap; gap: 6px; align-self: stretch; }
+  .choices button { padding: 6px 12px; border-radius: 999px; }
   footer { text-align: center; font-size: 11px; color: #9ca3af; padding: 0 0 6px; }
   @media (prefers-color-scheme: dark) { body { background: #111827; color: #f9fafb; } .agent { background: #1f2937; } input[name=text] { background: #1f2937; color: #f9fafb; border-color: #374151; } form { border-color: #374151; } }
 </style>
@@ -184,7 +189,10 @@ export function chatFrameHtml(params: {
     const data = await res.json();
     visitorId = data.visitorId;
     try { localStorage.setItem("vd_visitor_" + cfg.key, visitorId); } catch (e) {}
-    if (data.messages.length === 0) add("agent", cfg.greeting);
+    if (data.messages.length === 0) {
+      add("agent", cfg.greeting);
+      showChoices();
+    }
     for (const m of data.messages) add(m.role, m.text, m.authorName);
     listen();
   }
@@ -197,12 +205,37 @@ export function chatFrameHtml(params: {
     };
   }
 
-  form.addEventListener("submit", async (e) => {
+  // Department buttons: tapping one sends its number (the assistant picks it up).
+  let choices = null;
+  function showChoices() {
+    if (!cfg.departments.length) return;
+    choices = document.createElement("div");
+    choices.className = "choices";
+    for (const d of cfg.departments) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = d.name;
+      b.addEventListener("click", () => void sendText(String(d.key), d.name));
+      choices.appendChild(b);
+    }
+    log.appendChild(choices);
+  }
+
+  form.addEventListener("submit", (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text || !visitorId) return;
     input.value = "";
-    add("caller", text);
+    void sendText(text, text);
+  });
+
+  async function sendText(text, shown) {
+    if (!visitorId) return;
+    if (choices) { choices.remove(); choices = null; }
+    add("caller", shown);
+    // The server ignores messages sent in the first moments (a bot check): a quick tap waits.
+    const wait = 1600 - (Date.now() - openedAt);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
     send.disabled = true;
     try {
       const res = await fetch(api + "/messages", {
@@ -235,7 +268,7 @@ export function chatFrameHtml(params: {
       send.disabled = false;
       input.focus();
     }
-  });
+  }
 
   start().catch(() => add("agent", "Chat is unavailable right now."));
 })();
