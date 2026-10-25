@@ -27,6 +27,16 @@ Open **Keep your existing number: forward calls here** under your number. On mos
 
 The page shows the full codes with your number filled in. To cancel, dial ##21#, ##61# or ##67#. Codes vary by network and phone system, and your provider may charge for forwarded calls.
 
+## Missed calls: the assistant as your backup receptionist
+
+Use **Only when you don't answer** (`**61*`) to keep answering your own phone. When nobody picks up, the call comes to VoiceDesk, and callers hear that the team couldn't get to the phone (after the AI introduction). The assistant then books them in, arranges a call back or takes a message.
+
+These calls show **Missed by the team** here, on Today and in the daily brief, and the summary email says so. VoiceDesk usually recognises forwarded calls automatically. To treat every call to your VoiceDesk number this way, choose **My main line forwards to VoiceDesk when nobody answers** in [Assistant settings](/t/:tenant/agent).
+
+If you use a Twilio number with a TwiML Bin, add `?X-Forwarded-From={{ForwardedFrom}}` to the end of the SIP address in the Bin so forwarded calls are recognised.
+
+You can filter calls by department when you use [departments and a phone menu](/t/:tenant/departments).
+
 ## Inside a call
 
 Each call page shows:

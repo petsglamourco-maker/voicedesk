@@ -49,7 +49,13 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - The **Today** page; Inbox list and thread full screen on phones.
   - Web push (`push_subscriptions` per sign-in, encrypted) for waiting chats, ringing calls, urgent alerts and allowance warnings.
   - Tested on the owner's phone over home Wi-Fi with `pnpm mobile:lan`.
-- **Next:** the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
+- **Phase 7b, departments and the missed-call receptionist (ADR 0025): built.**
+  - **Departments & phone menu:** a keypad or speech choice after the greeting; categorised calls and Inbox; department routing, people, emails and payment links.
+  - **Ring the team first,** then the assistant.
+  - **Backup line:** forwarded or unanswered calls get a missed-call opening.
+  - Website chat and WhatsApp offer the same choices.
+  - Live tests need calls and (for links) a real SMS.
+- **Next:** the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-25.1 (departments and payments, plus the injection defences) is waiting for the owner's OK.
 
 ## Layout
 
@@ -195,6 +201,13 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **Departments** (ADR 0025):
+  - The AI disclosure is always first: menus, missed-call lines and "let me try the team" come after it (`openingGreeting`).
+  - Keypad choices never call the model.
+  - Department instructions live in the stable system prompt; the current department goes in the turn note.
+  - Routing reads the caller's department (`requestHuman` `departmentId`).
+  - Payment links are the business's own https links, sent only by `send_payment_link` through the notifications queue (`checkSend` for texts). Never take card details.
+  - New inbound trunks map forwarding headers (`FORWARDING_HEADERS`); run `number:sync` after changing them.
 - **Mobile and push** (ADR 0024):
   - The service worker caches only `/offline` and icons. Never cache pages or API responses.
   - Push messages go through the planners' `push` channel (`to` = user id). Text is the event kind and business name only; never customer names, numbers or message text.

@@ -44,6 +44,10 @@ Texts cost money once your VoiceDesk administrator connects a text-message servi
 
 When a caller asks for a person, the assistant can connect them instead of taking a message.
 
+- **How calls reach VoiceDesk**: **VoiceDesk answers my number straight away**, or **My main line forwards to VoiceDesk when nobody answers**. With the backup option, callers hear that the team couldn't get to the phone, and the assistant books, arranges a call back or takes a message.
+- **Ring the team first**: people who answer calls are rung (in VoiceDesk and on their phones) before the assistant helps. If nobody picks up, the assistant carries on. Included in the Growth and Pro plans.
+- Each [department](/t/:tenant/departments) can have its own people, transfer number and email.
+
 - **Who callers reach**: **VA console first, then the phone number**, **VA console only**, or **Phone number only**.
 - **Seconds the VA console rings before giving up**.
 - **Number to put callers through to** and **When** (**During opening hours** or **Any time**). Leave the number empty to always take a message instead.

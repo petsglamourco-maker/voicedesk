@@ -150,6 +150,10 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
   - mismatched businesses, customers or unknown prices are refused.
 - **Plan records:** `subscriptions` can only be written through the platform login. Every plan change is audited (`billing.plan_changed` as system, `billing.plan_set` by the platform owner).
 - **Keys:** Stripe keys only in `.env`. `pnpm billing:prices` refuses live keys; live keys are for launch only.
+- **Payment links for customers** (ADR 0025):
+  - The link is the business's own https link, set only by owners and admins, and the change is audited.
+  - The assistant sends it only through `send_payment_link` (the notifications queue, `checkSend` for texts) and never takes card details; card numbers are also redacted from transcripts.
+- **Phone menu keypresses** are read only from the caller's SIP participant, and never reach the model as instructions.
 
 ### Supply chain (ASVS V14.2)
 
