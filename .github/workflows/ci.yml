@@ -39,11 +39,12 @@ jobs:
           node-version: 24
           cache: pnpm
 
-      - name: Start infrastructure
-        run: docker compose up -d --wait
-
+      # .env first: docker-compose reads VALKEY_PASSWORD from it.
       - name: Configure environment
         run: cp .env.example .env
+
+      - name: Start infrastructure
+        run: docker compose up -d --wait
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:migrate
