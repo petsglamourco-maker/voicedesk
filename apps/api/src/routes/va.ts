@@ -252,7 +252,7 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
       const calls = [];
       let activeCall: { tenantId: string; businessName: string; handoffId: string } | null = null;
       for (const b of businesses) {
-        for (const call of await waitingHandoffs(deps.db, b.tenantId)) {
+        for (const call of await waitingHandoffs(deps.db, b.tenantId, session.user.id)) {
           calls.push({ ...call, tenantId: b.tenantId, businessName: b.name });
         }
         const mine = await activeHandoffFor(deps.db, b.tenantId, session.user.id);

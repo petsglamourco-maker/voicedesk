@@ -30,6 +30,9 @@ export {
   stillConnectingPhrase,
   throughToPhrase,
   nobodyFreePhrase,
+  openingGreeting,
+  ringFirstMissedPhrase,
+  tryTeamPhrase,
   backWithAssistantPhrase,
 } from "./phrases";
 export type { AgentContext } from "./context";

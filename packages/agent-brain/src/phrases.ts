@@ -58,7 +58,13 @@ const MISSED: Record<Lang, string> = {
 export function openingGreeting(
   lang: Lang,
   args: GreetingArgs,
-  options: { missed?: boolean; recordingNotice?: boolean; menu?: string | null } = {},
+  options: {
+    missed?: boolean;
+    recordingNotice?: boolean;
+    menu?: string | null;
+    /** Ring the team first: "Let me try the team for you" instead of the question. */
+    ringFirst?: boolean;
+  } = {},
 ): string {
   const full = GREETINGS[lang](args);
   const intro = full.endsWith(QUESTION[lang])
@@ -67,7 +73,7 @@ export function openingGreeting(
   const parts = [intro];
   if (options.missed) parts.push(MISSED[lang]);
   if (options.recordingNotice) parts.push(RECORDING_NOTICE[lang]);
-  parts.push(options.menu ?? QUESTION[lang]);
+  parts.push(options.menu ?? (options.ringFirst ? TRY_TEAM[lang] : QUESTION[lang]));
   return parts.join(lang === "zh" ? "" : " ");
 }
 
@@ -258,4 +264,32 @@ const EMERGENCY_PATTERNS: RegExp[] = [
 
 export function looksLikeLifeThreateningEmergency(text: string): boolean {
   return EMERGENCY_PATTERNS.some((re) => re.test(text));
+}
+
+/** Ring the team first (ADR 0025): said before the team's phones and browsers ring. */
+const TRY_TEAM: Record<Lang, string> = {
+  en: "Let me try the team for you. One moment.",
+  es: "Voy a intentar pasarle con el equipo. Un momento.",
+  fr: "Je vais essayer de vous passer l'équipe. Un instant.",
+  de: "Ich versuche, Sie mit dem Team zu verbinden. Einen Moment.",
+  zh: "我帮您转接团队，请稍等。",
+  ar: "سأحاول تحويلك إلى الفريق. لحظة من فضلك.",
+};
+
+export function tryTeamPhrase(lang: Lang): string {
+  return TRY_TEAM[lang];
+}
+
+/** Nobody picked up when the team was rung first: the assistant carries on. */
+const RING_FIRST_MISSED: Record<Lang, string> = {
+  en: "Sorry, nobody from the team is free right now, but I can help: I can book you in, arrange a call back or take a message. What would you like?",
+  es: "Lo siento, ahora mismo no hay nadie del equipo disponible, pero puedo ayudarle: darle una cita, programar una llamada o tomar un mensaje. ¿Qué prefiere?",
+  fr: "Désolé, personne de l'équipe n'est disponible pour le moment, mais je peux vous aider : vous donner un rendez-vous, organiser un rappel ou prendre un message. Que préférez-vous ?",
+  de: "Leider ist gerade niemand aus dem Team frei, aber ich kann helfen: einen Termin vereinbaren, einen Rückruf einplanen oder eine Nachricht aufnehmen. Was möchten Sie?",
+  zh: "抱歉，团队现在没有人有空，不过我可以帮您：预约、安排回电或留言。您需要哪一种？",
+  ar: "عذراً، لا يوجد أحد من الفريق متاح الآن، لكن يمكنني المساعدة: حجز موعد أو ترتيب معاودة الاتصال أو تسجيل رسالة. ماذا تفضل؟",
+};
+
+export function ringFirstMissedPhrase(lang: Lang): string {
+  return RING_FIRST_MISSED[lang];
 }

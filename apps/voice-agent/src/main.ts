@@ -29,6 +29,8 @@ import {
   menuActive,
   menuLine,
   personRequestText,
+  ringFirstMissedPhrase,
+  tryTeamPhrase,
   finishOutboundAttempt,
   outboundCallById,
   voicemailMessage,
@@ -45,11 +47,13 @@ import {
   transferFailedPhrase,
   voiceFor,
   type ConversationState,
+  type DepartmentInfo,
 } from "@voicedesk/agent-brain";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
 import {
   availableAnswerers,
+  departmentPeople,
   calendarsFromEnv,
   createAppLlm,
   createHandoff,
@@ -184,6 +188,8 @@ export default defineAgent({
     let state: ConversationState;
     /** Phone calls: the department menu was spoken after the greeting (ADR 0025). */
     let offerMenu = false;
+    /** Phone calls: ring the team right after the greeting (ADR 0025). */
+    let ringAtStart = false;
     let opening: string | null;
     /** Phone calls: the caller's SIP participant (transfers act on it). */
     let callerIdentity: string | null = null;
@@ -239,9 +245,15 @@ export default defineAgent({
           ? "backup"
           : "direct";
       offerMenu = menuActive(agentCtx.menu, agentCtx.profile, agentCtx.timezone, new Date());
+      // Ring the team first (no menu): only when someone who answers calls is available.
+      ringAtStart =
+        !offerMenu &&
+        agentCtx.ringFirst === true &&
+        (await availableAnswerers(db, job.tenantId)).length > 0;
       const created = await createConversation(db, agentCtx, {
         entry,
         menu: offerMenu ? "voice" : null,
+        ringFirst: ringAtStart,
         tenantId: job.tenantId,
         channel: "voice",
         callerPhone: caller.callerPhone
@@ -285,6 +297,9 @@ export default defineAgent({
     // Set when the caller is being put through to a person; done once the sentence is heard.
     let transferAfterSpeech: { to: string; fallback?: string; urgent?: boolean } | null = null;
     let handoffReason: string | null = null;
+    // Ring-first (ADR 0025): the department whose team to ring once the reply is spoken.
+    let ringAfterSpeech: DepartmentInfo | null = null;
+    let lastDepartmentId: string | null = null;
     // Phase 6 outbound calls: how the call opened, and whether we left a voicemail.
     let opener: OutboundOpener | null = null;
     let voicemailLeft = false;
@@ -298,7 +313,10 @@ export default defineAgent({
         canTransfer: job.kind === "phone" || job.kind === "outbound",
         peopleAvailable:
           job.kind === "phone" || job.kind === "outbound"
-            ? async () => (await availableAnswerers(db, job.tenantId)).length > 0
+            ? async (only?: string[]) =>
+                (await availableAnswerers(db, job.tenantId)).some(
+                  (id) => !only?.length || only.includes(id),
+                )
             : undefined,
       },
       agentCtx,
@@ -312,6 +330,13 @@ export default defineAgent({
         },
         onTurn: (result, callerText) => {
           if (result.state.endRequested) hangUpAfterSpeech = true;
+          // The caller named a department that rings its team first (ADR 0025).
+          const chosen = result.state.department;
+          if (chosen && chosen.id !== lastDepartmentId) {
+            lastDepartmentId = chosen.id;
+            const d = agentCtx.menu?.departments.find((x) => x.id === chosen.id);
+            if (d?.ringFirst && !result.state.transfer) ringAfterSpeech = d;
+          }
           if (result.state.transfer && callerIdentity) {
             transferAfterSpeech = result.state.transfer;
             handoffReason = callerText.slice(0, 200);
@@ -407,13 +432,14 @@ export default defineAgent({
     const say = (text: string) => void session.say(text);
     const handoff = new HandoffController(
       {
-        open: async (reason, urgent) => {
+        open: async (reason, urgent, departmentId) => {
           const row = await createHandoff(db, {
             tenantId: ids.tenantId,
             conversationId: ids.conversationId,
             roomName: ctx.room.name!,
             reason,
             urgent,
+            departmentId: departmentId ?? null,
           });
           handoffLive(row.id);
           // Phones of the people who answer calls (ADR 0024); never blocks the call.
@@ -439,6 +465,7 @@ export default defineAgent({
         sayStillConnecting: () => say(stillConnectingPhrase(bridge.language)),
         sayThroughTo: (name) => say(throughToPhrase(bridge.language, name)),
         sayNobodyFree: () => say(nobodyFreePhrase(bridge.language)),
+        sayRingFirstMissed: () => say(ringFirstMissedPhrase(bridge.language)),
         sayBackWithAssistant: () => say(backWithAssistantPhrase(bridge.language)),
         transferToPhone: (to) => transfer(to),
         note: (text) => bridge.note(text),
@@ -470,10 +497,15 @@ export default defineAgent({
             reason: handoffReason,
             urgent: target.urgent === true,
             fallback: target.fallback,
+            departmentId: bridge.department?.id ?? null,
           });
         } else {
           void transfer(target.to);
         }
+      } else if (ringAfterSpeech) {
+        const d = ringAfterSpeech;
+        ringAfterSpeech = null;
+        void ringTeamFirst(d, true);
       } else if (hangUpAfterSpeech) {
         hangUpAfterSpeech = false;
         void hangUp("conversation closed");
@@ -497,6 +529,28 @@ export default defineAgent({
     });
     session.on(voice.AgentSessionEventTypes.Close, () => ctx.shutdown("session closed"));
 
+    /**
+     * Ring the team first (ADR 0025): the department's people (or everyone who answers calls)
+     * are rung through the VA console and their phones; nobody answers, the assistant helps.
+     */
+    const ringTeamFirst = async (d: DepartmentInfo | null, announce: boolean) => {
+      if (handoff.state !== "idle" || bridge.humanActive) return false;
+      const only = d ? await departmentPeople(db, ids.tenantId, d.id) : [];
+      const free = (await availableAnswerers(db, ids.tenantId)).filter(
+        (id) => only.length === 0 || only.includes(id),
+      );
+      if (free.length === 0) return false;
+      jobLog.info({ department: d?.key ?? null }, "ringing the team first");
+      if (announce) await session.say(tryTeamPhrase(bridge.language)).waitForPlayout();
+      void handoff.start({
+        reason: null,
+        urgent: false,
+        departmentId: d?.id ?? null,
+        ringFirst: true,
+      });
+      return true;
+    };
+
     // Keypad (ADR 0025): 1–9 picks a department without the AI, 0 asks for a person, * or #
     // repeats the menu. Only the caller's presses count.
     ctx.room.on(RoomEvent.DtmfReceived, (_code, digit, participant) => {
@@ -516,9 +570,11 @@ export default defineAgent({
       jobLog.info({ key: chosen.key }, "department chosen by keypad");
       const spoken = departmentChosenPhrase(bridge.language, chosen);
       session.interrupt();
-      void bridge.chooseDepartment(chosen, spoken).then(() => {
-        session.say(spoken);
+      lastDepartmentId = chosen.id;
+      void bridge.chooseDepartment(chosen, spoken).then(async () => {
         publish({ type: "department", key: chosen.key, name: chosen.name });
+        if (chosen.ringFirst && (await ringTeamFirst(chosen, true))) return;
+        session.say(spoken);
       });
     });
 
@@ -625,7 +681,10 @@ export default defineAgent({
       });
       opener.answered();
     } else if (opening) {
-      session.say(opening, { allowInterruptions: false });
+      const greeted = session.say(opening, { allowInterruptions: false });
+      if (ringAtStart) {
+        void greeted.waitForPlayout().then(() => ringTeamFirst(null, false));
+      }
     }
   },
 });

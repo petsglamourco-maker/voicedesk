@@ -485,6 +485,8 @@ export const handoffs = pgTable(
     roomName: text("room_name").notNull(),
     reason: text("reason"),
     urgent: boolean("urgent").notNull().default(false),
+    /** ADR 0025: rings only this department's people (when it has any). */
+    departmentId: uuid("department_id"),
     status: text("status").notNull().default("waiting"),
     answeredBy: uuid("answered_by").references(() => user.id, { onDelete: "set null" }),
     queuedAt: timestamp("queued_at", { withTimezone: true }).notNull().defaultNow(),

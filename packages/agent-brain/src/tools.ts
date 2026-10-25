@@ -806,7 +806,10 @@ export const TOOLS = {
         .describe("true when the caller describes one of the business's urgent situations"),
     }),
     run: async (env, { reason, urgent }) => {
-      const created = await env.services.requestHuman(reason, { urgent });
+      const created = await env.services.requestHuman(reason, {
+        urgent,
+        ...(env.state.department ? { departmentId: env.state.department.id } : {}),
+      });
       const record: CreatedRecord = {
         type: "human_request",
         id: created.id,

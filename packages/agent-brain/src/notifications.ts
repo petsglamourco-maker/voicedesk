@@ -4,6 +4,8 @@ import {
   channelThreads,
   contacts,
   conversations,
+  departments,
+  handoffs,
   member,
   phoneNumbers,
   feedback,
@@ -20,7 +22,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { toLang, type Lang } from "./languages";
 import { openSurvey, shortSurveyQuestion, surveyLinkInvite } from "./feedback";
 import { getApprovedProfile } from "./profile-store";
-import { listAnswerers } from "@voicedesk/core";
+import { departmentPeople, listAnswerers } from "@voicedesk/core";
 
 /**
  * Customer confirmations, reminders and staff alerts (Phase 3, ADR 0015). Pure text builders
@@ -463,6 +465,8 @@ export async function planStaffAlert(
   const l = ALERT[business.adminLanguage];
   let line = null as string | null;
   let feedbackConversation = null as string | null;
+  /** The conversation behind the record, for its department (ADR 0025). */
+  let conversationId = null as string | null;
   await withTenant(db, job.tenantId, async (tx) => {
     if (job.record === "feedback") {
       const [f] = await tx.select().from(feedback).where(eq(feedback.id, job.id));
@@ -471,11 +475,13 @@ export async function planStaffAlert(
         .filter(Boolean)
         .join(" · ");
       feedbackConversation = f.conversationId;
+      conversationId = f.conversationId;
       return;
     }
     if (job.record === "handoff") {
       const [th] = await tx.select().from(channelThreads).where(eq(channelThreads.id, job.id));
       if (!th) return;
+      conversationId = th.conversationId;
       line = [l.handoff, th.channel, th.displayName ?? th.externalId, th.lastPreview ?? ""]
         .filter(Boolean)
         .join(" · ");
@@ -484,6 +490,7 @@ export async function planStaffAlert(
     if (job.record === "ticket") {
       const [t] = await tx.select().from(tickets).where(eq(tickets.id, job.id));
       if (!t) return;
+      conversationId = t.conversationId;
       const name = (t.details as { callerName?: string } | null)?.callerName ?? "";
       line = [
         `${l.ticket} ${t.reference}`,
@@ -496,6 +503,7 @@ export async function planStaffAlert(
     } else {
       const [m] = await tx.select().from(staffMessages).where(eq(staffMessages.id, job.id));
       if (!m) return;
+      conversationId = m.conversationId;
       line = [
         `${l.message} ${m.reference}`,
         `${m.callerName} ${m.callerPhone}`,
@@ -519,10 +527,18 @@ export async function planStaffAlert(
     .from(member)
     .innerJoin(user, eq(user.id, member.userId))
     .where(and(eq(member.organizationId, job.tenantId), inArray(member.role, ["owner", "admin"])));
-  const messages: OutgoingMessage[] = recipients.map((r) => ({
+  // ADR 0025: the department's own people and email get it too.
+  const department = await departmentAudience(db, job.tenantId, conversationId);
+  const emails = new Set([
+    ...recipients.map((r) => r.email),
+    ...department.people.map((p) => p.email),
+    ...(department.email ? [department.email] : []),
+  ]);
+  const subjectLine = line.split(" · ")[0];
+  const messages: OutgoingMessage[] = [...emails].map((email) => ({
     channel: "email",
-    to: r.email,
-    subject: `⚠ ${business.name}: ${line!.split(" · ")[0]}`,
+    to: email,
+    subject: `⚠ ${business.name}: ${department.name ? `[${department.name}] ` : ""}${subjectLine}`,
     text: `${line!.replaceAll(" · ", "\n")}\n\n${l.open}: ${link}`,
     kind: "staff.alert",
   }));
@@ -536,9 +552,15 @@ export async function planStaffAlert(
   }
   // Phones (ADR 0024): a short heads-up with no customer details; the app shows the rest.
   // A chat waiting for a person also goes to the people who answer for the business.
-  const pushTo = new Set(recipients.map((r) => r.userId));
+  const pushTo = new Set([
+    ...recipients.map((r) => r.userId),
+    ...department.people.map((p) => p.userId),
+  ]);
   if (job.record === "handoff") {
-    for (const a of await listAnswerers(db, job.tenantId)) pushTo.add(a.userId);
+    // A department with people rings only them; otherwise everyone who answers.
+    if (department.people.length === 0) {
+      for (const a of await listAnswerers(db, job.tenantId)) pushTo.add(a.userId);
+    }
   }
   const heading = {
     handoff: l.handoff,
@@ -688,7 +710,18 @@ export async function planRingingPush(
   job: { tenantId: string; handoffId: string },
 ): Promise<NotificationPlan> {
   const business = await loadBusiness(db, job.tenantId);
-  const answerers = await listAnswerers(db, job.tenantId);
+  const [handoff] = await withTenant(db, job.tenantId, (tx) =>
+    tx
+      .select({ departmentId: handoffs.departmentId })
+      .from(handoffs)
+      .where(eq(handoffs.id, job.handoffId)),
+  );
+  const only = handoff?.departmentId
+    ? await departmentPeople(db, job.tenantId, handoff.departmentId)
+    : [];
+  const answerers = (await listAnswerers(db, job.tenantId)).filter(
+    (a) => only.length === 0 || only.includes(a.userId),
+  );
   return {
     messages: answerers.map((a) => ({
       channel: "push" as const,
@@ -701,4 +734,38 @@ export async function planRingingPush(
       kind: "call.ringing",
     })),
   };
+}
+
+/**
+ * ADR 0025: who besides the owners and admins hears about a conversation's records: its
+ * department's people (email and push) and the department's email address.
+ */
+async function departmentAudience(
+  db: Database,
+  tenantId: string,
+  conversationId: string | null,
+): Promise<{
+  name: string | null;
+  email: string | null;
+  people: Array<{ userId: string; email: string }>;
+}> {
+  const none = { name: null, email: null, people: [] };
+  if (!conversationId) return none;
+  const [row] = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ id: departments.id, name: departments.name, email: departments.notifyEmail })
+      .from(conversations)
+      .innerJoin(departments, eq(departments.id, conversations.departmentId))
+      .where(eq(conversations.id, conversationId)),
+  );
+  if (!row) return none;
+  const ids = await departmentPeople(db, tenantId, row.id);
+  const people = ids.length
+    ? await db
+        .select({ userId: user.id, email: user.email })
+        .from(user)
+        .innerJoin(member, eq(member.userId, user.id))
+        .where(and(inArray(user.id, ids), eq(member.organizationId, tenantId)))
+    : [];
+  return { name: row.name, email: row.email, people };
 }

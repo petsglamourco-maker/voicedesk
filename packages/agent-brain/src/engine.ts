@@ -146,6 +146,8 @@ export function startConversation(
     entry?: "direct" | "forwarded" | "backup";
     /** Speak / show the department menu after the greeting. */
     menu?: "voice" | "chat" | null;
+    /** Phone calls: the team is rung before the assistant helps (ADR 0025). */
+    ringFirst?: boolean;
   } = {},
 ): { state: ConversationState; greeting: string } {
   const language = options.language ?? ctx.defaultLanguage;
@@ -169,6 +171,7 @@ export function startConversation(
           missed: options.entry === "forwarded" || options.entry === "backup",
           recordingNotice: options.recordingNotice,
           menu,
+          ringFirst: options.ringFirst && !menu,
         },
       );
   // The API requires the first message to come from the user; mark the connection.

@@ -1,3 +1,5 @@
+import { departmentPeople } from "@voicedesk/core";
+import { departments } from "@voicedesk/db";
 import { loadMenu, recordDepartmentChoice } from "./departments";
 import { checkSend } from "./send-guard";
 import { getPlatformSpendSettings, spendStatus } from "./spend";
@@ -100,7 +102,7 @@ export function createDbAgentServices(
     /** Inbox channels (web chat, WhatsApp, email): a person can pick up this thread. */
     handoffThreadId?: string;
     /** Phone calls: whether someone at the VA console can take the call now (Phase 5). */
-    peopleAvailable?: () => Promise<boolean>;
+    peopleAvailable?: (only?: string[]) => Promise<boolean>;
   },
 ): AgentServices {
   const { db } = deps;
@@ -421,7 +423,16 @@ export function createDbAgentServices(
       const reference = makeReference(businessName);
       let transferTo: string | undefined;
       let transferFallback: string | undefined;
-      if (scope.canTransfer) {
+      // ADR 0025: the caller's department decides who deals with it.
+      const department = options.departmentId
+        ? (
+            await tx((t) =>
+              t.select().from(departments).where(eq(departments.id, options.departmentId!)),
+            )
+          )[0]
+        : undefined;
+      const people = department ? await departmentPeople(db, tenantId, department.id) : [];
+      if (scope.canTransfer && department?.routing !== "message_only") {
         const [settings] = await tx((t) =>
           t.select().from(agentSettings).where(eq(agentSettings.tenantId, tenantId)),
         );
@@ -436,16 +447,17 @@ export function createDbAgentServices(
           options.urgent === true,
         );
         // A transfer is an outbound call leg: same checks as any call (ADR 0022).
+        const wanted = department?.transferPhone ?? target;
         const phone =
-          target && (await checkSend(db, { tenantId, kind: "call", to: target })).ok
-            ? target
+          wanted && (await checkSend(db, { tenantId, kind: "call", to: wanted })).ok
+            ? wanted
             : null;
-        const route = toHandoffRoute(settings?.handoffRoute);
-        const people =
+        const route = toHandoffRoute(department?.routing ?? settings?.handoffRoute);
+        const someoneFree =
           route !== "phone_only" && scope.peopleAvailable
-            ? await scope.peopleAvailable().catch(() => false)
+            ? await scope.peopleAvailable(people.length ? people : undefined).catch(() => false)
             : false;
-        const plan = handoffPlan(route, people, phone);
+        const plan = handoffPlan(route, someoneFree, phone);
         transferTo = plan?.to;
         transferFallback = plan?.fallback;
       }

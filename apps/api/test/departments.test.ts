@@ -1,9 +1,14 @@
+import { MockEmbeddingProvider } from "@voicedesk/adapters";
 import {
   createConversation,
+  createDbAgentServices,
   loadAgentContext,
+  planRingingPush,
+  planStaffAlert,
   recordDepartmentChoice,
 } from "@voicedesk/agent-brain";
-import { auditLog, withTenant } from "@voicedesk/db";
+import { createHandoff, setAnswersCalls, waitingHandoffs } from "@voicedesk/core";
+import { auditLog, member, staffMessages, withTenant } from "@voicedesk/db";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -215,5 +220,115 @@ describe("departments and the phone menu", () => {
       expect.objectContaining({ via: "keypad", name: "Sales" }),
       expect.objectContaining({ via: "assistant", name: "Support" }),
     ]);
+  });
+
+  it("routes a department's callers to its number, its people, or a message", async () => {
+    const biz = await createOwnerWithTenant(h, "Routing Co");
+    const owner = await h.db.query.member.findFirst({
+      where: (m, { eq: e }) => e(m.organizationId, biz.tenantId),
+    });
+    const saved = (
+      await save(biz, {
+        departments: [
+          { key: 1, name: "Sales", routing: "phone_only", transferPhone: "020 7946 0018" },
+          { key: 2, name: "Accounts", routing: "message_only" },
+          {
+            key: 3,
+            name: "Support",
+            routing: "people_only",
+            memberIds: [owner!.userId],
+            notifyEmail: "support-team@example.com",
+          },
+        ],
+      })
+    ).json<MenuView>();
+    const [sales, accounts, support] = saved.departments;
+    const ctx = await loadAgentContext(h.db, biz.tenantId, "voice");
+    const call = await createConversation(h.db, ctx, { tenantId: biz.tenantId, channel: "voice" });
+    const asked: Array<string[] | undefined> = [];
+    const services = createDbAgentServices(
+      { db: h.db, embeddings: new MockEmbeddingProvider() },
+      {
+        tenantId: biz.tenantId,
+        conversationId: call.conversationId,
+        businessName: "Routing Co",
+        canTransfer: true,
+        peopleAvailable: (only?: string[]) => {
+          asked.push(only);
+          return Promise.resolve(true);
+        },
+      },
+    );
+    expect(await services.requestHuman("sales", { departmentId: sales!.id })).toMatchObject({
+      available: true,
+      transferTo: "+442079460018",
+    });
+    expect(await services.requestHuman("bill", { departmentId: accounts!.id })).toMatchObject({
+      available: false,
+    });
+    expect(await services.requestHuman("help", { departmentId: support!.id })).toMatchObject({
+      available: true,
+      transferTo: "people",
+    });
+    expect(asked.at(-1)).toEqual([owner!.userId]);
+
+    // The console only rings Support's people for a Support call.
+    const other = await signUpVerified(h, "OtherAnswerer");
+    const otherUser = await h.db.query.user.findFirst({
+      where: (u, { eq: e }) => e(u.email, other.email),
+    });
+    const otherId = otherUser!.id;
+    await h.db.insert(member).values({
+      organizationId: biz.tenantId,
+      userId: otherId,
+      role: "staff",
+      createdAt: new Date(),
+    });
+    await setAnswersCalls(h.db, biz.tenantId, owner!.userId, owner!.userId, true);
+    await setAnswersCalls(h.db, biz.tenantId, owner!.userId, otherId, true);
+    const handoff = await createHandoff(h.db, {
+      tenantId: biz.tenantId,
+      conversationId: call.conversationId,
+      roomName: "call-x",
+      reason: null,
+      urgent: false,
+      departmentId: support!.id,
+    });
+    expect((await waitingHandoffs(h.db, biz.tenantId, owner!.userId)).map((c) => c.id)).toEqual([
+      handoff.id,
+    ]);
+    expect(await waitingHandoffs(h.db, biz.tenantId, otherId)).toEqual([]);
+    const ringing = await planRingingPush(h.db, { tenantId: biz.tenantId, handoffId: handoff.id });
+    expect(ringing.messages.map((m) => m.to)).toEqual([owner!.userId]);
+
+    // A Support message also goes to Support's email, marked with the department.
+    await recordDepartmentChoice(h.db, {
+      tenantId: biz.tenantId,
+      conversationId: call.conversationId,
+      departmentId: support!.id,
+      via: "keypad",
+    });
+    const [message] = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx
+        .insert(staffMessages)
+        .values({
+          tenantId: biz.tenantId,
+          reference: "RT-1",
+          conversationId: call.conversationId,
+          callerName: "Jo",
+          callerPhone: "+447700900333",
+          reason: "Broken widget",
+          urgency: "urgent",
+        })
+        .returning(),
+    );
+    const alert = await planStaffAlert(
+      h.db,
+      { tenantId: biz.tenantId, record: "message", id: message!.id },
+      ORIGIN,
+    );
+    const emails = alert.messages.filter((m) => m.channel === "email");
+    expect(emails.map((m) => m.to)).toContain("support-team@example.com");
+    expect(emails[0]!.subject).toContain("[Support]");
   });
 });

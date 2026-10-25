@@ -1,4 +1,11 @@
-import { contacts, conversations, handoffs, withTenant, type Database } from "@voicedesk/db";
+import {
+  contacts,
+  conversations,
+  departmentMembers,
+  handoffs,
+  withTenant,
+  type Database,
+} from "@voicedesk/db";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
 /**
@@ -18,6 +25,8 @@ export async function createHandoff(
     roomName: string;
     reason: string | null;
     urgent: boolean;
+    /** ADR 0025: the caller's department (only its people are rung, when it has any). */
+    departmentId?: string | null;
   },
 ): Promise<HandoffRow> {
   const [row] = await withTenant(db, params.tenantId, (tx) =>
@@ -104,17 +113,32 @@ export interface WaitingCall {
 }
 
 /** Calls ringing at the VA console for this business, oldest (and urgent) first. */
-export async function waitingHandoffs(db: Database, tenantId: string): Promise<WaitingCall[]> {
-  const rows = await withTenant(db, tenantId, (tx) =>
-    tx
+export async function waitingHandoffs(
+  db: Database,
+  tenantId: string,
+  /** Only calls this person may answer: a department's calls ring its people (ADR 0025). */
+  forUserId?: string,
+): Promise<WaitingCall[]> {
+  const { rows, members } = await withTenant(db, tenantId, async (tx) => ({
+    rows: await tx
       .select({ handoff: handoffs, state: conversations.state, contactName: contacts.fullName })
       .from(handoffs)
       .innerJoin(conversations, eq(conversations.id, handoffs.conversationId))
       .leftJoin(contacts, eq(contacts.id, conversations.contactId))
       .where(and(eq(handoffs.tenantId, tenantId), eq(handoffs.status, "waiting")))
       .orderBy(asc(handoffs.queuedAt)),
-  );
+    members: await tx
+      .select()
+      .from(departmentMembers)
+      .where(eq(departmentMembers.tenantId, tenantId)),
+  }));
+  const mayAnswer = (departmentId: string | null) => {
+    if (!forUserId || !departmentId) return true;
+    const people = members.filter((m) => m.departmentId === departmentId);
+    return people.length === 0 || people.some((m) => m.userId === forUserId);
+  };
   return rows
+    .filter(({ handoff }) => mayAnswer(handoff.departmentId))
     .map(({ handoff, state, contactName }) => ({
       id: handoff.id,
       conversationId: handoff.conversationId,
@@ -146,4 +170,19 @@ export async function activeHandoffFor(
       ),
   );
   return row ?? null;
+}
+
+/** The people in a department (empty: anyone who answers for the business). */
+export async function departmentPeople(
+  db: Database,
+  tenantId: string,
+  departmentId: string,
+): Promise<string[]> {
+  const rows = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select({ userId: departmentMembers.userId })
+      .from(departmentMembers)
+      .where(eq(departmentMembers.departmentId, departmentId)),
+  );
+  return rows.map((r) => r.userId);
 }

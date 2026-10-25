@@ -16,7 +16,7 @@ export type HandoffPhase = "idle" | "ringing" | "connected";
 
 export interface HandoffEffects {
   /** Saves the waiting handoff and tells the consoles; returns its id. */
-  open(reason: string | null, urgent: boolean): Promise<string>;
+  open(reason: string | null, urgent: boolean, departmentId?: string | null): Promise<string>;
   /** waiting → missed, only if nobody answered meanwhile. */
   markMissed(id: string): Promise<boolean>;
   /** The handoff's status once the person has left (returned / ended / answered…). */
@@ -28,6 +28,8 @@ export interface HandoffEffects {
   sayStillConnecting(): void;
   sayThroughTo(name: string): void;
   sayNobodyFree(): void;
+  /** Ring-first (ADR 0025): nobody picked up, so the assistant offers to help itself. */
+  sayRingFirstMissed?(): void;
   sayBackWithAssistant(): void;
   transferToPhone(number: string): Promise<void>;
   /** Engine note for the assistant's next turn. */
@@ -42,6 +44,7 @@ export class HandoffController {
   private phase: HandoffPhase = "idle";
   private handoffId: string | null = null;
   private fallback: string | undefined;
+  private ringFirst = false;
   private hold: ReturnType<typeof setInterval> | null = null;
   private timeout: ReturnType<typeof setTimeout> | null = null;
   private joinGrace: ReturnType<typeof setTimeout> | null = null;
@@ -62,14 +65,26 @@ export class HandoffController {
   }
 
   /** The assistant said "connecting you"; ring the console. */
-  async start(options: { reason: string | null; urgent: boolean; fallback?: string }) {
+  async start(options: {
+    reason: string | null;
+    urgent: boolean;
+    fallback?: string;
+    departmentId?: string | null;
+    /** The team is rung before the assistant helps (no transfer fallback). */
+    ringFirst?: boolean;
+  }) {
     if (this.phase !== "idle") return;
     this.phase = "ringing";
     this.fallback = options.fallback;
+    this.ringFirst = options.ringFirst === true;
     // The caller is on hold: no assistant replies while the console rings.
     this.fx.setHumanActive(true);
     try {
-      this.handoffId = await this.fx.open(options.reason, options.urgent);
+      this.handoffId = await this.fx.open(
+        options.reason,
+        options.urgent,
+        options.departmentId ?? null,
+      );
     } catch (error) {
       this.fx.log("opening the handoff failed", { err: String(error) });
       this.phase = "idle";
@@ -156,6 +171,15 @@ export class HandoffController {
       // Unmuted first: if the phone transfer fails, the assistant offers a message instead.
       this.fx.setHumanActive(false);
       await this.fx.transferToPhone(to);
+      return;
+    }
+    if (this.ringFirst && this.fx.sayRingFirstMissed) {
+      this.ringFirst = false;
+      this.fx.note(
+        "The team was rung first and nobody picked up. You told the caller and offered a booking, a call back or a message; help them yourself from here.",
+      );
+      this.fx.setHumanActive(false);
+      this.fx.sayRingFirstMissed();
       return;
     }
     this.fx.note(

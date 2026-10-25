@@ -68,7 +68,7 @@ export interface AgentServices {
   /** Records a request for a person; `available` says whether live transfer is possible. */
   requestHuman(
     reason: string,
-    options?: { urgent?: boolean },
+    options?: { urgent?: boolean; departmentId?: string },
   ): Promise<
     Created & {
       available: boolean;

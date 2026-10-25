@@ -27,6 +27,8 @@ export async function createConversation(
     entry?: "direct" | "forwarded" | "backup";
     /** Speak or show the department menu after the greeting (ADR 0025). */
     menu?: "voice" | "chat" | null;
+    /** Phone calls: ring the team before the assistant helps (ADR 0025). */
+    ringFirst?: boolean;
   },
 ): Promise<{ conversationId: string; state: ConversationState; greeting: string }> {
   const { state, greeting } = startConversation(ctx, {
@@ -35,6 +37,7 @@ export async function createConversation(
     recordingNotice: ctx.style === "voice" && ctx.recordCalls === true,
     entry: params.entry,
     menu: params.menu ?? null,
+    ringFirst: params.ringFirst,
   });
   const known = await recogniseCaller(db, params.tenantId, params.callerPhone ?? null);
   if (known) {

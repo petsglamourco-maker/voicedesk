@@ -30,6 +30,7 @@ function fakes(overrides: Partial<HandoffEffects> = {}) {
     sayStillConnecting: () => calls.push("say:stillConnecting"),
     sayThroughTo: (name) => calls.push(`say:throughTo:${name}`),
     sayNobodyFree: () => calls.push("say:nobodyFree"),
+    sayRingFirstMissed: () => calls.push("say:ringFirstMissed"),
     sayBackWithAssistant: () => calls.push("say:back"),
     transferToPhone: (n) => {
       calls.push(`transfer:${n}`);
@@ -125,6 +126,31 @@ describe("HandoffController", () => {
     await c.start({ reason: null, urgent: false });
     await vi.advanceTimersByTimeAsync(30_001);
     expect(calls.slice(-3)).toEqual(["note:Nobody at the busine", "human:false", "say:nobodyFree"]);
+  });
+
+  it("ring-first: nobody answers, the assistant offers to help itself (ADR 0025)", async () => {
+    const opened: Array<string | null | undefined> = [];
+    const { fx, calls } = fakes({
+      open: (_reason, _urgent, departmentId) => {
+        opened.push(departmentId);
+        calls.push("open");
+        return Promise.resolve("h1");
+      },
+      markMissed: () => Promise.resolve(true),
+    });
+    const c = new HandoffController(fx, 20_000, 100_000);
+    await c.start({ reason: null, urgent: false, departmentId: "d-2", ringFirst: true });
+    await vi.advanceTimersByTimeAsync(20_001);
+    expect(opened).toEqual(["d-2"]);
+    expect(calls.slice(-3)).toEqual([
+      "note:The team was rung fi",
+      "human:false",
+      "say:ringFirstMissed",
+    ]);
+    // A later request for a person rings as usual, with the normal "nobody free" line.
+    await c.start({ reason: "person", urgent: false });
+    await vi.advanceTimersByTimeAsync(20_001);
+    expect(calls.at(-1)).toBe("say:nobodyFree");
   });
 
   it("an answer racing the timeout wins (the timeout does nothing)", async () => {
