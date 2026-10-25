@@ -1,3 +1,4 @@
+import { getPlanState, planAllows } from "@voicedesk/core";
 import {
   checkSend,
   claimDueOutboundCalls,
@@ -47,13 +48,15 @@ export async function placeOutboundCall(
     tx.select({ timezone: tenants.timezone }).from(tenants).where(eq(tenants.id, call.tenantId)),
   );
   const timezone = found?.timezone ?? "Europe/London";
+  // AI calls are a plan feature (ADR 0023); without it, the calls are cancelled.
+  const planned = planAllows(await getPlanState(db, call.tenantId, now), "ai_calls");
   const decision = decideOutboundCall({
     now,
     timezone,
     purpose: call.purpose as OutboundPurpose,
     enabled: {
-      callbacks: ctx.settings?.aiCallbacks ?? false,
-      confirmations: ctx.settings?.confirmationCalls ?? false,
+      callbacks: planned && (ctx.settings?.aiCallbacks ?? false),
+      confirmations: planned && (ctx.settings?.confirmationCalls ?? false),
     },
     doNotCall: ctx.contact?.doNotCall === true,
     callsToday: ctx.callsToday,

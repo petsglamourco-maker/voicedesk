@@ -67,25 +67,30 @@ export async function planSpendAlerts(
       .from(member)
       .innerJoin(user, eq(user.id, member.userId))
       .where(and(eq(member.organizationId, tenantId), inArray(member.role, ["owner", "admin"])));
-    const link = `${webOrigin}/t/${tenantId}/usage`;
+    const link = status.businessCaps
+      ? `${webOrigin}/t/${tenantId}/usage`
+      : `${webOrigin}/t/${tenantId}/billing`;
     const messages: OutgoingMessage[] = [];
     for (const { category, level } of due) {
       const { spent, cap } = status.categories[category];
       const reached = level >= 100;
       const more = status.businessCaps
         ? "An owner can raise the limit"
-        : "Contact VoiceDesk support for a bigger allowance";
+        : "Upgrade your plan for a bigger allowance";
       const what = LABEL[category];
       const noun = status.businessCaps ? "limit" : "allowance";
       const subject = reached
         ? `${business?.name ?? "Your business"}: this month's ${what} ${noun} is used up`
         : `${business?.name ?? "Your business"}: ${level}% of this month's ${what} ${noun} used`;
+      const until = status.businessCaps
+        ? "until next month or until the limit is raised"
+        : "until next month or until you upgrade your plan";
       const effect =
         category === "ai"
-          ? "The assistant now takes messages instead of answering questions, until next month or until the allowance is raised."
+          ? `The assistant now takes messages instead of answering questions, ${until}.`
           : category === "sms"
-            ? "Texts (confirmations, reminders, alerts) have stopped until next month or until the allowance is raised."
-            : "Outbound calls have stopped until next month or until the allowance is raised. Incoming calls are still answered.";
+            ? `Texts (confirmations, reminders, alerts) have stopped ${until}.`
+            : `Outbound calls have stopped ${until}. Incoming calls are still answered.`;
       const text = [
         `${pounds(spent)} of the ${pounds(cap)} monthly ${what} ${noun} has been used.`,
         "",

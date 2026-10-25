@@ -4,7 +4,7 @@ import {
   type Auth,
   type AuthEmail,
 } from "@voicedesk/auth";
-import { recordAudit, type AuditEntry } from "@voicedesk/core";
+import { PlanLimitError, recordAudit, requireSeat, type AuditEntry } from "@voicedesk/core";
 import { user, type Database } from "@voicedesk/db";
 import { fromNodeHeaders } from "better-auth/node";
 import { eq } from "drizzle-orm";
@@ -159,6 +159,20 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
           error: "REAUTH_REQUIRED",
           message: "Please enter your password again to do this.",
         });
+      }
+      // Team size comes from the plan (ADR 0023).
+      if (session && url.pathname === "/api/auth/organization/invite-member") {
+        const orgId = (request.body as { organizationId?: unknown } | null)?.organizationId;
+        if (typeof orgId === "string") {
+          try {
+            await requireSeat(db, orgId);
+          } catch (error) {
+            if (!(error instanceof PlanLimitError)) throw error;
+            return reply
+              .status(402)
+              .send({ code: error.code, error: error.code, message: error.message });
+          }
+        }
       }
       // nosemgrep: ajinabraham.njsscan.xss.xss_node.express_xss -- reviewed: Better Auth's own response, passed through with its own content type
       const response = await authRequestContext.run(

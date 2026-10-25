@@ -1,7 +1,15 @@
 import { SUPPORTED_COUNTRY_CODES, type SupportedLanguage } from "@voicedesk/compliance";
-import { member, organization, tenants, withTenant, type Database } from "@voicedesk/db";
+import {
+  type Database,
+  member,
+  organization,
+  subscriptions,
+  tenants,
+  withTenant,
+} from "@voicedesk/db";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
+import { trialValues } from "./plans";
 import { recordAudit } from "./audit";
 import { BUSINESS_ROLES, type BusinessRole } from "./permissions";
 
@@ -46,6 +54,8 @@ export async function createTenantProfile(
       .insert(tenants)
       .values({ id: params.tenantId, ...params.input })
       .returning();
+    // Every new business starts on the free trial (ADR 0023).
+    await tx.insert(subscriptions).values(trialValues(params.tenantId));
     await recordAudit(tx, {
       tenantId: params.tenantId,
       actorType: "user",

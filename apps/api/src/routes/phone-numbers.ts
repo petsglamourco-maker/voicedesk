@@ -1,3 +1,4 @@
+import { requireNumberSlot } from "@voicedesk/core";
 import { phoneNumbers, tenants, withPlatformAccess, withTenant } from "@voicedesk/db";
 import { asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
@@ -90,6 +91,7 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
     async (request, reply) => {
       const session = await requirePlatformOwner(deps, request);
       const sip = requireSip(deps);
+      await requireNumberSlot(deps.db, request.body.tenantId);
       try {
         const row = await registerPhoneNumber({ db: deps.db, sip }, session.user.id, request.body);
         return reply.status(201).send(toView(row));
@@ -126,6 +128,10 @@ export function registerPhoneNumberRoutes(app: FastifyInstance, deps: AppDeps): 
       if (!current) throw notFound();
       const tenantId = request.body.tenantId ?? current.tenantId;
       const status = request.body.status ?? current.status;
+      // Moving or re-enabling a number takes one of the business's plan slots (ADR 0023).
+      if (status === "active" && (tenantId !== current.tenantId || current.status !== "active")) {
+        await requireNumberSlot(deps.db, tenantId);
+      }
       let route: { livekitTrunkId: string | null; livekitDispatchRuleId: string | null } = {
         livekitTrunkId: current.livekitTrunkId,
         livekitDispatchRuleId: current.livekitDispatchRuleId,

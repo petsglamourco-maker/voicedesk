@@ -9,6 +9,8 @@ export { isLlmAvailable, nativeRawFor, responseText } from "./llm/types";
 export { RoutedLlmProvider, type RouteEntry, type RouterOptions } from "./llm/router";
 export { estimateCostUsd } from "./llm/pricing";
 export type * from "./human/types";
+export type * from "./billing/types";
+export { BillingSignatureError } from "./billing/types";
 export type * from "./messaging/types";
 export type * from "./speech/types";
 export type * from "./telephony/types";

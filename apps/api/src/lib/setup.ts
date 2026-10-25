@@ -17,6 +17,7 @@ export interface SetupItem {
     | "whatsapp"
     | "outbound"
     | "botCheck"
+    | "billing"
     | "publicAddress";
   state: SetupState;
   /** .env names (or a short instruction code) still needed for "ready". */
@@ -96,6 +97,18 @@ export function setupStatus(env: NodeJS.ProcessEnv, ai: { enabledReady: number }
     ),
     item("outbound", outboundMissing, true),
     item("botCheck", lacking(env, ["TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY"]), false),
+    // Card fees only on real payments; test mode is free.
+    item(
+      "billing",
+      lacking(env, [
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "STRIPE_PRICE_STARTER",
+        "STRIPE_PRICE_GROWTH",
+        "STRIPE_PRICE_PRO",
+      ]),
+      false,
+    ),
     isLocalHost(env.WEB_ORIGIN)
       ? { id: "publicAddress", state: "local", missing: ["WEB_ORIGIN"], paid: true }
       : item("publicAddress", [], true),

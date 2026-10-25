@@ -19,7 +19,8 @@
     "./messaging/whatsapp-cloud": "./src/messaging/whatsapp-cloud.ts",
     "./email/mailbox": "./src/email/mailbox.ts",
     "./net": "./src/net/public-address.ts",
-    "./human/turnstile": "./src/human/turnstile.ts"
+    "./human/turnstile": "./src/human/turnstile.ts",
+    "./billing/stripe": "./src/billing/stripe.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
@@ -33,7 +34,8 @@
     "imapflow": "2.5.2",
     "mailparser": "3.9.40",
     "nodemailer": "10.1.1",
-    "openai": "7.34.0"
+    "openai": "7.34.0",
+    "stripe": "23.0.0"
   },
   "devDependencies": {
     "@types/mailparser": "3.9.0",

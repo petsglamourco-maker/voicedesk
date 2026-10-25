@@ -1,5 +1,6 @@
 import type {
   EmbeddingProvider,
+  BillingProvider,
   HumanCheck,
   LlmProvider,
   ObjectStorage,
@@ -10,7 +11,13 @@ import {
   type MailboxClient,
   type MailboxCredentials,
 } from "@voicedesk/adapters/email/mailbox";
-import { embeddingsFromEnv, humanCheckFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import {
+  billingFromEnv,
+  billingPricesFromEnv,
+  embeddingsFromEnv,
+  humanCheckFromEnv,
+  storageFromEnv,
+} from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
 import {
   createAppLlm,
@@ -138,6 +145,10 @@ export interface Container {
   sendAuthEmail: (email: AuthEmail) => Promise<void>;
   /** Bot check for public chat and forms; null until Turnstile keys are set. */
   humanCheck?: HumanCheck | null;
+  /** Stripe billing (ADR 0023); null until STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are set. */
+  billing?: BillingProvider | null;
+  /** Stripe Price id per paid plan (STRIPE_PRICE_*). */
+  billingPrices?: Record<string, string>;
   /** Valkey for the API's request limits, shared by every API process. */
   rateLimitRedis?: ReturnType<typeof createRedisConnection>;
   /** Proxies whose X-Forwarded-For is believed (TRUSTED_PROXIES). */
@@ -194,6 +205,8 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     kv,
     sendAuthEmail,
     humanCheck: await humanCheckFromEnv(),
+    billing: await billingFromEnv(),
+    billingPrices: billingPricesFromEnv(),
     rateLimitRedis: redis,
     trustedProxies: env.TRUSTED_PROXIES.split(",")
       .map((p) => p.trim())

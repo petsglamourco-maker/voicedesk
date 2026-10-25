@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
 import type { HumanCheck } from "./human/types";
+import type { BillingProvider } from "./billing/types";
 import type { LlmProvider } from "./llm/types";
 import type { SmsProvider } from "./messaging/types";
 import { MockEmbeddingProvider, MockLlmProvider } from "./mocks";
@@ -105,4 +106,24 @@ export async function humanCheckFromEnv(env: Env = process.env): Promise<HumanCh
     siteKey: env.TURNSTILE_SITE_KEY,
     secretKey: env.TURNSTILE_SECRET_KEY,
   });
+}
+
+/** Stripe billing (ADR 0023); null (billing off) until both keys are set. Test keys are fine. */
+export async function billingFromEnv(env: Env = process.env): Promise<BillingProvider | null> {
+  if (!env.STRIPE_SECRET_KEY || !env.STRIPE_WEBHOOK_SECRET) return null;
+  const { StripeBilling } = await import("./billing/stripe");
+  return new StripeBilling({
+    secretKey: env.STRIPE_SECRET_KEY,
+    webhookSecret: env.STRIPE_WEBHOOK_SECRET,
+  });
+}
+
+/** Stripe Price id per paid plan, from .env (STRIPE_PRICE_STARTER, _GROWTH, _PRO). */
+export function billingPricesFromEnv(env: Env = process.env): Record<string, string> {
+  const prices: Record<string, string> = {};
+  for (const plan of ["starter", "growth", "pro"]) {
+    const id = env[`STRIPE_PRICE_${plan.toUpperCase()}`];
+    if (id) prices[plan] = id;
+  }
+  return prices;
 }

@@ -53,7 +53,7 @@ export interface TestHarness {
 export async function createHarness(
   options: Pick<
     AppDeps,
-    "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient" | "humanCheck"
+    "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient" | "humanCheck" | "billing" | "billingPrices"
   > & {
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
@@ -136,6 +136,8 @@ export async function createHarness(
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
     humanCheck: options.humanCheck ?? null,
+    billing: options.billing ?? null,
+    billingPrices: options.billingPrices ?? {},
     oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,

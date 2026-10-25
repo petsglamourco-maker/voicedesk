@@ -12,7 +12,8 @@
     "test": "vitest run",
     "number:add": "tsx src/number-add.ts",
     "number:sync": "tsx src/number-sync.ts",
-    "number:remove": "tsx src/number-remove.ts"
+    "number:remove": "tsx src/number-remove.ts",
+    "billing:prices": "tsx src/billing-prices.ts"
   },
   "dependencies": {
     "@fastify/multipart": "10.1.4",

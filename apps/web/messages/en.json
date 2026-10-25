@@ -1324,6 +1324,11 @@
         "name": "Bot check (Cloudflare Turnstile)",
         "unlocks": "Stops automated programs abusing the website chat and enquiry forms. Free, and usually invisible to people.",
         "how": "Create a free Cloudflare account, open Turnstile and add a widget for your website address (choose the Invisible or Managed type). Copy its site key and secret key into TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, then restart VoiceDesk."
+      },
+      "billing": {
+        "name": "Payments (Stripe)",
+        "unlocks": "Businesses can choose a plan and pay by card on Stripe's own pages, and change or cancel it themselves.",
+        "how": "Create a free Stripe account and stay in test mode. Put the test secret key in STRIPE_SECRET_KEY, run pnpm billing:prices to create the three plans and copy the printed STRIPE_PRICE_* lines, then run pnpm billing:listen and copy its signing secret into STRIPE_WEBHOOK_SECRET. Restart VoiceDesk."
       }
     },
     "openSupport": "Open support requests"

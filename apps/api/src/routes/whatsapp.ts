@@ -1,3 +1,4 @@
+import { requireFeature } from "@voicedesk/core";
 import { timingSafeEqual } from "node:crypto";
 import { parseWhatsAppWebhook } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 import { resolvePublicEndpoint } from "@voicedesk/agent-brain";
@@ -198,6 +199,7 @@ export function registerWhatsAppRoutes(app: FastifyInstance, deps: AppDeps): voi
     },
     async (request, reply) => {
       const session = await requirePlatformOwner(deps, request);
+      await requireFeature(deps.db, request.body.tenantId, "whatsapp");
       const existing = await resolvePublicEndpoint(deps.db, "whatsapp", request.body.phoneNumberId);
       if (existing)
         throw new HttpError(409, "NUMBER_EXISTS", "This WhatsApp number is already connected");

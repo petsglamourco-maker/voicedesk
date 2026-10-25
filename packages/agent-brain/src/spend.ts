@@ -5,6 +5,7 @@ import {
   llmUsage,
   platformSettings,
   spendEvents,
+  subscriptions,
   tenants,
   withPlatformAccess,
   withTenant,
@@ -12,6 +13,7 @@ import {
   type PlatformSpendSettings,
 } from "@voicedesk/db";
 import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { getPlanState, planState, type PlanState } from "@voicedesk/core";
 import { localDateString, zonedToUtc } from "./availability";
 
 /**
@@ -42,15 +44,28 @@ export async function getPlatformSpendSettings(db: Database): Promise<PlatformSp
 }
 
 /**
- * The most a business may set each cap to. Today: the platform maximum. With billing
- * (Phase 7) this becomes the business's subscription tier allowance — change only this.
+ * What a business's plan allows this month, in pence (ADR 0023): minutes and texts are
+ * converted with the platform's cost estimates. A plan that can't be used (trial ended,
+ * cancelled, unpaid past the grace period) allows nothing, so AI takes messages and texts
+ * and outbound calls stop; the business keeps access to its data.
  */
+export function allowanceFromPlan(state: PlanState, settings: PlatformSpendSettings): Pence {
+  if (!state.usable) return { ai: 0, sms: 0, calls: 0 };
+  const perMinute = settings.costs.voicePencePerMinute + settings.costs.phoneInboundPencePerMinute;
+  return {
+    ai: state.plan.aiPence,
+    sms: Math.round(state.plan.texts * settings.costs.smsPencePerSegment),
+    calls: Math.round(state.plan.minutes * perMinute),
+  };
+}
+
 export async function allowanceFor(
   db: Database,
-  _tenantId: string,
+  tenantId: string,
   settings?: PlatformSpendSettings,
 ): Promise<Pence> {
-  return (settings ?? (await getPlatformSpendSettings(db))).maxCapPence;
+  const s = settings ?? (await getPlatformSpendSettings(db));
+  return allowanceFromPlan(await getPlanState(db, tenantId), s);
 }
 
 function toStatus(
@@ -213,7 +228,15 @@ export async function spendOverview(
   db: Database,
   actorUserId: string,
   now: Date = new Date(),
-): Promise<Array<{ tenantId: string; name: string; status: string; spend: SpendStatus }>> {
+): Promise<
+  Array<{
+    tenantId: string;
+    name: string;
+    status: string;
+    plan: { id: string; name: string; status: string; usable: boolean };
+    spend: SpendStatus;
+  }>
+> {
   const settings = await getPlatformSpendSettings(db);
   const inMonth = (column: unknown) =>
     sql`date_trunc('month', ${column} at time zone ${tenants.timezone}) = date_trunc('month', ${now} at time zone ${tenants.timezone})`;
@@ -227,9 +250,11 @@ export async function spendOverview(
         ai: agentSettings.aiCapPence,
         sms: agentSettings.smsCapPence,
         calls: agentSettings.callsCapPence,
+        subscription: subscriptions,
       })
       .from(tenants)
       .leftJoin(agentSettings, eq(agentSettings.tenantId, tenants.id))
+      .leftJoin(subscriptions, eq(subscriptions.tenantId, tenants.id))
       .orderBy(tenants.name);
     const ai = await tx
       .select({ id: llmUsage.tenantId, usd: sql<string>`sum(${llmUsage.costUsd})` })
@@ -279,11 +304,13 @@ export async function spendOverview(
         sms: t.sms ?? DEFAULT_CAPS.sms,
         calls: t.calls ?? DEFAULT_CAPS.calls,
       };
-      const allowance = await allowanceFor(db, t.id, settings);
+      const plan = planState(t.subscription, now);
+      const allowance = allowanceFromPlan(plan, settings);
       out.push({
         tenantId: t.id,
         name: t.name,
         status: t.status,
+        plan: { id: plan.plan.id, name: plan.plan.name, status: plan.status, usable: plan.usable },
         spend: toStatus(
           monthWindow(now, t.timezone).month,
           spent,

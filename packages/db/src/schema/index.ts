@@ -3,3 +3,4 @@ export * from "./app";
 export * from "./knowledge";
 export * from "./conversations";
 export * from "./platform";
+export * from "./billing";

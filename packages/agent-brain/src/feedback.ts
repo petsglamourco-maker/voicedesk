@@ -1,3 +1,4 @@
+import { getPlanState, planAllows } from "@voicedesk/core";
 import { randomBytes } from "node:crypto";
 import {
   agentSettings,
@@ -146,6 +147,8 @@ export async function openSurvey(
 ): Promise<OpenedSurvey | null> {
   const { tenantId, conversationId } = params;
   const now = params.now ?? new Date();
+  // Feedback surveys are a plan feature (ADR 0023).
+  if (!planAllows(await getPlanState(db, tenantId, now), "feedback")) return null;
   return withTenant(db, tenantId, async (tx) => {
     const [settings] = await tx
       .select()

@@ -15,6 +15,7 @@ import {
   removeVa,
   setAnswersCalls,
   setPresence,
+  requireFeature,
 } from "@voicedesk/core";
 import type { ConversationState } from "@voicedesk/agent-brain";
 import {
@@ -84,6 +85,7 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
     },
     async (request, reply) => {
       const session = await requirePlatformOwner(deps, request);
+      await requireFeature(deps.db, request.body.tenantId, "va_console");
       try {
         const result = await assignVa(deps.db, session.user.id, request.body);
         return reply.code(201).send(result);
@@ -189,6 +191,7 @@ export function registerVaRoutes(app: FastifyInstance, deps: AppDeps): void {
         request.params.tenantId,
         "members:update_role",
       );
+      if (request.body.on) await requireFeature(deps.db, access.tenantId, "va_console");
       try {
         await setAnswersCalls(
           deps.db,

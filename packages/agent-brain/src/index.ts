@@ -193,6 +193,7 @@ export {
   DEFAULT_CAPS,
   SPEND_CATEGORIES,
   allowanceFor,
+  allowanceFromPlan,
   capsFor,
   getPlatformSpendSettings,
   monthSpend,

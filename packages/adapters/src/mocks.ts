@@ -1,5 +1,5 @@
 // In-memory adapters for tests, local development and the simulated-call harness.
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
   CalendarEvent,
   CalendarEventInput,
@@ -9,6 +9,12 @@ import type {
 import type { EmailMessage, EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
 import type { HumanCheck } from "./human/types";
+import {
+  BillingSignatureError,
+  type BillingEvent,
+  type BillingProvider,
+  type BillingSubscription,
+} from "./billing/types";
 import type { LlmContentBlock, LlmProvider, LlmRequest, LlmResponse } from "./llm/types";
 import type {
   SmsMessage,
@@ -317,5 +323,44 @@ export class MockHumanCheck implements HumanCheck {
   verify(token: string): Promise<"human" | "bot" | "unavailable"> {
     this.checked.push(token);
     return Promise.resolve(token === "human" ? "human" : token === "down" ? "unavailable" : "bot");
+  }
+}
+
+/**
+ * Billing without Stripe. Webhook bodies are BillingEvent JSON signed with
+ * `MockBilling.sign(body)`; tests put subscriptions in `subscriptions`.
+ */
+export class MockBilling implements BillingProvider {
+  readonly name = "mock-billing";
+  static readonly secret = "mock_whsec";
+  readonly checkouts: Array<Parameters<BillingProvider["createCheckout"]>[0]> = [];
+  readonly portals: Array<{ customerId: string; returnUrl: string }> = [];
+  readonly subscriptions = new Map<string, BillingSubscription>();
+
+  static sign(rawBody: string): string {
+    return createHmac("sha256", MockBilling.secret).update(rawBody).digest("hex");
+  }
+
+  createCheckout(params: Parameters<BillingProvider["createCheckout"]>[0]) {
+    this.checkouts.push(params);
+    return Promise.resolve({ url: `https://billing.mock/checkout/${this.checkouts.length}` });
+  }
+
+  createPortal(params: { customerId: string; returnUrl: string }) {
+    this.portals.push(params);
+    return Promise.resolve({ url: `https://billing.mock/portal/${params.customerId}` });
+  }
+
+  parseWebhook(rawBody: string, signature: string | undefined): Promise<BillingEvent> {
+    const expected = Buffer.from(MockBilling.sign(rawBody));
+    const given = Buffer.from(signature ?? "");
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
+      return Promise.reject(new BillingSignatureError());
+    }
+    return Promise.resolve(JSON.parse(rawBody) as BillingEvent);
+  }
+
+  getSubscription(id: string) {
+    return Promise.resolve(this.subscriptions.get(id) ?? null);
   }
 }

@@ -1,3 +1,4 @@
+import { getPlanState, planAllows } from "@voicedesk/core";
 import {
   agentSettings,
   bookings,
@@ -409,6 +410,8 @@ export async function claimDueBriefs(
     .where(only ? inArray(organization.id, only) : undefined);
   const due: string[] = [];
   for (const { id } of all) {
+    // The daily brief is a plan feature (ADR 0023).
+    if (!planAllows(await getPlanState(db, id, now), "daily_brief")) continue;
     const claimed = await withTenant(db, id, async (tx) => {
       const [tenant] = await tx
         .select({ timezone: tenants.timezone })

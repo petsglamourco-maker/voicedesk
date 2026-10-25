@@ -8,7 +8,7 @@ import {
   PERSONA_IDS,
   PERSONAS,
 } from "@voicedesk/agent-brain";
-import { recordAudit } from "@voicedesk/core";
+import { recordAudit, requireFeature } from "@voicedesk/core";
 import {
   agentSettings,
   bookings,
@@ -201,6 +201,9 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
         tx.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, access.tenantId)),
       );
+      if (request.body.aiCallbacks || request.body.confirmationCalls) {
+        await requireFeature(deps.db, access.tenantId, "ai_calls");
+      }
       const { allowedCountries } = await getPlatformSpendSettings(deps.db);
       const phone = (value: string | null, label: string) => {
         if (!value) return null;

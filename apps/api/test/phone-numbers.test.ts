@@ -62,6 +62,10 @@ beforeAll(async () => {
 });
 afterAll(() => h.close());
 
+// Each business's plan includes a set number of phone numbers, so tests that add
+// numbers use a fresh business.
+const fresh = () => createOwnerWithTenant(h, "Phone fresh");
+
 const as = (who: { cookie: string }) => ({ cookie: who.cookie, origin: ORIGIN });
 
 async function register(tenantId: string, e164 = unique(), carrier?: PhoneCarrier) {
@@ -118,6 +122,7 @@ describe("phone numbers (platform admin)", () => {
   });
 
   it("rejects duplicates and badly formatted numbers", async () => {
+    const [bizA, bizB] = [await fresh(), await fresh()];
     const e164 = unique();
     expect((await register(bizA.tenantId, e164)).statusCode).toBe(201);
     expect((await register(bizB.tenantId, e164)).statusCode).toBe(409);
@@ -125,6 +130,7 @@ describe("phone numbers (platform admin)", () => {
   });
 
   it("does not keep a number LiveKit could not route", async () => {
+    const bizA = await fresh();
     failNext = true;
     const e164 = unique();
     expect((await register(bizA.tenantId, e164)).statusCode).toBe(502);
@@ -138,6 +144,7 @@ describe("phone numbers (platform admin)", () => {
   });
 
   it("rebuilds the route when reassigned, removes it when disabled or deleted", async () => {
+    const [bizA, bizB] = [await fresh(), await fresh()];
     const view = (await register(bizA.tenantId)).json<NumberView>();
     const moved = await h.app.inject({
       method: "PATCH",
@@ -164,6 +171,22 @@ describe("phone numbers (platform admin)", () => {
     });
     expect(del.statusCode).toBe(204);
     expect(deleted.length).toBe(before); // already unrouted when disabled
+  });
+
+  it("stops at the plan's phone-number limit, also when moving a number in", async () => {
+    const [full, other] = [await fresh(), await fresh()];
+    expect((await register(full.tenantId)).statusCode).toBe(201);
+    const over = await register(full.tenantId);
+    expect(over.statusCode).toBe(402);
+    expect(over.json()).toMatchObject({ error: "PLAN_LIMIT" });
+    const elsewhere = (await register(other.tenantId)).json<NumberView>();
+    const moved = await h.app.inject({
+      method: "PATCH",
+      url: `/api/platform/phone-numbers/${elsewhere.id}`,
+      headers: as(platform),
+      payload: { tenantId: full.tenantId },
+    });
+    expect(moved.statusCode).toBe(402);
   });
 
   it("is invisible to businesses", async () => {

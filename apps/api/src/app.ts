@@ -39,6 +39,7 @@ import { registerVaRoutes } from "./routes/va";
 import { registerCspReportRoute } from "./routes/csp-report";
 import { registerOutboundRoutes } from "./routes/outbound";
 import { registerSpendRoutes } from "./routes/spend";
+import { registerBillingRoutes } from "./routes/billing";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
 import { registerHelpRoutes } from "./routes/help";
@@ -168,6 +169,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerVaRoutes(app, deps);
   registerOutboundRoutes(app, deps);
   registerSpendRoutes(app, deps);
+  registerBillingRoutes(app, deps);
   registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);

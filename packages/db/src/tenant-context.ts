@@ -28,8 +28,11 @@ export async function withTenant<T>(
 }
 
 export interface PlatformAccess {
-  /** User performing the cross-tenant action; must be a verified platform owner. */
-  actorUserId: string;
+  /**
+   * User performing the cross-tenant action; must be a verified platform owner. Null only
+   * for signed system callbacks with no user (the Stripe webhook), audited as "system".
+   */
+  actorUserId: string | null;
   /** Why cross-tenant access is needed (recorded in the audit log). */
   reason: string;
 }
@@ -47,7 +50,7 @@ export async function withPlatformAccess<T>(
   return platformDbFor(db).transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.platform_access', 'on', true)`);
     await tx.insert(auditLog).values({
-      actorType: "platform_owner",
+      actorType: access.actorUserId ? "platform_owner" : "system",
       actorUserId: access.actorUserId,
       action: "platform.access",
       metadata: { reason: access.reason },
