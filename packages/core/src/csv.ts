@@ -68,6 +68,7 @@ export function guessMapping(headers: string[]): Partial<Record<ContactField, nu
   const mapping: Partial<Record<ContactField, number>> = {};
   for (const field of CONTACT_FIELDS) {
     const index = headers.findIndex(
+      // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
       (h, i) => GUESSES[field].test(h.trim()) && !Object.values(mapping).includes(i),
     );
     if (index !== -1) mapping[field] = index;

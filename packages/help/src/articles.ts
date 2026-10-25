@@ -130,6 +130,7 @@ function pageMatcher(page: string): RegExp {
 
 /** The article for the screen at `pathname`: the most specific page match wins. */
 export function articleForPage(pathname: string, articles = listArticles()): HelpArticle | null {
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
   const path = pathname.split("?")[0]!.replace(/\/+$/, "") || "/";
   const matches = articles
     .filter((a) => a.page && pageMatcher(a.page).test(path))

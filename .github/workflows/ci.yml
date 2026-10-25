@@ -1,5 +1,6 @@
 # Runs once the repo has a GitHub remote. Mirrors `pnpm verify` + e2e against the same
-# Docker Compose infra used locally.
+# Docker Compose infra used locally, plus code scanning and an SBOM (security audit M17).
+# Actions are pinned to full commit SHAs (tags can be moved); Dependabot proposes updates.
 name: CI
 
 on:
@@ -23,17 +24,17 @@ jobs:
       BETTER_AUTH_SECRET: ci-only-secret-0123456789abcdefghijklmnop
       PLATFORM_OWNER_PASSWORD: ci-only-owner-password
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Secret scan
-        uses: gitleaks/gitleaks-action@v3.0.0
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
@@ -61,8 +62,34 @@ jobs:
 
       - name: Upload Playwright traces
         if: failure()
-        uses: actions/upload-artifact@v7.0.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-traces
           path: apps/web/test-results
           retention-days: 7
+
+  # Static analysis for common security mistakes (injection, unsafe crypto, SSRF…).
+  # Semgrep Community Edition: free, runs on private repos (CodeQL needs a paid plan there).
+  code-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Semgrep
+        run: |
+          # Reviewed false positives carry "nosemgrep: <rule> -- reviewed: ..." comments;
+          # tests and dev scripts are skipped via .semgrepignore.
+          pipx run semgrep==1.180.0 scan --error --metrics=off \
+            --config p/typescript --config p/nodejsscan --config p/secrets
+
+  # Software bill of materials for every build (what's inside, for vulnerability response).
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: cyclonedx-json
+          artifact-name: voicedesk-sbom.cdx.json

@@ -112,6 +112,10 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **Design ("Aurora Glow", `DESIGN.md`):** tokens only (no hex in components), components from `@voicedesk/ui`, gallery at `/design`. Token changes must pass `contrast.test.ts`; visual baselines in `apps/web/e2e/visual.spec.ts-snapshots`.
 - **Help articles:** when a feature or screen changes, update its article in `packages/help/articles` (the article test checks screens and links, not wording).
 - **UI strings:** go in `apps/web/messages/en.json` (next-intl). Use logical CSS (`ms-`, `me-`, `start-`) and `dir="auto"` on user/agent text for right-to-left languages.
+- **CI and supply chain** (security audit M17):
+  - Actions are pinned to commit SHAs (with the tag in a comment) and compose images to digests; Dependabot proposes updates with a 14-day cooldown.
+  - CI runs Semgrep (`semgrep==1.180.0`, fails on findings) and builds a CycloneDX SBOM.
+  - A false positive gets `// nosemgrep: <rule-id> -- reviewed: <why>` on the line before. Locally, run Semgrep in Docker with the Norton CA (see `SECURITY.md`).
 - **Commits:** small, conventional (`feat(scope): …`), with the Co-Authored-By trailer.
 
 ## Environment variables

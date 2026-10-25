@@ -1,0 +1,9 @@
+# Semgrep (CI code scan, security audit M17): tests and local dev scripts use fixed test
+# credentials and print errors on purpose.
+node_modules/
+**/.next/
+**/test-results/
+**/test/
+*.test.ts
+apps/web/e2e/
+apps/web/scripts/

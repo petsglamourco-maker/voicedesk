@@ -229,6 +229,7 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
         if (!secretMatches(config.secret, given)) throw notFound();
         if (typeof header !== "string") request.log.warn("form webhook secret sent in the URL");
         // A form tool's retries carry the same key, so the enquiry is handled once.
+        // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
         const idem = request.headers["idempotency-key"];
         const submissionId =
           typeof idem === "string" && /^[\w.:-]{8,120}$/.test(idem) ? `key:${idem}` : randomUUID();

@@ -37,6 +37,7 @@ export interface FetchedResource {
   body: Buffer;
 }
 
+// nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_username -- reviewed: public crawler User-Agent string
 export const USER_AGENT = "VoiceDeskBot/1.0 (+https://voicedesk.local/bot)";
 
 export function createSafeDispatcher(allowPrivateHosts: string[] = []): Dispatcher {

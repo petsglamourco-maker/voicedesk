@@ -95,7 +95,8 @@ export function FormSettings(props: { tenantId: string; initial: FormView; canEd
 
   const webhookShown = showSecret
     ? form.webhookPath
-    : form.webhookPath.replace(/secret=.*/, "secret=••••••••");
+    : // nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_secret -- reviewed: masks the secret for display; no secret here
+      form.webhookPath.replace(/secret=.*/, "secret=••••••••");
 
   return (
     <div className="stagger space-y-6">

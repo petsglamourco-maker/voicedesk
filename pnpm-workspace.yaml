@@ -2,6 +2,11 @@ packages:
   - apps/*
   - packages/*
 
+# Release-age gate (security audit M17), stated explicitly so it can't silently change with a
+# pnpm upgrade: no version newer than a day is installed. When choosing versions by hand we
+# pick ones at least two weeks old. Never add minimumReleaseAgeExclude.
+minimumReleaseAge: 1440
+
 # Only these dependencies may run install scripts.
 allowBuilds:
   esbuild: true

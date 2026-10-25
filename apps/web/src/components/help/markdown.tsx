@@ -12,6 +12,7 @@ function inline(text: string, keyBase: string): ReactNode[] {
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
   while ((m = re.exec(text))) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const key = `${keyBase}-${i++}`;

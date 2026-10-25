@@ -751,7 +751,8 @@
     "linkHint": "Put this link on your website, emails and social profiles. It opens a WhatsApp chat with your business.",
     "windowNote": "WhatsApp rule: you can reply freely within 24 hours of the customer's last message. After that, they need to message you first.",
     "qr": "QR code",
-    "qrHint": "Print it on flyers, menus or your shop window. Scanning it opens a chat with you."
+    "qrHint": "Print it on flyers, menus or your shop window. Scanning it opens a chat with you.",
+    "qrAlt": "QR code that opens a WhatsApp chat with the business"
   },
   "whatsappAdmin": {
     "title": "WhatsApp numbers",

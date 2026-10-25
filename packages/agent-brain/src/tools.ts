@@ -371,6 +371,7 @@ export const TOOLS = {
       const b = env.state.booking;
       // One booking per caller turn (a repeated call is a duplicate); several per conversation
       // are fine, e.g. a parent booking for themselves and a child.
+      // nosemgrep: ajinabraham.njsscan.generic.logic_bypass.node_logic_bypass -- reviewed: compares turn counters, not an authorisation check
       if (env.state.lastBookingTurn === env.state.turns) {
         return error("Already booked in this turn. Confirm the booking to the caller.");
       }

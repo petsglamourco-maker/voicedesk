@@ -103,7 +103,10 @@ export class SecretBox {
 
 function open(key: Buffer, base64: string, context: string): string {
   const raw = Buffer.from(base64, "base64");
-  const decipher = createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12));
+  // A fixed 16-byte tag: a shortened (forgeable) tag is refused.
+  const decipher = createDecipheriv("aes-256-gcm", key, raw.subarray(0, 12), {
+    authTagLength: 16,
+  });
   decipher.setAAD(Buffer.from(context));
   decipher.setAuthTag(raw.subarray(12, 28));
   return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString("utf8");

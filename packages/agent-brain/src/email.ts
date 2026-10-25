@@ -44,7 +44,11 @@ export function replySubject(subject: string): string {
 export type EmailOutcome =
   | { status: "skipped"; reason: "automated" }
   | { status: "waiting"; threadId: string }
-  | { status: "draft"; threadId: string; reason: "review" | "needs a person" | "sender not verified" }
+  | {
+      status: "draft";
+      threadId: string;
+      reason: "review" | "needs a person" | "sender not verified";
+    }
   | { status: "sent"; threadId: string };
 
 /** Records that make a reply unsuitable to send without a person looking first. */

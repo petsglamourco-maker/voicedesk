@@ -160,6 +160,7 @@ export function registerAuthRoutes(app: FastifyInstance, deps: AuthRouteDeps): v
           message: "Please enter your password again to do this.",
         });
       }
+      // nosemgrep: ajinabraham.njsscan.xss.xss_node.express_xss -- reviewed: Better Auth's own response, passed through with its own content type
       const response = await authRequestContext.run(
         { actorUserId, ipAddress: request.ip ?? null },
         () => auth.handler(req),

@@ -10,6 +10,7 @@ export async function breachCount(
   password: string,
   options: { timeoutMs?: number; fetch?: typeof fetch } = {},
 ): Promise<number | null> {
+  // nosemgrep: ajinabraham.njsscan.crypto.crypto_node.node_sha1 -- reviewed: Have I Been Pwned's range API is defined on SHA-1; not used for integrity
   const sha1 = createHash("sha1").update(password).digest("hex").toUpperCase();
   const prefix = sha1.slice(0, 5);
   const suffix = sha1.slice(5);

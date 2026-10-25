@@ -28,6 +28,7 @@ export type DestinationCheck =
   { ok: true } | { ok: false; reason: "invalid" | "country" | "premium" };
 
 export function checkDestination(e164: string, allowedCountries: string[]): DestinationCheck {
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
   if (!/^\+\d{8,15}$/.test(e164)) return { ok: false, reason: "invalid" };
   const country = countryOfNumber(e164);
   if (!country || !allowedCountries.includes(country)) return { ok: false, reason: "country" };
