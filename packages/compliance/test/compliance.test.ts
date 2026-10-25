@@ -101,4 +101,32 @@ describe("logger", () => {
     expect(entry.err.message).toContain("Failed query");
     expect(JSON.stringify(entry)).not.toContain("sam@example.com");
   });
+
+  it("leaves class instances (e.g. requests) to their serializers", () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lines.push(chunk.toString());
+        cb();
+      },
+    });
+    class FakeRequest {
+      get url() {
+        return "/api/x?token=secret";
+      }
+    }
+    const options = loggerOptions("test", "info");
+    const log = pino(
+      {
+        ...options,
+        serializers: {
+          ...options.serializers,
+          req: (r: FakeRequest) => ({ path: r.url.split("?")[0] }),
+        },
+      },
+      sink,
+    );
+    log.info({ req: new FakeRequest() }, "incoming");
+    expect(JSON.parse(lines[0]!)).toMatchObject({ req: { path: "/api/x" } });
+  });
 });

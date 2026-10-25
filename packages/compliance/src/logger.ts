@@ -72,6 +72,10 @@ export function scrubLogObject(value: unknown, depth = 0): unknown {
   if (Array.isArray(value)) return value.map((v) => scrubLogObject(v, depth + 1));
   if (!value || typeof value !== "object") return value;
   if (value instanceof Date) return value;
+  // Only plain objects are walked: requests, responses and other class instances are left to
+  // their serializers (pino runs this formatter first).
+  const proto = Object.getPrototypeOf(value) as unknown;
+  if (proto !== Object.prototype && proto !== null) return value;
   const obj = value as Record<string, unknown>;
   const out: Record<string, unknown> = {};
   for (const [key, v] of Object.entries(obj)) {

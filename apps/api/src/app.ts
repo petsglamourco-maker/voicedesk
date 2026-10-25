@@ -65,6 +65,9 @@ export function rateLimitKey(request: { headers: { cookie?: string }; ip: string
     : `ip:${request.ip}`;
 }
 
+/** Routes each app registered (tests use it to check access rules on every route). */
+export const registeredRoutes = new WeakMap<object, Array<{ method: string; url: string }>>();
+
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   deps = {
     ...deps,
@@ -91,6 +94,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     logger: {
       ...loggerOptions("api", deps.logLevel),
       serializers: {
+        ...loggerOptions("api", deps.logLevel).serializers,
         // Query strings can carry tokens (e.g. email verification) — never log them.
         req: (req: { method: string; url: string; id: string }) => ({
           id: req.id,
@@ -104,6 +108,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     trustProxy: deps.trustedProxies ?? ["127.0.0.1", "::1"],
     bodyLimit: 1024 * 1024,
   }).withTypeProvider<ZodTypeProvider>();
+
+  // Every route, for the generic access tests (each tenant route must refuse outsiders).
+  const routes: Array<{ method: string; url: string }> = [];
+  registeredRoutes.set(app, routes);
+  app.addHook("onRoute", (route) => {
+    for (const method of [route.method].flat()) routes.push({ method, url: route.url });
+  });
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);

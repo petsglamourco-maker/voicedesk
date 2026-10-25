@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { Database, Tx } from "./client";
+import { type Database, type Tx, platformDbFor } from "./client";
 import { auditLog } from "./schema";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -43,7 +43,8 @@ export async function withPlatformAccess<T>(
   access: PlatformAccess,
   fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return db.transaction(async (tx) => {
+  // Only the separate platform login may switch this on (security audit M11).
+  return platformDbFor(db).transaction(async (tx) => {
     await tx.execute(sql`select set_config('app.platform_access', 'on', true)`);
     await tx.insert(auditLog).values({
       actorType: "platform_owner",

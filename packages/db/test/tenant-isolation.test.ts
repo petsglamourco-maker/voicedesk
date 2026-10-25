@@ -361,3 +361,49 @@ describe("public endpoint resolver", () => {
     expect(none.rows).toHaveLength(0);
   });
 });
+
+describe("platform access needs the platform login (audit M11)", () => {
+  it("the app's own role can't switch it on, even with raw SQL", async () => {
+    const result = await dbs.app.transaction(async (tx) => {
+      await tx.execute(sql`select set_config('app.platform_access', 'on', true)`);
+      const flag = await tx.execute(sql`select app_platform_access() as on`);
+      const rows = await tx.execute(sql`select count(*)::int as n from contacts`);
+      return {
+        on: (flag.rows as Array<{ on: boolean }>)[0]?.on,
+        n: (rows.rows as Array<{ n: number }>)[0]?.n,
+      };
+    });
+    expect(result).toEqual({ on: false, n: 0 });
+  });
+
+  it("withPlatformAccess still works, through the platform login", async () => {
+    const seen = await withPlatformAccess(
+      dbs.app,
+      { actorUserId: randomUUID(), reason: "test" },
+      (tx) => tx.execute(sql`select current_user as who, app_platform_access() as on`),
+    );
+    expect(seen.rows[0]).toEqual({ who: "voicedesk_platform", on: true });
+  });
+});
+
+describe("every tenant table is isolated (generic RLS check, audit M11)", () => {
+  it("a business sees no other business's rows in any table with tenant_id", async () => {
+    const tables = await dbs.owner.execute<{ table_name: string }>(sql`
+      select c.table_name from information_schema.columns c
+      join information_schema.tables t on t.table_name = c.table_name and t.table_schema = c.table_schema
+      where c.table_schema = 'public' and c.column_name = 'tenant_id' and t.table_type = 'BASE TABLE'
+      order by 1`);
+    expect(tables.rows.length).toBeGreaterThan(25);
+    const leaks: string[] = [];
+    for (const { table_name } of tables.rows) {
+      const n = await withTenant(dbs.app, tenantA, async (tx) => {
+        const r = await tx.execute(
+          sql`select count(*)::int as n from ${sql.identifier(table_name)} where tenant_id is distinct from ${tenantA}`,
+        );
+        return (r.rows as Array<{ n: number }>)[0]?.n ?? 0;
+      });
+      if (n > 0) leaks.push(`${table_name}: ${n}`);
+    }
+    expect(leaks).toEqual([]);
+  });
+});

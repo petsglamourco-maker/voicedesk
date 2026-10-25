@@ -89,7 +89,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 
 - **Tenant data:** every tenant-owned table has `tenant_id`, with forced RLS added in a custom SQL migration (`drizzle-kit generate --custom`; see `0003_rls_phase1.sql` for the loop pattern). The guard test fails otherwise.
 - **Query order:** in API handlers, call `requireTenantAccess(deps, req, tenantId, permission)` first, then `withTenant(db, tenantId, tx => ...)`. Return 404 (not 403) to non-members.
-- **Cross-tenant access** only through `withPlatformAccess`, which is audited.
+- **Cross-tenant access** only through `withPlatformAccess`, which is audited. It runs on the platform login's own pool. `app_platform_access()` is true only for `voicedesk_platform`, the owner, or SECURITY DEFINER functions such as `app_resolve_public_endpoint`, so the app role can't switch it on itself. Every `/api/tenants/:tenantId/...` route must answer outsiders 404; `test/tenant-routes.test.ts` checks every route automatically.
 - **Audit log:** record security-relevant actions with `recordAudit(tx, …)`; ids only in metadata, no PII. The log is append-only, enforced by the DB.
 - **External services** go behind interfaces in `@voicedesk/adapters`, with a mock and contract tests. Check the provider's current docs and pin exact versions before integrating. Apps wire providers through `@voicedesk/adapters/from-env`.
 - **LLM calls:**
@@ -120,6 +120,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 
 - `DATABASE_URL`: runtime, RLS-bound role
 - `DATABASE_OWNER_URL`: migrations only
+- `DATABASE_PLATFORM_URL` / `TEST_DATABASE_PLATFORM_URL`: the separate `voicedesk_platform` login used only by `withPlatformAccess` (security audit M11). Create the role on an existing volume with `infra/postgres/platform-role.sql`.
 - `TEST_DATABASE_*`
 - `VALKEY_PASSWORD` (Valkey requires it; docker-compose reads it) and `REDIS_URL` (`redis://:<password>@localhost:6379`), `S3_*`, `SMTP_*`, `EMAIL_FROM`
 - `BETTER_AUTH_URL` and `WEB_ORIGIN`: the browser-facing origin (:3000)
