@@ -2,6 +2,7 @@ import { ImapFlow } from "imapflow";
 import { simpleParser, type AddressObject } from "mailparser";
 import nodemailer from "nodemailer";
 import { ProviderError } from "../errors";
+import { resolvePublicHost } from "../net/public-address";
 
 /**
  * A business's own support mailbox (Phase 4, ADR 0017): read new mail over IMAP and reply
@@ -34,6 +35,11 @@ export interface InboundEmail {
   date: Date;
   /** Newsletters, auto-replies, bounces: never answered. */
   automated: boolean;
+  /**
+   * The receiving mail server verified the sender (DMARC pass, or DKIM pass for the sender's
+   * own domain). Only these may get an automatic reply (security audit M14).
+   */
+  authenticated: boolean;
   attachmentNames: string[];
 }
 
@@ -90,30 +96,41 @@ function firstAddress(addr: AddressObject | AddressObject[] | undefined) {
 export class ImapMailbox implements MailboxClient {
   constructor(private readonly creds: MailboxCredentials) {}
 
-  private imap() {
+  // Hosts are business-supplied: connect only to a public address (SSRF, security audit H2),
+  // pinned to the IP that was checked, with the name kept for TLS. Never send the password
+  // unencrypted: STARTTLS is required when the port isn't TLS from the start.
+  private async imap() {
+    const { address } = await resolvePublicHost(this.creds.imap.host);
     return new ImapFlow({
-      host: this.creds.imap.host,
+      host: address,
+      servername: this.creds.imap.host,
       port: this.creds.imap.port,
       secure: this.creds.imap.secure,
+      doSTARTTLS: this.creds.imap.secure ? undefined : true,
       auth: { user: this.creds.username, pass: this.creds.password },
       logger: false,
       socketTimeout: 30_000,
     });
   }
 
-  private smtp() {
+  private async smtp() {
+    const { address } = await resolvePublicHost(this.creds.smtp.host);
     return nodemailer.createTransport({
-      host: this.creds.smtp.host,
+      host: address,
       port: this.creds.smtp.port,
       secure: this.creds.smtp.secure,
+      requireTLS: !this.creds.smtp.secure,
+      tls: { servername: this.creds.smtp.host },
       auth: { user: this.creds.username, pass: this.creds.password },
       connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
+      socketTimeout: 30_000,
     });
   }
 
   async verify(): Promise<void> {
-    const client = this.imap();
     try {
+      const client = await this.imap();
       await client.connect();
       await client.logout();
     } catch (error) {
@@ -123,7 +140,7 @@ export class ImapMailbox implements MailboxClient {
       });
     }
     try {
-      await this.smtp().verify();
+      await (await this.smtp()).verify();
     } catch (error) {
       throw new ProviderError(PROVIDER, `SMTP login failed: ${(error as Error).message}`, {
         cause: error,
@@ -137,7 +154,7 @@ export class ImapMailbox implements MailboxClient {
     lastUid: number,
     uidValidity: number | null,
   ): Promise<FetchResult> {
-    const client = this.imap();
+    const client = await this.imap();
     await client.connect();
     const lock = await client.getMailboxLock(folder);
     try {
@@ -194,6 +211,10 @@ export class ImapMailbox implements MailboxClient {
           text: stripQuoted(parsed.text ?? "").slice(0, 8000),
           date: parsed.date ?? new Date(),
           automated,
+          authenticated: senderAuthenticated(
+            parsed.headerLines.filter((h) => h.key === "authentication-results").map((h) => h.line),
+            from.address,
+          ),
           attachmentNames: parsed.attachments.map((a) => a.filename ?? "attachment"),
         });
       }
@@ -205,7 +226,9 @@ export class ImapMailbox implements MailboxClient {
   }
 
   async send(message: OutgoingEmail): Promise<{ messageId: string }> {
-    const info = await this.smtp().sendMail({
+    const info = await (
+      await this.smtp()
+    ).sendMail({
       from: { name: message.fromName, address: this.creds.username },
       to: message.to,
       subject: message.subject,
@@ -236,3 +259,19 @@ export const MAILBOX_PRESETS: Record<string, { imap: MailServer; smtp: MailServe
     smtp: { host: "smtp.mail.yahoo.com", port: 465, secure: true },
   },
 };
+
+/**
+ * Reads the receiving server's verdict (the topmost Authentication-Results header, which the
+ * server adds itself). DMARC pass, or DKIM pass signed by the From domain (or its parent).
+ */
+export function senderAuthenticated(headers: string[], fromAddress: string): boolean {
+  const top = (headers[0] ?? "").toLowerCase();
+  if (!top) return false;
+  if (/\bdmarc=pass\b/.test(top)) return true;
+  const fromDomain = fromAddress.toLowerCase().split("@")[1] ?? "";
+  for (const m of top.matchAll(/\bdkim=pass\b[^;]*?header\.(?:d|i)=@?([a-z0-9.-]+)/g)) {
+    const signer = m[1]!;
+    if (fromDomain === signer || fromDomain.endsWith(`.${signer}`)) return true;
+  }
+  return false;
+}

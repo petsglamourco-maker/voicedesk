@@ -1,5 +1,5 @@
 import type { ConversationState } from "@voicedesk/agent-brain";
-import { can } from "@voicedesk/core";
+import { can, recordAudit } from "@voicedesk/core";
 import {
   conversationMessages,
   conversations,
@@ -231,6 +231,18 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
           ),
       );
       if (!row?.key) throw notFound();
+      // Recordings are personal data: every download is audited (security audit H6).
+      await withTenant(deps.db, access.tenantId, (tx) =>
+        recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: access.session.user.id,
+          action: "call.recording_downloaded",
+          targetType: "conversation",
+          targetId: request.params.callId,
+          ipAddress: request.ip ?? null,
+        }),
+      );
       const audio = await deps.storage.get(row.key);
       if (!audio) throw notFound();
       return reply

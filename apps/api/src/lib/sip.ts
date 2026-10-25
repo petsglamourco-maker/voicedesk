@@ -82,6 +82,7 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
     LIVEKIT_URL.replace(/^ws/, "http"),
     LIVEKIT_API_KEY,
     LIVEKIT_API_SECRET,
+    { requestTimeout: 15 }, // dialling has its own 30 s (security audit M15)
   );
   const list = (value: string | undefined) =>
     (value ?? "")
@@ -135,8 +136,20 @@ export function sipGatewayFromEnv(env: NodeJS.ProcessEnv = process.env): SipGate
       const outbound = outboundFromEnv(env, carrier);
       if (!outbound) throw new Error(`Outbound calling through ${carrier} isn't set up`);
       // One LiveKit outbound trunk per business number (its caller ID), created on first use.
+      // The carrier login is refreshed from .env on every call, so changing it takes effect
+      // (a stale copy made Twilio reject calls with 32202 "bad user credentials").
       const name = `voicedesk out ${from}`;
-      const existing = (await sip.listSipOutboundTrunk()).find((t) => t.name === name);
+      let existing = (await sip.listSipOutboundTrunk()).find((t) => t.name === name);
+      if (existing && existing.address !== outbound.host) {
+        await sip.deleteSipTrunk(existing.sipTrunkId).catch(() => undefined);
+        existing = undefined;
+      }
+      if (existing) {
+        await sip.updateSipOutboundTrunkFields(existing.sipTrunkId, {
+          authUsername: outbound.username,
+          authPassword: outbound.password,
+        });
+      }
       const trunkId =
         existing?.sipTrunkId ??
         (

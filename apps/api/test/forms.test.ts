@@ -87,6 +87,7 @@ describe("form capture", () => {
       businessName: "Forms Co",
       title: "Ask us anything",
       intro: null,
+      siteKey: null,
     });
 
     const before = h.jobs.channels.length;
@@ -117,7 +118,7 @@ describe("form capture", () => {
       headers: { origin: "https://evil.example" },
       payload: hosted(),
     });
-    expect(elsewhere.statusCode).toBe(404);
+    expect(elsewhere.statusCode).toBe(403); // cross-site check (audit M1)
     for (const payload of [hosted({ website: "http://spam" }), hosted({ elapsedMs: 300 })]) {
       const res = await h.app.inject({
         method: "POST",
@@ -150,6 +151,7 @@ describe("form capture", () => {
     const json = await h.app.inject({
       method: "POST",
       url: view.webhookPath,
+      headers: { origin: ORIGIN },
       payload: { name: "Jo", email: "jo@example.com", enquiry: "Price list?" },
     });
     expect(json.statusCode).toBe(202);

@@ -1,7 +1,7 @@
 import { createHmac } from "node:crypto";
 import { MockEmbeddingProvider, MockLlmProvider } from "@voicedesk/adapters";
 import { handleInboundMessage } from "@voicedesk/agent-brain";
-import { conversationMessages, user, withTenant } from "@voicedesk/db";
+import { conversationMessages, withTenant } from "@voicedesk/db";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { whatsAppSender } from "../src/routes/whatsapp";
@@ -10,6 +10,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -26,7 +27,7 @@ beforeAll(async () => {
     whatsapp: { accessToken: "token", appSecret: SECRET, verifyToken: VERIFY },
   });
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await makePlatformOwner(h, platform);
   biz = await createOwnerWithTenant(h, "WhatsApp Co");
 });
 afterAll(() => h.close());

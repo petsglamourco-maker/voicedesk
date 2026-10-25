@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
+import { DASHBOARD_TIMEOUT } from "./accounts";
 import { waitForEmailLink } from "./mailpit";
 
 const PASSWORD = "e2e-password-123";
@@ -19,7 +20,7 @@ async function createBusiness(page: Page, name: string): Promise<string> {
   await expect(page.getByRole("heading", { name: "Add your business" })).toBeVisible();
   await page.getByLabel("Business name").fill(name);
   await page.getByRole("button", { name: "Create business" }).click();
-  await expect(page.getByRole("heading", { name })).toBeVisible();
+  await expect(page.getByRole("heading", { name })).toBeVisible({ timeout: DASHBOARD_TIMEOUT });
   return new URL(page.url()).pathname.split("/")[2]!;
 }
 
@@ -41,7 +42,7 @@ test("sign up, create a business, invite staff who sees only that business", asy
   const tenantId = await createBusiness(owner, `Bright Dental ${run}`);
   expect(tenantId).not.toBe(otherTenant);
   await expect(owner.getByText("Your role: Owner")).toBeVisible();
-  await expect(owner.getByText("tenant.created")).toBeVisible();
+  await expect(owner.getByText("Business created")).toBeVisible();
 
   // ── Owner: invite a staff member ───────────────────────────────────────────
   await owner.getByRole("link", { name: "Team" }).click();
@@ -83,7 +84,7 @@ test("sign up, create a business, invite staff who sees only that business", asy
   await owner.reload();
   await expect(owner.getByTestId("member-list")).toContainText(staffEmail);
   await owner.getByRole("link", { name: "Dashboard" }).click();
-  await expect(owner.getByText("member.joined")).toBeVisible();
+  await expect(owner.getByText("Teammate joined")).toBeVisible();
 
   await ownerContext.close();
   await staffContext.close();

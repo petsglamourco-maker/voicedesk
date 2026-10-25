@@ -261,6 +261,22 @@ describe("booking flow", () => {
     expect(result.slots).toHaveLength(3);
   });
 
+  it("caps an impossible gap between bookings so one booking can't block a whole day", () => {
+    const profile = { ...PROFILE, bookingRules: { ...PROFILE.bookingRules, bufferMinutes: 2000 } };
+    const result = findSlots({
+      profile,
+      timeZone: "Europe/London",
+      date: "2026-10-19",
+      serviceName: "check-up",
+      // One booking early in the day; a 2000-minute buffer would hide every other slot.
+      busy: [
+        { startsAt: new Date("2026-10-19T08:00:00Z"), endsAt: new Date("2026-10-19T08:30:00Z") },
+      ],
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+  });
+
   it("refuses closed days and non-bookable services", () => {
     const base = { profile: PROFILE, timeZone: "Europe/London", busy: [], now: NOW };
     expect(findSlots({ ...base, date: "2026-10-25", serviceName: "Check-up" })).toMatchObject({

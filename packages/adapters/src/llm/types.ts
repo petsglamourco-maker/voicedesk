@@ -107,3 +107,6 @@ export function responseText(response: LlmResponse): string {
     .join("")
     .trim();
 }
+
+/** Most a live (realtime) turn waits for a model before giving up (security audit M15). */
+export const REALTIME_TIMEOUT_MS = 20_000;

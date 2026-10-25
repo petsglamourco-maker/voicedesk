@@ -17,7 +17,9 @@
     "./messaging/sms": "./src/messaging/sms.ts",
     "./calendar/microsoft": "./src/calendar/microsoft.ts",
     "./messaging/whatsapp-cloud": "./src/messaging/whatsapp-cloud.ts",
-    "./email/mailbox": "./src/email/mailbox.ts"
+    "./email/mailbox": "./src/email/mailbox.ts",
+    "./net": "./src/net/public-address.ts",
+    "./human/turnstile": "./src/human/turnstile.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

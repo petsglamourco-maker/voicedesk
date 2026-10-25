@@ -29,3 +29,6 @@ Thumbs.db
 
 # eval reports (contain transcripts)
 packages/agent-brain/evals/results/
+
+# Design review screenshots (scripts/screens.mjs)
+.design-shots/

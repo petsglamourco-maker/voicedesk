@@ -1,14 +1,17 @@
 import {
   boolean,
+  index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { timestamps } from "./app";
+import { tenants, timestamps } from "./app";
+import { user } from "./auth";
 
 /**
  * Platform-wide settings managed by the platform owner (not tenant data, so no tenant_id).
@@ -58,5 +61,99 @@ export const aiProviders = pgTable("ai_providers", {
   lastTest: jsonb("last_test").$type<AiProviderTestResult>(),
   updatedBy: uuid("updated_by"),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  ...timestamps,
+});
+
+/**
+ * "Contact support" requests from the in-app Help assistant (ADR 0021). Anyone signed in can
+ * create one for themselves; only the platform owner reads and resolves them, under
+ * withPlatformAccess (audited). RLS in migrations (custom SQL).
+ */
+export const supportRequestStatus = pgEnum("support_request_status", ["open", "resolved"]);
+
+export const supportRequests = pgTable(
+  "support_requests",
+  {
+    id: uuid("id").primaryKey(),
+    /** The business they were in, if any. */
+    tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "set null" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** Screen they asked from (ids removed). */
+    page: text("page").notNull(),
+    message: text("message").notNull(),
+    /** The help chat, only when they ticked "include this conversation". */
+    chat: jsonb("chat").$type<Array<{ role: "user" | "assistant"; text: string }>>(),
+    status: supportRequestStatus("status").notNull().default("open"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index("support_requests_status_idx").on(t.status, t.createdAt)],
+);
+
+/**
+ * Browsers/devices each account has signed in from (security audit: new-device alerts).
+ * Only a hash of the browser and OS family is kept, never the raw user agent or IP.
+ */
+export const knownDevices = pgTable(
+  "known_devices",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    deviceHash: text("device_hash").notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.deviceHash] })],
+);
+
+/** Platform-wide spending rules, kill switches and cost estimates (ADR 0022). */
+export interface PlatformSpendSettings {
+  /**
+   * Each business's monthly allowance in pence (billing tiers replace this). A business's
+   * limit is its allowance, unless `businessCaps` lets it choose a lower one.
+   */
+  maxCapPence: { ai: number; sms: number; calls: number };
+  /** Let businesses set their own (lower) limits within the allowance. Off by default. */
+  businessCaps: boolean;
+  /** Cost estimates used to work out spend; update them from provider bills. */
+  costs: {
+    /** Speech recognition + voice + LiveKit, per voice minute (pence). */
+    voicePencePerMinute: number;
+    /** Carrier charge per phone-call minute (pence). */
+    phoneInboundPencePerMinute: number;
+    phoneOutboundPencePerMinute: number;
+    /** Per text segment through a real carrier (pence). */
+    smsPencePerSegment: number;
+    /** AI costs are recorded in US dollars. */
+    usdToGbp: number;
+  };
+  /** Kill switches: every sender checks these. */
+  paused: { outboundCalls: boolean; sms: boolean; ai: boolean };
+  /** ISO countries outbound calls and texts may go to. */
+  allowedCountries: string[];
+}
+
+export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
+  maxCapPence: { ai: 10_000, sms: 10_000, calls: 10_000 },
+  businessCaps: false,
+  costs: {
+    voicePencePerMinute: 6,
+    phoneInboundPencePerMinute: 1,
+    phoneOutboundPencePerMinute: 3,
+    smsPencePerSegment: 4,
+    usdToGbp: 0.79,
+  },
+  paused: { outboundCalls: false, sms: false, ai: false },
+  allowedCountries: ["GB"],
+};
+
+/** One row ("global"). Readable by everyone; written only under withPlatformAccess. */
+export const platformSettings = pgTable("platform_settings", {
+  id: text("id").primaryKey().default("global"),
+  spend: jsonb("spend").$type<PlatformSpendSettings>().notNull(),
+  updatedBy: uuid("updated_by"),
   ...timestamps,
 });

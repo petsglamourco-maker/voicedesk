@@ -19,6 +19,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { guardOutboundCall, mayPhoneCustomers } from "../lib/outbound-guard";
 import { carrierOf } from "../lib/phone-numbers";
 import { requireTenantAccess } from "./guards";
 
@@ -89,6 +90,13 @@ export function registerOutboundRoutes(app: FastifyInstance, deps: AppDeps): voi
       );
       const tenantId = access.tenantId;
       const userId = access.session.user.id;
+      if (!(await mayPhoneCustomers(deps.db, tenantId, access.role))) {
+        throw new HttpError(
+          403,
+          "CALLS_OUTBOUND_OFF",
+          "Only owners and admins can phone customers for this business. An owner can allow people who answer calls to do it on the Team page.",
+        );
+      }
       const answerers = await listAnswerers(deps.db, tenantId);
       if (!answerers.some((a) => a.userId === userId)) {
         throw new HttpError(403, "NOT_AN_ANSWERER", "You don't take calls for this business");
@@ -132,6 +140,7 @@ export function registerOutboundRoutes(app: FastifyInstance, deps: AppDeps): voi
       }
       const to = normalisePhone(request.body.to, found.tenant.countryCode);
       if (!to) throw new HttpError(400, "INVALID_PHONE", "That phone number isn't valid");
+      await guardOutboundCall(deps.db, tenantId, to);
 
       const contact = await withTenant(deps.db, tenantId, async (tx) => {
         const [row] = await tx

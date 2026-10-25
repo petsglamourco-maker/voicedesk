@@ -72,7 +72,12 @@ export class MicrosoftOAuthClient {
       `https://login.microsoftonline.com/${encodeURIComponent(config.tenant ?? "common")}/oauth2/v2.0`;
   }
 
-  authorizeUrl(state: string, scopes: string[] = MICROSOFT_CALENDAR_SCOPES): string {
+  /** `codeChallenge`: PKCE S256 challenge (security audit M7). */
+  authorizeUrl(
+    state: string,
+    codeChallenge?: string,
+    scopes: string[] = MICROSOFT_CALENDAR_SCOPES,
+  ): string {
     const url = new URL(`${this.base}/authorize`);
     url.search = new URLSearchParams({
       client_id: this.config.clientId,
@@ -82,6 +87,7 @@ export class MicrosoftOAuthClient {
       scope: scopes.join(" "),
       prompt: "select_account",
       state,
+      ...(codeChallenge ? { code_challenge: codeChallenge, code_challenge_method: "S256" } : {}),
     }).toString();
     return url.toString();
   }
@@ -113,11 +119,12 @@ export class MicrosoftOAuthClient {
     };
   }
 
-  exchangeCode(code: string): Promise<MicrosoftTokens> {
+  exchangeCode(code: string, codeVerifier?: string): Promise<MicrosoftTokens> {
     return this.token({
       code,
       redirect_uri: this.config.redirectUri,
       grant_type: "authorization_code",
+      ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     });
   }
 

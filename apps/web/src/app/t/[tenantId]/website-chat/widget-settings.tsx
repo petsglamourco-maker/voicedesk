@@ -2,18 +2,30 @@
 
 import {
   Alert,
-  Badge,
   Button,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
   Input,
   Label,
   Select,
+  StatusPill,
+  Textarea,
+  useConfirm,
 } from "@voicedesk/ui";
+import {
+  Check,
+  CircleOff,
+  Code2,
+  Copy,
+  Globe,
+  MonitorSmartphone,
+  Power,
+  RefreshCw,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
+import { ScreenHero } from "@/components/screen-hero";
 
 export interface WidgetView {
   key: string;
@@ -26,10 +38,23 @@ export interface WidgetView {
   previewUrl: string;
 }
 
+const WEB = "var(--color-ch-web)";
+
+/** Three "window" dots for the browser-style frames (decorative). */
+const WINDOW_DOTS = (
+  <span aria-hidden className="flex shrink-0 items-center gap-1.5">
+    <span className="size-2.5 rounded-full bg-danger/70" />
+    <span className="size-2.5 rounded-full bg-warning/70" />
+    <span className="size-2.5 rounded-full bg-success/70" />
+  </span>
+);
+
 /** Website chat: turn it on, choose where it may appear, copy the snippet, preview it. */
 export function WidgetSettings(props: { tenantId: string; initial: WidgetView; canEdit: boolean }) {
   const t = useTranslations("websiteChat");
+  const shell = useTranslations("shell");
   const common = useTranslations("common");
+  const confirm = useConfirm();
   const [widget, setWidget] = useState(props.initial);
   const [origins, setOrigins] = useState(props.initial.allowedOrigins.join("\n"));
   const [busy, setBusy] = useState(false);
@@ -65,7 +90,7 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
   }
 
   async function regenerate() {
-    if (!window.confirm(t("confirmRegenerate"))) return;
+    if (!(await confirm({ title: t("confirmRegenerate"), destructive: true }))) return;
     setBusy(true);
     try {
       setWidget(await api<WidgetView>(`${base}/regenerate`, { method: "POST" }));
@@ -75,52 +100,70 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="websiteChat"
+        eyebrow={shell("groups.channels")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {saved ? <Alert tone="success">{t("saved")}</Alert> : null}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_380px] [&>*]:min-w-0">
         <div className="space-y-6">
-          <Card>
-            <div className="flex items-center gap-2">
-              <CardTitle>{t("status")}</CardTitle>
-              {widget.enabled ? (
-                <Badge className="border-success/40 text-success">{t("on")}</Badge>
-              ) : (
-                <Badge>{t("off")}</Badge>
-              )}
-            </div>
-            <CardDescription>{t("statusHint")}</CardDescription>
+          <Card
+            style={
+              widget.enabled
+                ? {
+                    boxShadow: `0 0 40px -14px ${WEB}`,
+                    borderColor: `color-mix(in srgb, ${WEB} 40%, transparent)`,
+                  }
+                : undefined
+            }
+          >
+            <CardHead
+              icon={<Power />}
+              title={t("status")}
+              hint={t("statusHint")}
+              color={WEB}
+              aside={
+                widget.enabled ? (
+                  <StatusPill tone="success" live label={t("on")} />
+                ) : (
+                  <StatusPill tone="neutral" icon={CircleOff} label={t("off")} />
+                )
+              }
+            />
             {props.canEdit ? (
               <Button
-                className="mt-3"
+                className="mt-4"
+                variant={widget.enabled ? "secondary" : "primary"}
                 disabled={busy}
                 onClick={() => void save({ enabled: !widget.enabled })}
               >
+                <Power aria-hidden />
                 {widget.enabled ? t("turnOff") : t("turnOn")}
               </Button>
             ) : null}
           </Card>
 
           <Card>
-            <CardTitle>{t("where")}</CardTitle>
-            <CardDescription>{t("whereHint")}</CardDescription>
-            <Label htmlFor="origins" className="mt-3 block">
-              {t("websites")}
-            </Label>
-            <textarea
-              id="origins"
-              className="mt-1 h-24 w-full rounded-md border border-border bg-background p-2 font-mono text-sm"
-              placeholder="https://www.example.co.uk"
-              value={origins}
-              disabled={!props.canEdit}
-              onChange={(e) => setOrigins(e.target.value)}
-            />
-            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+            <CardHead icon={<Globe />} title={t("where")} hint={t("whereHint")} color={WEB} />
+            <div className="mt-5 space-y-1.5">
+              <Label htmlFor="origins" className="mb-0">
+                {t("websites")}
+              </Label>
+              <Textarea
+                id="origins"
+                className="h-24 min-h-24 font-mono text-sm"
+                placeholder="https://www.example.co.uk"
+                value={origins}
+                disabled={!props.canEdit}
+                onChange={(e) => setOrigins(e.target.value)}
+              />
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
               <div>
                 <Label htmlFor="title">{t("chatTitle")}</Label>
                 <Input
@@ -136,7 +179,7 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
                 <Input
                   id="color"
                   type="color"
-                  className="h-10 p-1"
+                  className="h-10 cursor-pointer p-1"
                   value={widget.color}
                   disabled={!props.canEdit}
                   onChange={(e) => setWidget({ ...widget, color: e.target.value })}
@@ -158,22 +201,32 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
               </div>
             </div>
             {props.canEdit ? (
-              <Button className="mt-4" disabled={busy} onClick={() => void save()}>
+              <Button className="mt-5" disabled={busy} onClick={() => void save()}>
                 {busy ? common("working") : t("save")}
               </Button>
             ) : null}
           </Card>
 
           <Card>
-            <CardTitle>{t("snippetTitle")}</CardTitle>
-            <CardDescription>{t("snippetHint")}</CardDescription>
-            <pre
-              className="mt-3 overflow-x-auto rounded bg-muted p-3 text-xs"
-              data-testid="widget-snippet"
-            >
-              {widget.snippet}
-            </pre>
-            <div className="mt-3 flex gap-2">
+            <CardHead
+              icon={<Code2 />}
+              title={t("snippetTitle")}
+              hint={t("snippetHint")}
+              color={WEB}
+            />
+            <div className="mt-4 overflow-hidden rounded-lg border border-border bg-background">
+              <div className="flex items-center border-b border-border px-3 py-2">
+                {WINDOW_DOTS}
+              </div>
+              <pre
+                className="overflow-x-auto p-4 font-mono text-xs leading-relaxed text-foreground"
+                data-testid="widget-snippet"
+                dir="ltr"
+              >
+                {widget.snippet}
+              </pre>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 variant="secondary"
                 size="sm"
@@ -181,10 +234,12 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
                   void navigator.clipboard.writeText(widget.snippet).then(() => setCopied(true))
                 }
               >
+                {copied ? <Check aria-hidden className="text-success" /> : <Copy aria-hidden />}
                 {copied ? t("copied") : t("copy")}
               </Button>
               {props.canEdit ? (
                 <Button variant="ghost" size="sm" disabled={busy} onClick={() => void regenerate()}>
+                  <RefreshCw aria-hidden />
                   {t("regenerate")}
                 </Button>
               ) : null}
@@ -192,19 +247,52 @@ export function WidgetSettings(props: { tenantId: string; initial: WidgetView; c
           </Card>
         </div>
 
-        <Card className="p-0">
-          <p className="px-4 pt-4 text-sm font-medium">{t("preview")}</p>
-          {widget.enabled ? (
-            <iframe
-              key={widget.key + widget.color + widget.title}
-              title={t("preview")}
-              src={widget.previewUrl}
-              className="m-4 h-[560px] w-[calc(100%-2rem)] rounded-lg border border-border"
-            />
-          ) : (
-            <p className="p-4 text-sm text-muted-foreground">{t("previewOff")}</p>
-          )}
-        </Card>
+        <div className="relative self-start lg:sticky lg:top-6">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -inset-4 rounded-[28px] opacity-60 blur-2xl"
+            style={{
+              background: `radial-gradient(60% 50% at 50% 30%, color-mix(in srgb, ${WEB} 35%, transparent), transparent 70%)`,
+            }}
+          />
+          <div className="glass relative overflow-hidden rounded-xl">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              {WINDOW_DOTS}
+              <p className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-border bg-[color-mix(in_srgb,var(--color-surface)_65%,transparent)] px-3 py-1 text-xs font-semibold text-muted-foreground">
+                <MonitorSmartphone
+                  aria-hidden
+                  className="size-3.5 shrink-0"
+                  style={{ color: WEB }}
+                />
+                <span className="truncate">{t("preview")}</span>
+              </p>
+            </div>
+            {widget.enabled ? (
+              <iframe
+                key={widget.key + widget.color + widget.title}
+                title={t("preview")}
+                src={widget.previewUrl}
+                className="block h-[560px] w-full bg-background"
+              />
+            ) : (
+              <div className="relative flex h-[360px] flex-col items-center justify-center gap-3 px-6 text-center">
+                <div aria-hidden className="dot-grid pointer-events-none absolute inset-0" />
+                <span
+                  aria-hidden
+                  className="flex size-12 items-center justify-center rounded-2xl [&_svg]:size-5"
+                  style={{
+                    color: WEB,
+                    background: `color-mix(in srgb, ${WEB} 14%, transparent)`,
+                    boxShadow: `0 0 24px -6px ${WEB}`,
+                  }}
+                >
+                  <MonitorSmartphone />
+                </span>
+                <p className="max-w-64 text-sm text-muted-foreground">{t("previewOff")}</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

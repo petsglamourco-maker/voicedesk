@@ -144,3 +144,26 @@ export const auditLog = pgTable(
   },
   (t) => [index("audit_log_tenant_created_idx").on(t.tenantId, t.createdAt)],
 );
+
+/**
+ * Every change to a contact's marketing consent, written by a database trigger on contacts
+ * whatever changed it (security audit M18, PECR/UK GDPR accountability). Append-only.
+ */
+export const consentEvents = pgTable(
+  "consent_events",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(), // "marketing"
+    granted: boolean("granted").notNull(),
+    /** Set by the app per transaction (app.consent_source), e.g. "form", "import", "staff". */
+    source: text("source"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("consent_events_contact_idx").on(t.tenantId, t.contactId, t.createdAt)],
+);

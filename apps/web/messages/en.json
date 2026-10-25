@@ -4,7 +4,9 @@
     "signOut": "Sign out",
     "working": "Working…",
     "errorGeneric": "Something went wrong. Please try again.",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -25,7 +27,23 @@
     "twoFactorTitle": "Two-step verification",
     "twoFactorBody": "Enter the 6-digit code from your authenticator app.",
     "code": "Verification code",
-    "verify": "Verify"
+    "verify": "Verify",
+    "forgotLink": "Forgot password?",
+    "forgotTitle": "Reset your password",
+    "forgotSubtitle": "Enter your email address and we'll send you a link to choose a new password.",
+    "forgotSend": "Send reset link",
+    "forgotSent": "If there's a VoiceDesk account for that address, we've emailed a link. It works once and expires in 30 minutes.",
+    "backToSignIn": "Back to sign in",
+    "resetTitle": "Choose a new password",
+    "resetSubtitle": "After this you'll be signed out on every device, and can sign in with the new password.",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "passwordsDontMatch": "The two passwords don't match.",
+    "resetSave": "Save new password",
+    "resetDone": "Your password has been changed. Every device has been signed out.",
+    "resetInvalid": "This reset link has expired or has already been used.",
+    "resetAgain": "Ask for a new link",
+    "tooManyAttempts": "Too many sign-in attempts from this network. Please wait a minute and try again."
   },
   "onboarding": {
     "title": "Add your business",
@@ -85,7 +103,8 @@
     "forms": "Forms",
     "vaConsole": "VA console",
     "feedback": "Feedback",
-    "ask": "Ask VoiceDesk"
+    "ask": "Ask VoiceDesk",
+    "usage": "Usage & limits"
   },
   "roles": {
     "owner": "Owner",
@@ -110,7 +129,9 @@
     "readOnly": "Only owners and admins can manage the team.",
     "answersCalls": "Answers calls",
     "va": "VA",
-    "vaHint": "A VA assigned by your VoiceDesk administrator. They answer handed-off calls for you."
+    "vaHint": "A VA assigned by your VoiceDesk administrator. They answer handed-off calls for you.",
+    "callOutTitle": "People who answer calls can also phone customers",
+    "callOutHint": "Owners and admins can always phone customers from the business's number. Turn this on to let staff and VAs who answer calls do it too. Calls cost money and count towards the calls limit."
   },
   "invite": {
     "title": "Join {organization}",
@@ -138,7 +159,23 @@
     "nameHint": "Shown to your team. When you take a call in the VA console, the caller hears your first name (\"You're through to Sam now\").",
     "name": "Full name",
     "saveName": "Save name",
-    "nameSaved": "Name saved."
+    "nameSaved": "Name saved.",
+    "on": "On",
+    "off": "Off",
+    "passwordTitle": "Password",
+    "passwordHint": "Use at least 10 characters. Passwords found in known data breaches aren't allowed.",
+    "currentPassword": "Current password",
+    "changePassword": "Change password",
+    "passwordSaved": "Password changed.",
+    "signOutOthers": "Sign out on all my other devices",
+    "sessionsTitle": "Where you're signed in",
+    "sessionsHint": "Sign out any device you don't recognise, then change your password. Sessions end after 7 days without use.",
+    "deviceOn": "{browser} on {os}",
+    "unknownDevice": "Unknown device",
+    "thisDevice": "This device",
+    "lastActive": "Last active {when}",
+    "signOutDevice": "Sign out",
+    "signOutEverywhere": "Sign out all other devices"
   },
   "knowledge": {
     "title": "Knowledge",
@@ -190,7 +227,7 @@
     "generateTimeout": "Generation is taking longer than expected. Refresh the page in a minute.",
     "savedNotice": "Draft saved.",
     "approvedNotice": "Approved. The assistant now uses this profile.",
-    "aiUnavailable": "AI generation needs an Anthropic API key. You can still fill in the profile by hand.",
+    "aiUnavailable": "AI generation is off because no AI provider is switched on (Platform admin → AI providers). You can still fill in the profile by hand.",
     "changed": "Differs from live",
     "basics": "Basics",
     "businessName": "Business name",
@@ -260,7 +297,8 @@
     "offerDetails": "Details",
     "offerUntil": "Valid until (optional)",
     "newCustomerSteps": "How a new customer signs up / enrols",
-    "signupUrl": "Sign-up link (optional)"
+    "signupUrl": "Sign-up link (optional)",
+    "bufferHint": "Minutes kept free between appointments, 0 to 240 (for example 10)."
   },
   "agent": {
     "title": "Assistant",
@@ -396,7 +434,10 @@
     "testing": "Testing…",
     "failed": "Something went wrong.",
     "phoneNumbers": "Phone numbers",
-    "vas": "VAs"
+    "vas": "VAs",
+    "setup": "Setup",
+    "support": "Support requests",
+    "spending": "Spending & limits"
   },
   "voice": {
     "ended": "Call ended",
@@ -550,7 +591,8 @@
       "google": "Google Calendar",
       "microsoft": "Outlook / Microsoft 365"
     },
-    "connectWith": "Connect {provider}"
+    "connectWith": "Connect {provider}",
+    "statusPickCalendar": "Choose a calendar"
   },
   "contacts": {
     "title": "Contacts",
@@ -695,7 +737,9 @@
     "cancelEdit": "Cancel",
     "discarded": "Draft not sent",
     "email": "Email",
-    "noEmail": "This customer didn't leave an email address. Call them back instead."
+    "noEmail": "This customer didn't leave an email address. Call them back instead.",
+    "shortcutMove": "move",
+    "shortcutReply": "reply"
   },
   "whatsapp": {
     "title": "WhatsApp",
@@ -707,7 +751,8 @@
     "linkHint": "Put this link on your website, emails and social profiles. It opens a WhatsApp chat with your business.",
     "windowNote": "WhatsApp rule: you can reply freely within 24 hours of the customer's last message. After that, they need to message you first.",
     "qr": "QR code",
-    "qrHint": "Print it on flyers, menus or your shop window. Scanning it opens a chat with you."
+    "qrHint": "Print it on flyers, menus or your shop window. Scanning it opens a chat with you.",
+    "qrAlt": "QR code that opens a WhatsApp chat with the business"
   },
   "whatsappAdmin": {
     "title": "WhatsApp numbers",
@@ -796,7 +841,8 @@
       "phone": "Phone field",
       "message": "Message field",
       "consent": "Consent field"
-    }
+    },
+    "headerHint": "Safer, if your form tool can add a header: post to the address without ?secret= and send the secret in this header instead, so it never appears in logs. Add an Idempotency-Key header too and retries won't create duplicate enquiries."
   },
   "hostedForm": {
     "name": "Your name",
@@ -870,7 +916,11 @@
     "dial": "Call",
     "dialling": "Calling…",
     "outboundNote": "Outbound calls aren't transcribed or recorded yet. Note anything important on the contact.",
-    "keepOpenHint": "Keep this tab open while you're available: leaving it (or closing the laptop) makes you offline within a minute, and calls then go to your backup number or the assistant takes a message."
+    "keepOpenHint": "Keep this tab open while you're available: leaving it (or closing the laptop) makes you offline within a minute, and calls then go to your backup number or the assistant takes a message.",
+    "noMicrophone": "No microphone found. Plug in a headset or microphone, then hang up and try again. You can still hear the other person.",
+    "micBlocked": "The browser isn't allowed to use your microphone. Click the icon left of the web address, set Microphone to Allow, then hang up and try again.",
+    "ringing": "Ringing…",
+    "notAnswered": "The call didn't connect: nobody answered, or the phone company refused it. Hang up and try again."
   },
   "feedbackSettings": {
     "title": "Customer feedback",
@@ -900,7 +950,8 @@
     },
     "latest": "Latest ratings",
     "empty": "No ratings yet. They appear here as customers answer.",
-    "noData": "–"
+    "noData": "–",
+    "responseRate": "Response rate"
   },
   "ratePage": {
     "title": "How did we do?",
@@ -1043,6 +1094,391 @@
     "messages": "Messages",
     "empty": "No activity yet in this period",
     "noRatings": "No ratings yet",
-    "noCalls": "No calls yet"
+    "noCalls": "No calls yet",
+    "ofAll": "{n}% of all",
+    "assistantHint": "Conversations the assistant finished without a person stepping in",
+    "team": "Your team",
+    "teamHint": "{answered} calls taken · {missed} missed",
+    "latencyShort": "Voice reply",
+    "latencyShortHint": "Median, end of speech to reply",
+    "noActivity": "Nothing has happened yet. Activity shows up here as it happens.",
+    "activity": {
+      "agent": {
+        "settings_updated": "Assistant settings changed"
+      },
+      "ai_call": {
+        "scheduled": "AI call scheduled"
+      },
+      "answerer": {
+        "added": "Call answerer added",
+        "removed": "Call answerer removed"
+      },
+      "auth": {
+        "session_created": "Someone signed in"
+      },
+      "booking": {
+        "cancelled": "Booking cancelled"
+      },
+      "call": {
+        "outbound": "Outbound call placed"
+      },
+      "contact": {
+        "deleted": "Contact deleted"
+      },
+      "contacts": {
+        "imported": "Contacts imported"
+      },
+      "conversation": {
+        "human_requested": "A customer asked for a person"
+      },
+      "email": {
+        "draft_sent": "Email reply sent"
+      },
+      "forms": {
+        "key_regenerated": "Form key renewed",
+        "settings_updated": "Form settings changed"
+      },
+      "handoff": {
+        "answered": "Your team took a call",
+        "returned": "Call handed back to the assistant",
+        "ended": "Your team ended a call"
+      },
+      "integration": {
+        "calendar_connected": "Calendar connected",
+        "calendar_disconnected": "Calendar disconnected"
+      },
+      "knowledge": {
+        "source_added": "Knowledge added",
+        "source_deleted": "Knowledge removed"
+      },
+      "mailbox": {
+        "disconnected": "Mailbox disconnected"
+      },
+      "member": {
+        "invitation_cancelled": "Invitation cancelled",
+        "invited": "Teammate invited",
+        "joined": "Teammate joined",
+        "removed": "Teammate removed",
+        "role_changed": "A teammate's role changed"
+      },
+      "platform": {
+        "access": "VoiceDesk support opened this business"
+      },
+      "profile": {
+        "approved": "Business profile approved"
+      },
+      "tenant": {
+        "created": "Business created"
+      },
+      "va": {
+        "assigned": "Virtual assistant assigned",
+        "removed": "Virtual assistant removed"
+      },
+      "widget": {
+        "settings_updated": "Website chat settings changed"
+      }
+    },
+    "busiest": "Busiest time: {day} around {hour}",
+    "fewer": "Fewer",
+    "moreLegend": "More"
+  },
+  "shell": {
+    "groups": {
+      "overview": "Overview",
+      "customers": "Customers",
+      "channels": "Channels",
+      "assistant": "Assistant",
+      "settings": "Settings"
+    },
+    "search": "Search or jump to…",
+    "collapse": "Collapse",
+    "expand": "Expand sidebar",
+    "openMenu": "Open menu",
+    "account": "Account menu",
+    "theme": "Appearance",
+    "themes": {
+      "dark": "Dark",
+      "light": "Light",
+      "system": "Match my device"
+    },
+    "notifications": "Notifications",
+    "palette": {
+      "placeholder": "Search pages, businesses and actions…",
+      "empty": "Nothing matches that.",
+      "pages": "Pages",
+      "businesses": "Switch business",
+      "actions": "Appearance"
+    },
+    "notices": {
+      "chats": "{n} conversations waiting for a person",
+      "calls": "{n} calls ringing at the VA console",
+      "none": "You're all caught up."
+    },
+    "errorTitle": "This page didn't load",
+    "errorBody": "It's usually a brief connection problem. Try again; if it keeps happening, check that VoiceDesk's servers are running.",
+    "retry": "Try again",
+    "mfaBanner": "To keep your business secure, turn on two-step login by {date}. After that, admin features need it.",
+    "mfaSetup": "Set it up now",
+    "usageLink": "See usage & limits",
+    "suspendedBanner": "This business is suspended. The assistant isn't answering, and texts and calls are stopped. Please contact VoiceDesk support.",
+    "aiCapBanner": "This month's AI allowance is used up, so the assistant is taking messages instead of answering questions.",
+    "pausedBanner": "VoiceDesk has temporarily paused {what} for all businesses.",
+    "pausedWhat": {
+      "ai": "AI answers (the assistant takes messages)",
+      "sms": "texts",
+      "calls": "outbound calls"
+    }
+  },
+  "design": {
+    "title": "Design system",
+    "description": "Every token and component of Aurora Glow, in dark and light.",
+    "colours": "Colours",
+    "type": "Typography",
+    "buttons": "Buttons",
+    "forms": "Form fields",
+    "surfaces": "Surfaces",
+    "status": "Status and feedback",
+    "kpis": "Key numbers",
+    "charts": "Charts",
+    "overlays": "Dialogs, menus and toasts",
+    "controls": "Controls",
+    "display": "Display",
+    "empty": "Empty state",
+    "table": "Data table",
+    "dark": "Dark",
+    "light": "Light"
+  },
+  "setup": {
+    "title": "Setup",
+    "subtitle": "What works on this server today, and exactly what each feature still needs. Settings go in the .env file; restart VoiceDesk after changing it.",
+    "readyCount": "Ready",
+    "localCount": "This computer only",
+    "offCount": "Not set up",
+    "state": {
+      "ready": "Ready",
+      "local": "This computer only",
+      "off": "Not set up"
+    },
+    "free": "Free",
+    "paid": "Costs money to use",
+    "needs": "Needs",
+    "how": "How to set it up",
+    "aiProviderOn": "an AI provider switched on",
+    "items": {
+      "ai": {
+        "name": "AI provider",
+        "unlocks": "The assistant's brain: chat, calls, summaries and Ask VoiceDesk.",
+        "how": "Platform admin → AI providers: switch on DeepSeek or Claude and add its API key."
+      },
+      "voice": {
+        "name": "Voice",
+        "unlocks": "Talking to the assistant: speech recognition, natural voices and live calls in the browser.",
+        "how": "Add the LiveKit, Deepgram and ElevenLabs keys to .env."
+      },
+      "phone": {
+        "name": "Phone calls",
+        "unlocks": "Customers ringing a business's phone number and reaching the assistant.",
+        "how": "Set SIP_AUTH_USERNAME and SIP_AUTH_PASSWORD in .env, then add the number under Phone numbers."
+      },
+      "email": {
+        "name": "Real emails",
+        "unlocks": "Sign-up verification, invitations, call summaries, the daily brief and email replies reach real inboxes. Until then they appear in Mailpit (localhost:8025).",
+        "how": "Use an email-sending service (Brevo or Resend have free tiers, or Gmail with an app password). Put its SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD and an EMAIL_FROM address you own in .env."
+      },
+      "sms": {
+        "name": "Text messages",
+        "unlocks": "Booking confirmations, reminders and feedback links by SMS. Until then texts appear in Mailpit.",
+        "how": "Set SMS_PROVIDER=twilio (or telnyx), that carrier's API keys, and SMS_FROM: a number that can send texts."
+      },
+      "googleCalendar": {
+        "name": "Google Calendar",
+        "unlocks": "Bookings check a business's Google Calendar for free times and add events to it.",
+        "how": "In Google Cloud Console create an OAuth client (Web application) with the redirect URI {origin}/api/integrations/google/callback, then set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+      },
+      "microsoftCalendar": {
+        "name": "Outlook / Microsoft 365",
+        "unlocks": "The same as Google Calendar, for businesses on Outlook.",
+        "how": "In Microsoft Entra (Azure) register an app with the redirect URI {origin}/api/integrations/microsoft/callback and a client secret, then set MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET."
+      },
+      "mailbox": {
+        "name": "Email inbox",
+        "unlocks": "The assistant reads a business's mailbox, answers simple emails and drafts the rest for approval.",
+        "how": "Each business connects its own mailbox on its Email page, using an app password. The server only needs SETTINGS_ENCRYPTION_KEY."
+      },
+      "whatsapp": {
+        "name": "WhatsApp",
+        "unlocks": "Customers chat with the assistant on WhatsApp.",
+        "how": "Create a Meta developer app with the WhatsApp product, then set WHATSAPP_ACCESS_TOKEN, WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN. While VoiceDesk runs on this computer, run pnpm tunnel so Meta can reach it."
+      },
+      "outbound": {
+        "name": "Outbound calls",
+        "unlocks": "The assistant calls customers back, confirms bookings by phone, and VAs dial out.",
+        "how": "Create a SIP trunk for outgoing calls (Twilio Elastic SIP Trunking, or a Telnyx credentials connection) and set its SIP_OUTBOUND_* login in .env."
+      },
+      "publicAddress": {
+        "name": "Public web address",
+        "unlocks": "Website chat on real websites, and hosted forms and rating links that customers can open.",
+        "how": "Host VoiceDesk on a server with your own domain (part of Phase 7). Until then it runs on this computer only."
+      },
+      "botCheck": {
+        "name": "Bot check (Cloudflare Turnstile)",
+        "unlocks": "Stops automated programs abusing the website chat and enquiry forms. Free, and usually invisible to people.",
+        "how": "Create a free Cloudflare account, open Turnstile and add a widget for your website address (choose the Invisible or Managed type). Copy its site key and secret key into TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY, then restart VoiceDesk."
+      }
+    },
+    "openSupport": "Open support requests"
+  },
+  "help": {
+    "title": "VoiceDesk Help",
+    "subtitle": "Answers about using VoiceDesk",
+    "helpingWith": "Helping with: {page}",
+    "open": "Open help",
+    "close": "Close help",
+    "newChat": "New chat",
+    "intro": "Hi! Ask me anything about VoiceDesk: setting something up, fixing a problem, or getting more out of it.",
+    "tryAsking": "Try asking",
+    "placeholder": "Ask anything about VoiceDesk…",
+    "send": "Ask",
+    "thinking": "Thinking…",
+    "articlesMode": "AI answers are off, so here are the matching help articles.",
+    "helpful": "Helpful",
+    "notHelpful": "Not helpful",
+    "thanks": "Thanks for the feedback.",
+    "contact": "Contact support",
+    "contactTitle": "Contact the VoiceDesk team",
+    "contactHint": "Tell us what's wrong or what you need. We'll reply by email.",
+    "messageLabel": "Your message",
+    "includeChat": "Include this help conversation",
+    "sendRequest": "Send to support",
+    "cancel": "Cancel",
+    "sent": "Sent. We'll reply by email.",
+    "backToChat": "Back to chat",
+    "privacy": "Answers come from VoiceDesk help. Don't share customers' personal details here.",
+    "error": "Help isn't available right now. Please try again.",
+    "palette": "Help & support"
+  },
+  "supportRequests": {
+    "title": "Support requests",
+    "subtitle": "Questions people sent with Contact support in the Help assistant. Reply by email, then mark them resolved.",
+    "open": "Open",
+    "resolved": "Resolved",
+    "empty": "No support requests yet",
+    "emptyHint": "When someone uses Contact support in the Help assistant, it appears here and is emailed to you.",
+    "chat": "Help conversation they shared ({n} messages)",
+    "them": "They asked",
+    "assistant": "Help replied",
+    "reply": "Reply by email",
+    "replySubject": "Your VoiceDesk support request",
+    "markResolved": "Mark resolved",
+    "reopen": "Reopen"
+  },
+  "mfa": {
+    "title": "Turn on two-step login",
+    "subtitle": "A code from your phone, as well as your password, keeps your business safe.",
+    "why": "Two-step login is required for business owners, admins and the platform owner to use admin features. Set it up below with an authenticator app (for example Google Authenticator or Microsoft Authenticator).",
+    "done": "Two-step login is on. You can use every feature again.",
+    "back": "Back to your business"
+  },
+  "reauth": {
+    "title": "Confirm it's you",
+    "description": "Enter your password to make this change. You won't be asked again for 5 minutes.",
+    "password": "Password",
+    "confirm": "Confirm",
+    "wrong": "That password isn't right.",
+    "tooMany": "Too many tries. Please wait a minute and try again."
+  },
+  "usage": {
+    "title": "Usage & limits",
+    "subtitle": "What your assistant has cost this month, against your monthly allowance.",
+    "categories": {
+      "ai": "AI",
+      "sms": "Texts",
+      "calls": "Calls"
+    },
+    "states": {
+      "ok": "Within limit",
+      "warning": "Over 80%",
+      "reached": "Limit reached"
+    },
+    "ofCap": "of {cap}",
+    "progressLabel": "{what} spend this month",
+    "effects": {
+      "ai": "When it's used up, the assistant takes messages instead of answering questions.",
+      "sms": "When it's used up, confirmations, reminders and alert texts stop. Emails still go.",
+      "calls": "When it's used up, outbound calls stop. Incoming calls are still answered."
+    },
+    "capsTitle": "Your monthly limits",
+    "capsHint": "Choose lower limits than your allowance if you like, and change them whenever you want. Owners and admins are emailed at 80% and 100%.",
+    "capLabel": "{what} limit (£ per month)",
+    "upTo": "Up to {max}",
+    "save": "Save limits",
+    "saved": "Limits saved.",
+    "invalidAmount": "Enter an amount in pounds, for example 20 or 12.50.",
+    "ownersOnly": "Only the business owner can change the limits.",
+    "estimateNote": "Amounts are estimates from VoiceDesk's provider costs. Months follow your business's time zone.",
+    "suspended": "This business is suspended, so nothing is being spent.",
+    "allowanceTitle": "Your monthly allowance",
+    "allowanceHint": "What your plan includes each month. Owners and admins are emailed at 80% and 100%.",
+    "planOnly": "Your allowance comes from your plan. If you need more, contact VoiceDesk support (with billing, you'll be able to move to a bigger plan)."
+  },
+  "spending": {
+    "title": "Spending & limits",
+    "subtitle": "Pause sending everywhere, suspend a business, and set how much each business may spend a month.",
+    "businesses": "Businesses",
+    "atLimit": "At a limit",
+    "pausedCount": "Paused switches",
+    "saved": "Saved.",
+    "pause": {
+      "title": "Emergency stop",
+      "hint": "Applies to every business at once. Use it if something is sending or calling when it shouldn't.",
+      "outboundCalls": "Pause all outbound calls",
+      "outboundCallsHint": "The assistant's callbacks and confirmation calls, and people phoning customers. Incoming calls still work.",
+      "outboundCallsConfirm": "Pause all outbound calls for every business?",
+      "sms": "Pause all texts",
+      "smsHint": "Confirmations, reminders and alert texts. Emails still go.",
+      "smsConfirm": "Pause all texts for every business?",
+      "ai": "Pause AI (take messages only)",
+      "aiHint": "The assistant takes messages without AI on every channel, so nothing is spent on AI.",
+      "aiConfirm": "Pause AI for every business? The assistant will only take messages."
+    },
+    "businessesTitle": "This month by business",
+    "businessesHint": "Spend against each business's own limits. Suspending stops a business's assistant, texts and calls straight away.",
+    "business": "Business",
+    "status": "Status",
+    "statuses": {
+      "onboarding": "Setting up",
+      "active": "Live",
+      "suspended": "Suspended"
+    },
+    "suspend": "Suspend",
+    "resume": "Resume",
+    "suspendConfirm": "Suspend {name}? Its assistant stops answering and its texts and calls stop.",
+    "resumeConfirm": "Resume {name}?",
+    "limitsTitle": "Allowances, countries and cost estimates",
+    "limitsHint": "Each business's monthly allowance. With billing, each plan will set it instead.",
+    "maxLabel": "Monthly allowance for {what} (£)",
+    "countries": "Countries calls and texts may go to",
+    "countriesHint": "Premium-rate and special-rate numbers are always blocked.",
+    "countryNeeded": "Choose at least one country.",
+    "countryNames": {
+      "GB": "United Kingdom",
+      "IE": "Ireland",
+      "FR": "France",
+      "DE": "Germany",
+      "ES": "Spain",
+      "US": "US & Canada"
+    },
+    "costsTitle": "Cost estimates",
+    "costs": {
+      "voicePencePerMinute": "Voice per minute (p): speech, voice and LiveKit",
+      "phoneInboundPencePerMinute": "Phone line, incoming (p per minute)",
+      "phoneOutboundPencePerMinute": "Phone line, outgoing (p per minute)",
+      "smsPencePerSegment": "Text, per part (p)",
+      "usdToGbp": "US dollars to pounds rate (AI costs are in dollars)"
+    },
+    "costsHint": "Estimates used to work out spend. Update them from your provider bills (Twilio, Deepgram, ElevenLabs, LiveKit).",
+    "save": "Save",
+    "businessCaps": "Let businesses set their own limits",
+    "businessCapsHint": "Off: each business can use its whole allowance, and is asked to get more when it runs out. On: owners can also choose lower limits within it."
   }
 }

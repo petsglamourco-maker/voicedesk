@@ -225,6 +225,90 @@
       "when": 1792513692036,
       "tag": "0031_assistant_actions_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1792839952858,
+      "tag": "0032_support_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1792839963596,
+      "tag": "0033_support_requests_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1792858940893,
+      "tag": "0034_known_devices",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1792858942235,
+      "tag": "0035_known_devices_grant",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1792870918223,
+      "tag": "0036_spend_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1792870919746,
+      "tag": "0037_spend_limits_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1792875927051,
+      "tag": "0038_processed_messages",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792875928444,
+      "tag": "0039_processed_messages_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1792876771169,
+      "tag": "0040_consent_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792876772421,
+      "tag": "0041_consent_events_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1792876815609,
+      "tag": "0042_append_only_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1792905232172,
+      "tag": "0043_platform_role",
+      "breakpoints": true
     }
   ]
 }

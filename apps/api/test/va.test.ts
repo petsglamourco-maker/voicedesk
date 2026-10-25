@@ -6,6 +6,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -18,7 +19,7 @@ let va: { email: string; cookie: string };
 beforeAll(async () => {
   h = await createHarness();
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await makePlatformOwner(h, platform);
   bizA = await createOwnerWithTenant(h, "VA Biz A");
   bizB = await createOwnerWithTenant(h, "VA Biz B");
   va = await signUpVerified(h, "Vicky");

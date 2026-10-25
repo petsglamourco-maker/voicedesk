@@ -28,6 +28,7 @@ import type { ChannelSender } from "./inbox";
 /** Connected support mailbox (Phase 4, ADR 0017): settings, test, and sending replies. */
 
 const params = z.object({ tenantId: z.string() });
+const MAIL_PORTS = [993, 143, 465, 587, 25, 2525];
 const server = z.object({
   host: z
     .string()
@@ -35,7 +36,14 @@ const server = z.object({
     .min(3)
     .max(253)
     .regex(/^[a-z0-9.-]+$/i, "Not a server name"),
-  port: z.number().int().min(1).max(65535),
+  // Standard mail ports only: arbitrary ports turned the mailbox test into a port scanner.
+  port: z
+    .number()
+    .int()
+    .refine(
+      (p) => MAIL_PORTS.includes(p),
+      "Use your provider's IMAP/SMTP port (993, 143, 465 or 587)",
+    ),
   secure: z.boolean(),
 });
 
@@ -95,9 +103,31 @@ export function canEmailReply(thread: { channel: string; meta: unknown }): boole
   return Boolean((thread.meta as { replyTo?: string } | null)?.replyTo);
 }
 
-function readableError(error: unknown): string {
-  const message = error instanceof Error ? error.message : "Connection failed";
-  return message.slice(0, 300);
+/**
+ * A fixed, helpful message instead of the raw server or socket error (which could reveal
+ * internal hosts and services; security audit H2).
+ */
+export function readableError(error: unknown): string {
+  const chain: string[] = [];
+  for (let e: unknown = error; e && chain.length < 5; e = (e as { cause?: unknown }).cause) {
+    const err = e as {
+      name?: string;
+      code?: string;
+      message?: string;
+      authenticationFailed?: boolean;
+    };
+    if (err.name === "BlockedHostError") {
+      return "That server address isn't allowed. Use your email provider's public IMAP/SMTP server name (for example imap.gmail.com).";
+    }
+    if (err.authenticationFailed || err.code === "EAUTH") {
+      return "The email address or app password was not accepted. Check them, and use an app password if your provider requires one.";
+    }
+    chain.push(`${err.code ?? ""} ${err.message ?? ""}`);
+  }
+  if (/STARTTLS|TLS|certificate|ssl/i.test(chain.join(" "))) {
+    return "Couldn't set up a secure (encrypted) connection. Check the port and the TLS setting for your provider.";
+  }
+  return "Couldn't connect to the mail server. Check the server names, ports and TLS setting.";
 }
 
 export function registerMailboxRoutes(app: FastifyInstance, deps: AppDeps): void {

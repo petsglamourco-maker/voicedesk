@@ -1,6 +1,13 @@
 import { createConversation, loadAgentContext } from "@voicedesk/agent-brain";
-import { conversations, phoneNumbers, user, withPlatformAccess, withTenant } from "@voicedesk/db";
-import { eq } from "drizzle-orm";
+import {
+  auditLog,
+  conversations,
+  phoneNumbers,
+  user,
+  withPlatformAccess,
+  withTenant,
+} from "@voicedesk/db";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { maskPhone, percentile } from "../src/routes/calls";
 import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
@@ -114,6 +121,16 @@ describe("call log", () => {
     });
     expect(audio.statusCode).toBe(200);
     expect(audio.headers["content-type"]).toBe("audio/wav");
+    // Listening to a recording is audited (security audit H6).
+    const audits = await withTenant(h.db, owner.tenantId, (tx) =>
+      tx
+        .select()
+        .from(auditLog)
+        .where(
+          and(eq(auditLog.action, "call.recording_downloaded"), eq(auditLog.targetId, callId)),
+        ),
+    );
+    expect(audits.length).toBeGreaterThan(0);
   });
 
   it("is invisible to other businesses", async () => {

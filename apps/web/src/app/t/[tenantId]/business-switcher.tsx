@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@voicedesk/ui";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
@@ -22,10 +23,14 @@ export function BusinessSwitcher(props: {
   }
 
   return (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="relative flex items-center text-sm">
       <span className="sr-only">{props.label}</span>
+      <Building2
+        aria-hidden
+        className="pointer-events-none absolute start-3 size-4 text-primary drop-shadow-[0_0_6px_var(--color-glow)]"
+      />
       <Select
-        className="h-9 w-56"
+        className="glass h-9 w-56 max-w-[60vw] rounded-full ps-9 text-sm font-semibold"
         value={props.currentId}
         onChange={(e) => void onChange(e.target.value)}
         data-testid="business-switcher"

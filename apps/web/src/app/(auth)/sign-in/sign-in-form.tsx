@@ -1,6 +1,8 @@
 "use client";
 
 import { Alert, Button, Input, Label } from "@voicedesk/ui";
+import { LogIn } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -25,8 +27,13 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
     });
     setPending(false);
     if (error) {
+      // 429: our account lockout explains itself; Better Auth's own limit doesn't.
       setError(
-        error.status === 403 ? t("emailNotVerified") : (error.message ?? common("errorGeneric")),
+        error.status === 403
+          ? t("emailNotVerified")
+          : error.status === 429 && error.code !== "ACCOUNT_LOCKED"
+            ? t("tooManyAttempts")
+            : (error.message ?? common("errorGeneric")),
       );
       return;
     }
@@ -38,14 +45,24 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate={false}>
+    <form method="post" onSubmit={onSubmit} className="space-y-5" noValidate={false}>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="email">{t("email")}</Label>
         <Input id="email" name="email" type="email" autoComplete="email" required />
       </div>
       <div>
-        <Label htmlFor="password">{t("password")}</Label>
+        <div className="mb-1.5 flex items-baseline justify-between gap-2">
+          <Label htmlFor="password" className="mb-0">
+            {t("password")}
+          </Label>
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {t("forgotLink")}
+          </Link>
+        </div>
         <Input
           id="password"
           name="password"
@@ -54,7 +71,8 @@ export function SignInForm({ redirectTo }: { redirectTo: string }) {
           required
         />
       </div>
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>
+        <LogIn aria-hidden />
         {pending ? common("working") : t("signIn")}
       </Button>
     </form>

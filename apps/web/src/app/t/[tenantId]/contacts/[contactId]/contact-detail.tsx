@@ -1,10 +1,45 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardTitle, Input, Label } from "@voicedesk/ui";
+import {
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CardHead,
+  Input,
+  Label,
+  StatusPill,
+  buttonVariants,
+  useConfirm,
+  type StatusTone,
+} from "@voicedesk/ui";
+import {
+  Bot,
+  CalendarCheck,
+  FileUp,
+  Hash,
+  Mail,
+  MailCheck,
+  MailX,
+  MessageSquareText,
+  MessagesSquare,
+  PenLine,
+  Pencil,
+  Phone,
+  PhoneOff,
+  Sparkles,
+  StickyNote,
+  Trash2,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
+import { ChannelDot } from "@/components/channels";
+import { ScreenHero } from "@/components/screen-hero";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 
@@ -53,12 +88,34 @@ export interface ContactDetailResponse {
   }>;
 }
 
+const SOURCE_LOOK: Record<string, { tone: StatusTone; icon: LucideIcon }> = {
+  assistant: { tone: "accent", icon: Bot },
+  import: { tone: "secondary", icon: FileUp },
+  manual: { tone: "neutral", icon: PenLine },
+};
+
+/** Badge tone for booking / ticket / message statuses. */
+const STATUS_TONE: Record<string, StatusTone> = {
+  confirmed: "success",
+  cancelled: "neutral",
+  open: "warning",
+  in_progress: "info",
+  resolved: "success",
+  closed: "neutral",
+  new: "info",
+  done: "success",
+};
+
+const ROW =
+  "rounded-lg border border-border px-3 py-2.5 text-sm transition-colors hover:border-primary/40";
+
 /** One contact: details (editable) and everything the assistant has done for them. */
 export function ContactDetail(props: { tenantId: string; initial: ContactDetailResponse }) {
   const t = useTranslations("contacts");
   const common = useTranslations("common");
   const format = useFormatter();
   const router = useRouter();
+  const confirm = useConfirm();
   const [contact, setContact] = useState(props.initial.contact);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -95,7 +152,7 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
   }
 
   async function remove() {
-    if (!window.confirm(t("confirmDelete"))) return;
+    if (!(await confirm({ title: t("confirmDelete"), destructive: true }))) return;
     setBusy(true);
     try {
       await api(url, { method: "DELETE" });
@@ -109,23 +166,26 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
 
   const d = props.initial;
   return (
-    <div className="space-y-6">
-      <div>
-        <Link
-          href={`/t/${props.tenantId}/contacts`}
-          className="text-sm text-primary hover:underline"
-        >
-          ← {t("back")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight" dir="auto">
-          {contact.fullName ?? contact.phone ?? contact.email}
-        </h1>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="contacts"
+        eyebrow={
+          <Link href={`/t/${props.tenantId}/contacts`} className="hover:underline">
+            <span aria-hidden className="rtl:hidden">
+              ←{" "}
+            </span>
+            {t("back")}
+          </Link>
+        }
+        title={contact.fullName ?? contact.phone ?? contact.email}
+        titleProps={{ dir: "auto" }}
+        actions={<Avatar name={contact.fullName ?? contact.phone ?? "?"} size="lg" />}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
 
       <Card>
         {editing ? (
-          <form onSubmit={(e) => void save(e)} className="grid gap-3 sm:grid-cols-2">
+          <form method="post" onSubmit={(e) => void save(e)} className="grid gap-3 sm:grid-cols-2">
             <div>
               <Label htmlFor="fullName">{t("field.fullName")}</Label>
               <Input id="fullName" name="fullName" defaultValue={contact.fullName ?? ""} />
@@ -144,6 +204,7 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
             </div>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
               <input
+                className="size-4 accent-primary"
                 type="checkbox"
                 name="marketingConsent"
                 defaultChecked={contact.marketingConsent}
@@ -151,7 +212,12 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
               {t("field.marketingConsent")}
             </label>
             <label className="flex items-center gap-2 text-sm sm:col-span-2">
-              <input type="checkbox" name="doNotCall" defaultChecked={contact.doNotCall} />
+              <input
+                className="size-4 accent-primary"
+                type="checkbox"
+                name="doNotCall"
+                defaultChecked={contact.doNotCall}
+              />
               {t("field.doNotCall")}
             </label>
             <div className="flex gap-2 sm:col-span-2">
@@ -164,49 +230,78 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
             </div>
           </form>
         ) : (
-          <div className="space-y-2 text-sm">
-            <dl className="grid gap-2 sm:grid-cols-2">
-              <div>
-                <dt className="text-muted-foreground">{t("field.phone")}</dt>
-                <dd>{contact.phone ?? "—"}</dd>
+          <div className="space-y-4 text-sm">
+            <dl className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
+              <div className="flex gap-3 rounded-lg border border-border px-3 py-2.5">
+                <Phone className="mt-0.5 size-4 shrink-0 text-ch-voice" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">{t("field.phone")}</dt>
+                  <dd className="tabular font-medium">{contact.phone ?? "—"}</dd>
+                </div>
               </div>
-              <div>
-                <dt className="text-muted-foreground">{t("field.email")}</dt>
-                <dd>{contact.email ?? "—"}</dd>
+              <div className="flex gap-3 rounded-lg border border-border px-3 py-2.5">
+                <Mail className="mt-0.5 size-4 shrink-0 text-ch-email" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">{t("field.email")}</dt>
+                  <dd className="font-medium break-words">{contact.email ?? "—"}</dd>
+                </div>
               </div>
-              <div className="sm:col-span-2">
-                <dt className="text-muted-foreground">{t("field.notes")}</dt>
-                <dd dir="auto">{contact.notes ?? "—"}</dd>
+              <div className="flex gap-3 rounded-lg border border-border px-3 py-2.5 sm:col-span-2">
+                <StickyNote className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-xs text-muted-foreground">{t("field.notes")}</dt>
+                  <dd dir="auto">{contact.notes ?? "—"}</dd>
+                </div>
               </div>
               {contact.interest ? (
-                <div>
-                  <dt className="text-muted-foreground">{t("interest")}</dt>
-                  <dd dir="auto">{contact.interest}</dd>
+                <div className="flex gap-3 rounded-lg border border-border px-3 py-2.5">
+                  <Sparkles className="mt-0.5 size-4 shrink-0 text-accent" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">{t("interest")}</dt>
+                    <dd dir="auto">{contact.interest}</dd>
+                  </div>
                 </div>
               ) : null}
             </dl>
-            <div className="flex flex-wrap gap-1">
-              <Badge>{contact.marketingConsent ? t("marketingYes") : t("marketingNo")}</Badge>
+            <div className="flex flex-wrap gap-1.5">
+              <StatusPill
+                tone={contact.marketingConsent ? "success" : "neutral"}
+                icon={contact.marketingConsent ? MailCheck : MailX}
+                label={contact.marketingConsent ? t("marketingYes") : t("marketingNo")}
+              />
               {contact.doNotCall ? (
-                <Badge className="border-danger/40 text-danger">{t("doNotCall")}</Badge>
+                <StatusPill tone="danger" icon={PhoneOff} label={t("doNotCall")} />
               ) : null}
               {contact.source ? (
-                <Badge>{t(`source.${contact.source}` as "source.manual")}</Badge>
+                <StatusPill
+                  tone={(SOURCE_LOOK[contact.source] ?? SOURCE_LOOK.manual!).tone}
+                  icon={(SOURCE_LOOK[contact.source] ?? SOURCE_LOOK.manual!).icon}
+                  label={t(`source.${contact.source}` as "source.manual")}
+                />
               ) : null}
             </div>
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-wrap gap-2 border-t border-border pt-4">
               {contact.phone && !contact.doNotCall ? (
                 <Link
                   href={`/va?tenant=${props.tenantId}&dial=${encodeURIComponent(contact.phone)}&contact=${contact.id}`}
-                  className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  className={buttonVariants({ size: "sm" })}
                 >
+                  <Phone aria-hidden />
                   {t("call")}
                 </Link>
               ) : null}
               <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+                <Pencil aria-hidden />
                 {t("edit")}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void remove()} disabled={busy}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-danger"
+                onClick={() => void remove()}
+                disabled={busy}
+              >
+                <Trash2 aria-hidden />
                 {t("delete")}
               </Button>
             </div>
@@ -214,24 +309,35 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
         )}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">
         <Card>
-          <CardTitle className="text-base">{t("calls")}</CardTitle>
-          <ul className="mt-2 space-y-1 text-sm">
+          <CardHead icon={<MessagesSquare />} title={t("calls")} color="var(--color-ch-voice)" />
+          <ul className="mt-4 space-y-2 text-sm">
             {d.conversations.length === 0 ? <li className="text-muted-foreground">—</li> : null}
             {d.conversations.map((c) => (
-              <li key={c.id}>
-                {c.style === "voice" ? (
-                  <Link
-                    href={`/t/${props.tenantId}/calls/${c.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {when(c.startedAt)}
-                  </Link>
-                ) : (
-                  when(c.startedAt)
-                )}{" "}
-                <span className="text-muted-foreground" dir="auto">
+              <li key={c.id} className={`flex flex-wrap items-center gap-x-2.5 gap-y-1 ${ROW}`}>
+                <ChannelDot
+                  channel={c.channel}
+                  size="sm"
+                  label={
+                    t.has(`channel.${c.channel}`)
+                      ? t(`channel.${c.channel}` as "channel.voice")
+                      : undefined
+                  }
+                />
+                <span className="tabular">
+                  {c.style === "voice" ? (
+                    <Link
+                      href={`/t/${props.tenantId}/calls/${c.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {when(c.startedAt)}
+                    </Link>
+                  ) : (
+                    when(c.startedAt)
+                  )}
+                </span>{" "}
+                <span className="min-w-0 text-muted-foreground" dir="auto">
                   {c.outcome ?? t(`channel.${c.channel}` as "channel.voice")}
                 </span>
               </li>
@@ -239,37 +345,68 @@ export function ContactDetail(props: { tenantId: string; initial: ContactDetailR
           </ul>
         </Card>
         <Card>
-          <CardTitle className="text-base">{t("bookings")}</CardTitle>
-          <ul className="mt-2 space-y-1 text-sm">
+          <CardHead icon={<CalendarCheck />} title={t("bookings")} color="var(--color-primary)" />
+          <ul className="mt-4 space-y-2 text-sm">
             {d.bookings.length === 0 ? <li className="text-muted-foreground">—</li> : null}
             {d.bookings.map((b) => (
-              <li key={b.id}>
-                <span className="font-mono">{b.reference}</span> {b.service} · {when(b.startsAt)}
-                {b.status !== "confirmed" ? <Badge className="ms-2">{b.status}</Badge> : null}
+              <li key={b.id} className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${ROW}`}>
+                <Badge className="font-mono">
+                  <Hash aria-hidden />
+                  {b.reference}
+                </Badge>{" "}
+                <span className="font-medium" dir="auto">
+                  {b.service}
+                </span>
+                <span className="tabular text-muted-foreground">· {when(b.startsAt)}</span>
+                {b.status !== "confirmed" ? (
+                  <Badge tone={STATUS_TONE[b.status] ?? "neutral"} className="ms-auto">
+                    {b.status}
+                  </Badge>
+                ) : null}
               </li>
             ))}
           </ul>
         </Card>
         <Card>
-          <CardTitle className="text-base">{t("tickets")}</CardTitle>
-          <ul className="mt-2 space-y-1 text-sm">
+          <CardHead icon={<TriangleAlert />} title={t("tickets")} color="var(--color-danger)" />
+          <ul className="mt-4 space-y-2 text-sm">
             {d.tickets.length === 0 ? <li className="text-muted-foreground">—</li> : null}
             {d.tickets.map((x) => (
-              <li key={x.id} dir="auto">
-                <span className="font-mono">{x.reference}</span> {x.summary}{" "}
-                <Badge>{x.status}</Badge>
+              <li
+                key={x.id}
+                dir="auto"
+                className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${ROW}`}
+              >
+                <Badge className="font-mono">
+                  <Hash aria-hidden />
+                  {x.reference}
+                </Badge>{" "}
+                <span className="min-w-0 flex-1">{x.summary}</span>{" "}
+                <Badge tone={STATUS_TONE[x.status] ?? "neutral"}>{x.status}</Badge>
               </li>
             ))}
           </ul>
         </Card>
         <Card>
-          <CardTitle className="text-base">{t("messages")}</CardTitle>
-          <ul className="mt-2 space-y-1 text-sm">
+          <CardHead
+            icon={<MessageSquareText />}
+            title={t("messages")}
+            color="var(--color-secondary)"
+          />
+          <ul className="mt-4 space-y-2 text-sm">
             {d.messages.length === 0 ? <li className="text-muted-foreground">—</li> : null}
             {d.messages.map((m) => (
-              <li key={m.id} dir="auto">
-                <span className="font-mono">{m.reference}</span> {m.reason}{" "}
-                <Badge>{m.status}</Badge>
+              <li
+                key={m.id}
+                dir="auto"
+                className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${ROW}`}
+              >
+                <Badge className="font-mono">
+                  <Hash aria-hidden />
+                  {m.reference}
+                </Badge>{" "}
+                <span className="min-w-0 flex-1">{m.reason}</span>{" "}
+                <Badge tone={STATUS_TONE[m.status] ?? "neutral"}>{m.status}</Badge>
               </li>
             ))}
           </ul>

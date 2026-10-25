@@ -17,6 +17,7 @@ import { z } from "zod";
 import { localDateString, zonedToUtc } from "./availability";
 import { feedbackStats } from "./feedback";
 import { recordLlmUsage } from "./usage";
+import { neutraliseMarkers } from "./untrusted";
 
 /**
  * "Ask VoiceDesk" (Phase 6, ADR 0020): a back-office assistant for owners and staff. It reads
@@ -502,7 +503,7 @@ export async function askBackOffice(
       results.push({
         type: "tool_result",
         toolUseId: block.id,
-        content: JSON.stringify(content).slice(0, 12_000),
+        content: neutraliseMarkers(JSON.stringify(content).slice(0, 12_000)),
         ...(isError ? { isError: true } : {}),
       });
     }

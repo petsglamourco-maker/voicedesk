@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Input, Label, Select } from "@voicedesk/ui";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -45,7 +46,7 @@ export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form method="post" onSubmit={onSubmit} className="space-y-5">
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div>
         <Label htmlFor="name">{t("businessName")}</Label>
@@ -56,25 +57,38 @@ export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
           minLength={2}
           maxLength={120}
           autoComplete="organization"
+          className="h-11"
         />
       </div>
-      <div>
-        <Label htmlFor="countryCode">{t("country")}</Label>
-        <Select
-          id="countryCode"
-          name="countryCode"
-          defaultValue="GB"
-          aria-describedby="country-hint"
-        >
-          {COUNTRIES.map((code) => (
-            <option key={code} value={code}>
-              {t(`countries.${code}`)}
-            </option>
-          ))}
-        </Select>
-        <p id="country-hint" className="mt-1 text-xs text-muted-foreground">
-          {t("moreCountriesSoon")}
-        </p>
+      <div className="grid gap-5 sm:grid-cols-2 [&>*]:min-w-0">
+        <div>
+          <Label htmlFor="countryCode">{t("country")}</Label>
+          <Select
+            id="countryCode"
+            name="countryCode"
+            defaultValue="GB"
+            aria-describedby="country-hint"
+          >
+            {COUNTRIES.map((code) => (
+              <option key={code} value={code}>
+                {t(`countries.${code}`)}
+              </option>
+            ))}
+          </Select>
+          <p id="country-hint" className="mt-1.5 text-xs text-muted-foreground">
+            {t("moreCountriesSoon")}
+          </p>
+        </div>
+        <div>
+          <Label htmlFor="defaultLanguage">{t("language")}</Label>
+          <Select id="defaultLanguage" name="defaultLanguage" defaultValue="en">
+            {LOCALES.map((code) => (
+              <option key={code} value={code}>
+                {languages(code)}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
       <div>
         <Label htmlFor="timezone">{t("timezone")}</Label>
@@ -86,17 +100,8 @@ export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
           ))}
         </Select>
       </div>
-      <div>
-        <Label htmlFor="defaultLanguage">{t("language")}</Label>
-        <Select id="defaultLanguage" name="defaultLanguage" defaultValue="en">
-          {LOCALES.map((code) => (
-            <option key={code} value={code}>
-              {languages(code)}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <Button type="submit" className="w-full" disabled={pending}>
+      <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>
+        <Building2 aria-hidden />
         {pending ? common("working") : t("create")}
       </Button>
     </form>

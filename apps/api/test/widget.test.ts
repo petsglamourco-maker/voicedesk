@@ -2,7 +2,13 @@ import { MockLlmProvider } from "@voicedesk/adapters";
 import { channelThreads, conversations, withTenant } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
+import {
+  createHarness,
+  createOwnerWithTenant,
+  ORIGIN,
+  widgetToken,
+  type TestHarness,
+} from "./harness";
 
 let h: TestHarness;
 let owner: Awaited<ReturnType<typeof createOwnerWithTenant>>;
@@ -81,20 +87,36 @@ describe("public website chat", () => {
     expect(frame.body).toMatch(/AI/); // the greeting discloses the assistant
   });
 
-  it("refuses websites that aren't allowed", async () => {
-    const res = await h.app.inject({
-      method: "POST",
-      url: `/api/public/chat/${key}/session`,
-      payload: { origin: "https://evil.example" },
+  it("needs the frame's signed token; a claimed origin isn't enough (audit M3)", async () => {
+    const token = await widgetToken(h, key);
+    for (const payload of [
+      { origin: SHOP },
+      { token: "9999999999.forged" },
+      { token: token.replace(/.$/, (c) => (c === "A" ? "B" : "A")) },
+      { token: `${Math.floor(Date.now() / 1000) - 10}.${token.split(".")[1]}` },
+    ]) {
+      const res = await h.app.inject({
+        method: "POST",
+        url: `/api/public/chat/${key}/session`,
+        headers: { origin: ORIGIN },
+        payload,
+      });
+      expect(res.statusCode, JSON.stringify(payload)).toBe(403);
+    }
+    // A token for one business's widget doesn't work for another's.
+    const events = await h.app.inject({
+      method: "GET",
+      url: `/api/public/chat/${key}/events?visitorId=${"v".repeat(24)}&t=${encodeURIComponent("1.x")}`,
     });
-    expect(res.statusCode).toBe(403);
+    expect(events.statusCode).toBe(403);
   });
 
   it("chats: streams the reply and creates a web chat thread", async () => {
     const session = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
-      payload: { origin: SHOP },
+      headers: { origin: ORIGIN },
+      payload: { token: await widgetToken(h, key) },
     });
     const { visitorId, messages } = session.json<{ visitorId: string; messages: unknown[] }>();
     expect(visitorId).toMatch(/^[A-Za-z0-9_-]{20,}$/);
@@ -104,7 +126,13 @@ describe("public website chat", () => {
     const res = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/messages`,
-      payload: { visitorId, origin: SHOP, text: "When are you open?", typedMs: 4000 },
+      headers: { origin: ORIGIN },
+      payload: {
+        visitorId,
+        token: await widgetToken(h, key),
+        text: "When are you open?",
+        typedMs: 4000,
+      },
     });
     const events = parseSse(res.body);
     expect(
@@ -128,7 +156,8 @@ describe("public website chat", () => {
     const resumed = await h.app.inject({
       method: "POST",
       url: `/api/public/chat/${key}/session`,
-      payload: { origin: SHOP, visitorId },
+      headers: { origin: ORIGIN },
+      payload: { token: await widgetToken(h, key), visitorId },
     });
     expect(
       resumed.json<{ messages: Array<{ role: string }> }>().messages.map((m) => m.role),
@@ -140,14 +169,22 @@ describe("public website chat", () => {
       await h.app.inject({
         method: "POST",
         url: `/api/public/chat/${key}/session`,
-        payload: { origin: SHOP },
+        headers: { origin: ORIGIN },
+        payload: { token: await widgetToken(h, key) },
       })
     ).json<{ visitorId: string }>();
     for (const extra of [{ website: "http://spam" }, { typedMs: 50 }]) {
       const res = await h.app.inject({
         method: "POST",
         url: `/api/public/chat/${key}/messages`,
-        payload: { visitorId, origin: SHOP, text: "buy now", typedMs: 4000, ...extra },
+        headers: { origin: ORIGIN },
+        payload: {
+          visitorId,
+          token: await widgetToken(h, key),
+          text: "buy now",
+          typedMs: 4000,
+          ...extra,
+        },
       });
       expect(res.statusCode).toBe(400);
     }

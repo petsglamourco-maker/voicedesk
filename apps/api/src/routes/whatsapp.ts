@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { parseWhatsAppWebhook } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 import { resolvePublicEndpoint } from "@voicedesk/agent-brain";
 import {
@@ -31,6 +32,13 @@ export interface WhatsAppSettings {
   accessToken: string | null;
   appSecret: string | null;
   verifyToken: string | null;
+}
+
+/** Constant-time comparison of a shared secret (security audit, low). */
+function sameSecret(given: string | undefined, expected: string): boolean {
+  const a = Buffer.from(given ?? "");
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 export function whatsAppSettingsFromEnv(env: NodeJS.ProcessEnv = process.env): WhatsAppSettings {
@@ -100,7 +108,7 @@ export function registerWhatsAppRoutes(app: FastifyInstance, deps: AppDeps): voi
       if (
         q["hub.mode"] === "subscribe" &&
         settings.verifyToken &&
-        q["hub.verify_token"] === settings.verifyToken
+        sameSecret(q["hub.verify_token"], settings.verifyToken)
       ) {
         return reply.type("text/plain").send(q["hub.challenge"] ?? "");
       }

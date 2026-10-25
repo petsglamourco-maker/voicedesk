@@ -1,6 +1,7 @@
 "use client";
 
 import { Alert, Button, Input, Label } from "@voicedesk/ui";
+import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
@@ -28,7 +29,7 @@ export default function TwoFactorPage() {
 
   return (
     <AuthShell title={t("twoFactorTitle")} description={t("twoFactorBody")}>
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form method="post" onSubmit={onSubmit} className="space-y-5">
         {error ? <Alert tone="error">{error}</Alert> : null}
         <div>
           <Label htmlFor="code">{t("code")}</Label>
@@ -39,9 +40,11 @@ export default function TwoFactorPage() {
             autoComplete="one-time-code"
             pattern="[0-9 ]{6,7}"
             required
+            className="tabular h-12 text-center font-display text-xl tracking-[0.4em]"
           />
         </div>
-        <Button type="submit" className="w-full" disabled={pending}>
+        <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>
+          <ShieldCheck aria-hidden />
           {pending ? common("working") : t("verify")}
         </Button>
       </form>

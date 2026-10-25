@@ -1,0 +1,5 @@
+# Reviewed gitleaks findings (not secrets):
+# - a made-up DeepSeek key in a test fixture
+# - a Docker image tag mistaken for a key
+74cd083b38b40c87c5208175b231c6ed545c6f4b:packages/core/test/ai-providers.test.ts:generic-api-key:76
+219edb83f05a753bc707ab3b9db955adbf4aefb4:docker-compose.yml:generic-api-key:22

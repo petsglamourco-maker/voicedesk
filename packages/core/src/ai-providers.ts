@@ -184,6 +184,7 @@ export async function updateProvider(
     if (!row) return null;
     const { apiKey, ...rest } = patch;
     let apiKeyEncrypted = row.apiKeyEncrypted;
+    // nosemgrep: ajinabraham.njsscan.crypto.timing_attack_node.node_timing_attack -- reviewed: not a secret comparison (empty-string check / content hash)
     if (apiKey !== undefined) {
       if (apiKey.trim() === "") {
         apiKeyEncrypted = null;

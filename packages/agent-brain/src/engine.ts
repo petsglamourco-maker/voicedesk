@@ -18,7 +18,9 @@ import {
 import { buildSystemPrompt } from "./prompt";
 import type { AgentServices } from "./services";
 import { initialState, stepNote, type ConversationState, type CreatedRecord } from "./state";
+import { messageOnlyTurn, unavailablePhrase } from "./message-only";
 import { runTool, toolDefinitions } from "./tools";
+import { neutraliseMarkers, untrustedBlock } from "./untrusted";
 
 export type TurnEvent =
   | { type: "tool"; name: string; input: unknown; ok: boolean; result: unknown }
@@ -146,7 +148,12 @@ export function startConversation(
     gender: ctx.persona.gender,
   });
   // Recording notice (brief §3.3) goes right after the AI disclosure, before the question.
-  const text = options.recordingNotice ? `${hello} ${recordingNotice(language)}` : hello;
+  // A suspended business (ADR 0022) only says the service isn't available.
+  const text = ctx.suspended
+    ? unavailablePhrase(language, ctx.businessName)
+    : options.recordingNotice
+      ? `${hello} ${recordingNotice(language)}`
+      : hello;
   // The API requires the first message to come from the user; mark the connection.
   state.history.push(
     { role: "user", content: "[Conversation started]" },
@@ -197,7 +204,36 @@ export async function runTurn(
     return { reply, state, events, usage, latencyMs: Date.now() - started };
   }
 
-  state.history.push({ role: "user", content: callerText });
+  // Suspended business, or no AI (spend cap reached / paused by the platform): fixed
+  // answers only, never a model call (ADR 0022).
+  if (ctx.suspended || ctx.aiPaused) {
+    let reply: string;
+    if (ctx.suspended) {
+      reply = unavailablePhrase(state.language, ctx.businessName);
+      state.endRequested = true;
+    } else {
+      const result = await messageOnlyTurn(deps.services, ctx, state, callerText);
+      reply = result.reply;
+      const record = result.reference
+        ? state.records.find((r) => r.reference === result.reference)
+        : undefined;
+      if (record) events.push({ type: "record", record });
+    }
+    state.history.push(
+      { role: "user", content: callerText },
+      { role: "assistant", content: reply },
+    );
+    options.onText?.(reply);
+    return { reply, state, events, usage, latencyMs: Date.now() - started };
+  }
+
+  // Customer text can't pose as the engine (security audit M2). Emails and form enquiries
+  // (email style) are longer documents from outside: framed as an untrusted block.
+  state.history.push({
+    role: "user",
+    content:
+      ctx.style === "email" ? untrustedBlock("message", callerText) : neutraliseMarkers(callerText),
+  });
   state.history.push({
     role: "system",
     content: stepNote(state, localNow(ctx), ctx.profile?.sales.primaryGoal ?? "booking"),
@@ -263,7 +299,7 @@ export async function runTurn(
         results.push({
           type: "tool_result",
           toolUseId: block.id,
-          content: JSON.stringify(outcome.result),
+          content: neutraliseMarkers(JSON.stringify(outcome.result)),
           ...(outcome.isError ? { isError: true } : {}),
         });
       }

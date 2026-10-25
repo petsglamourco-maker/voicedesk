@@ -61,7 +61,11 @@ describe("contacts and caller recognition", () => {
     expect(again.state.knownCaller?.name).toBe("Priya Shah");
     expect(again.state.knownCaller?.upcoming).toHaveLength(1);
     again.state.turns = 1;
-    expect(stepNote(again.state, "now")).toMatch(/Returning customer.*Priya Shah.*Check-up/);
+    // Recognised by number, which can be faked: the note gives no booking details (audit M8).
+    const note = stepNote(again.state, "now");
+    expect(note).toMatch(/Returning customer.*Priya Shah.*1 upcoming booking/);
+    expect(note).not.toMatch(/Check-up/);
+    expect(note).not.toContain(again.state.knownCaller!.upcoming[0]!.reference);
   });
 
   it("never overwrites details the business already has", async () => {

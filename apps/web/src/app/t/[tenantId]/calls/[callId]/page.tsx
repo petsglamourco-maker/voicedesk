@@ -1,10 +1,27 @@
-import { Badge, Card, CardTitle, cn } from "@voicedesk/ui";
+import { Badge, Card, CardHead, HeroStat, StatusPill, cn, type StatusTone } from "@voicedesk/ui";
+import {
+  AudioLines,
+  Bot,
+  Clock,
+  Flag,
+  Gauge,
+  Hash,
+  Headset,
+  ListChecks,
+  MessagesSquare,
+  PhoneForwarded,
+  PhoneMissed,
+  Sparkles,
+  Target,
+  User,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getFormatter, getTranslations } from "next-intl/server";
+import { ScreenHero } from "@/components/screen-hero";
 import { apiGetOrNull } from "@/lib/api";
-import { formatDuration, latencyTone, type CallRow } from "../format";
+import { formatDuration, latencyStatus, type CallRow } from "../format";
 
 export const metadata: Metadata = { title: "Call" };
 
@@ -41,6 +58,16 @@ interface CallDetail extends CallRow {
 const seconds = (from: string, to: string | null) =>
   to ? Math.max(0, Math.round((Date.parse(to) - Date.parse(from)) / 1000)) : null;
 
+/** Text colour per latency tone (full class names so Tailwind sees them). */
+const TONE_TEXT: Partial<Record<StatusTone, string>> = {
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
+};
+
+const sentimentTone = (v: string): StatusTone =>
+  v === "positive" ? "success" : v === "negative" ? "danger" : "neutral";
+
 export default async function CallPage(props: {
   params: Promise<{ tenantId: string; callId: string }>;
 }) {
@@ -49,124 +76,203 @@ export default async function CallPage(props: {
   if (!call) notFound();
   const t = await getTranslations("calls");
   const format = await getFormatter();
+  const latency = latencyStatus(call.latency?.medianMs ?? null);
+  const LatencyIcon = latency.icon;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <Link href={`/t/${tenantId}/calls`} className="text-sm text-primary hover:underline">
-          ← {t("back")}
-        </Link>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">
-          {format.dateTime(new Date(call.startedAt), { dateStyle: "full", timeStyle: "short" })}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {call.callerPhone ?? (call.callerWithheld ? t("withheld") : "—")}
-          {call.calledNumber ? ` → ${call.calledNumber}` : ""} ·{" "}
-          {formatDuration(call.durationSeconds)}
-          {call.test ? ` · ${t("test")}` : ""}
-        </p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="calls"
+        eyebrow={
+          <Link href={`/t/${tenantId}/calls`} className="hover:underline">
+            <span aria-hidden className="rtl:hidden">
+              ←{" "}
+            </span>
+            {t("back")}
+          </Link>
+        }
+        title={format.dateTime(new Date(call.startedAt), { dateStyle: "full", timeStyle: "short" })}
+        description={
+          <>
+            {call.callerPhone ?? (call.callerWithheld ? t("withheld") : "—")}
+            {call.calledNumber ? ` → ${call.calledNumber}` : ""} ·{" "}
+            {formatDuration(call.durationSeconds)}
+            {call.test ? ` · ${t("test")}` : ""}
+          </>
+        }
+      >
+        <HeroStat
+          icon={<Clock />}
+          label={t("colDuration")}
+          value={formatDuration(call.durationSeconds)}
+          color="var(--color-ch-voice)"
+        />
+        {call.latency?.medianMs != null ? (
+          <HeroStat
+            icon={<Gauge />}
+            label={t("latencyCall")}
+            value={`${call.latency.medianMs} ms`}
+            color={`var(--color-${latency.tone})`}
+          />
+        ) : null}
+      </ScreenHero>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px] [&>*]:min-w-0">
         <div className="space-y-6">
           {call.hasRecording ? (
-            <Card>
-              <CardTitle className="text-base">{t("recording")}</CardTitle>
-              <audio
-                controls
-                preload="none"
-                className="mt-3 w-full"
-                src={`/api/tenants/${tenantId}/calls/${callId}/recording`}
-                data-testid="recording"
+            <Card variant="hero">
+              <CardHead
+                icon={<AudioLines />}
+                title={t("recording")}
+                hint={t("recordingHint")}
+                color="var(--color-accent)"
               />
-              <p className="mt-2 text-xs text-muted-foreground">{t("recordingHint")}</p>
+              <div className="mt-4 rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_60%,transparent)] p-3">
+                <audio
+                  controls
+                  preload="none"
+                  className="w-full"
+                  src={`/api/tenants/${tenantId}/calls/${callId}/recording`}
+                  data-testid="recording"
+                />
+              </div>
             </Card>
           ) : null}
 
           <Card>
-            <CardTitle className="text-base">{t("transcript")}</CardTitle>
-            <div className="mt-3 space-y-3" data-testid="transcript">
-              {call.messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={cn("flex", m.role === "caller" ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    dir="auto"
+            <CardHead
+              icon={<MessagesSquare />}
+              title={t("transcript")}
+              color="var(--color-secondary)"
+            />
+            <ol className="mt-5 space-y-4" data-testid="transcript">
+              {call.messages.map((m, i) => {
+                const caller = m.role === "caller";
+                return (
+                  <li
+                    key={i}
                     className={cn(
-                      "max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                      m.role === "caller"
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-muted",
+                      "flex items-end gap-2.5",
+                      caller ? "flex-row-reverse" : "flex-row",
                     )}
                   >
-                    <span className="sr-only">
-                      {m.role === "caller" ? t("caller") : t("assistant")}:{" "}
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-7 shrink-0 items-center justify-center rounded-full [&_svg]:size-3.5",
+                        caller ? "bg-primary/16 text-primary" : "bg-accent/16 text-accent",
+                      )}
+                    >
+                      {caller ? <User /> : <Bot />}
                     </span>
-                    {m.content}
-                    {m.withPerson ? (
-                      <span className="mt-1 block text-[11px] opacity-70">
-                        {t("whileWithPerson")}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
+                    <div
+                      dir="auto"
+                      className={cn(
+                        "max-w-[80%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm break-words whitespace-pre-wrap",
+                        caller
+                          ? "rounded-ee-sm bg-primary text-primary-foreground shadow-[0_0_20px_-6px_var(--color-glow)]"
+                          : "rounded-es-sm border border-border bg-surface-raised",
+                      )}
+                    >
+                      <span className="sr-only">{caller ? t("caller") : t("assistant")}: </span>
+                      {m.content}
+                      {m.withPerson ? (
+                        <span className="mt-1.5 flex items-center gap-1 text-[11px] opacity-80">
+                          <Headset className="size-3 shrink-0" aria-hidden />
+                          {t("whileWithPerson")}
+                        </span>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
           </Card>
         </div>
 
         <div className="space-y-4">
           {call.handoffs?.length ? (
             <Card className="p-4" data-testid="handoffs">
-              <CardTitle className="text-base">{t("handoffTitle")}</CardTitle>
-              <ul className="mt-2 space-y-2 text-sm">
+              <CardHead icon={<Headset />} title={t("handoffTitle")} color="var(--color-accent)" />
+              <ul className="mt-3 space-y-2 text-sm">
                 {call.handoffs.map((h, i) => (
-                  <li key={i}>
-                    {h.answeredAt
-                      ? t("handoffAnswered", {
-                          name: h.answeredBy ?? "—",
-                          wait: seconds(h.queuedAt, h.answeredAt) ?? 0,
-                          talk: formatDuration(seconds(h.answeredAt, h.endedAt)),
-                        })
-                      : t("handoffMissed", { wait: seconds(h.queuedAt, h.endedAt) ?? 0 })}
-                    {h.status === "returned" ? ` ${t("handoffReturned")}` : ""}
-                    {h.reason ? (
-                      <span className="block text-xs text-muted-foreground" dir="auto">
-                        “{h.reason}”
-                      </span>
-                    ) : null}
+                  <li
+                    key={i}
+                    className="flex gap-2.5 rounded-lg border border-border px-3 py-2.5 transition-colors hover:border-primary/40"
+                  >
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full [&_svg]:size-3",
+                        h.answeredAt ? "bg-success/14 text-success" : "bg-danger/14 text-danger",
+                      )}
+                    >
+                      {h.answeredAt ? <PhoneForwarded /> : <PhoneMissed />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      {h.answeredAt
+                        ? t("handoffAnswered", {
+                            name: h.answeredBy ?? "—",
+                            wait: seconds(h.queuedAt, h.answeredAt) ?? 0,
+                            talk: formatDuration(seconds(h.answeredAt, h.endedAt)),
+                          })
+                        : t("handoffMissed", { wait: seconds(h.queuedAt, h.endedAt) ?? 0 })}
+                      {h.status === "returned" ? ` ${t("handoffReturned")}` : ""}
+                      {h.reason ? (
+                        <span className="mt-1 block text-xs text-muted-foreground" dir="auto">
+                          “{h.reason}”
+                        </span>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>
             </Card>
           ) : null}
+
           <Card className="p-4">
-            <CardTitle className="text-base">{t("summary")}</CardTitle>
+            <CardHead icon={<Sparkles />} title={t("summary")} color="var(--color-accent)" />
             {call.summary ? (
-              <div className="mt-2 space-y-2 text-sm" dir="auto">
-                <p>{call.summary.summary}</p>
-                <p className="text-xs text-muted-foreground">
-                  {call.summary.intent} · {call.summary.outcome} · {call.summary.sentiment}
-                </p>
+              <div className="mt-3 space-y-3 text-sm" dir="auto">
+                <p className="leading-relaxed">{call.summary.summary}</p>
+                {call.summary.outcome ? (
+                  <p className="flex gap-2 text-xs text-muted-foreground">
+                    <Target className="mt-px size-3.5 shrink-0 text-primary" aria-hidden />
+                    <span className="min-w-0">{call.summary.outcome}</span>
+                  </p>
+                ) : null}
+                <div className="flex flex-wrap gap-1.5">
+                  {call.summary.intent ? (
+                    <Badge tone="secondary">{call.summary.intent}</Badge>
+                  ) : null}
+                  {call.summary.sentiment ? (
+                    <Badge tone={sentimentTone(call.summary.sentiment)}>
+                      {call.summary.sentiment}
+                    </Badge>
+                  ) : null}
+                </div>
                 {call.summary.actionItems?.length ? (
-                  <ul className="list-disc ps-5 text-xs">
+                  <ul className="space-y-1.5 text-xs">
                     {call.summary.actionItems.map((a, i) => (
-                      <li key={i}>{a}</li>
+                      <li key={i} className="flex gap-2">
+                        <ListChecks className="mt-px size-3.5 shrink-0 text-primary" aria-hidden />
+                        <span className="min-w-0">{a}</span>
+                      </li>
                     ))}
                   </ul>
                 ) : null}
                 {call.summary.followUpNeeded ? (
-                  <Badge className="border-warning/40 text-warning">{t("followUp")}</Badge>
+                  <StatusPill tone="warning" icon={Flag} label={t("followUp")} />
                 ) : null}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">{t("noSummary")}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{t("noSummary")}</p>
             )}
             {call.records.length ? (
               <div className="mt-3 flex flex-wrap gap-1">
                 {call.records.map((r) => (
-                  <Badge key={r.reference} className="font-mono">
+                  <Badge key={r.reference} tone="secondary" className="font-mono">
+                    <Hash aria-hidden />
                     {r.type} {r.reference}
                   </Badge>
                 ))}
@@ -175,39 +281,49 @@ export default async function CallPage(props: {
           </Card>
 
           <Card className="p-4">
-            <CardTitle className="text-base">{t("latencyCall")}</CardTitle>
-            <p className="mt-2 text-sm">
-              {t("median")}{" "}
-              <Badge className={latencyTone(call.latency?.medianMs ?? null)}>
+            <CardHead icon={<Gauge />} title={t("latencyCall")} color="var(--color-info)" />
+            <p className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
+              <span className="text-muted-foreground">{t("median")}</span>
+              <Badge tone={latency.tone} className="tabular">
+                <LatencyIcon aria-hidden />
                 {call.latency?.medianMs == null ? "—" : `${call.latency.medianMs} ms`}
               </Badge>
             </p>
             {call.latency?.turns.length ? (
-              <table className="mt-3 w-full text-xs">
-                <thead className="text-muted-foreground">
-                  <tr>
-                    <th className="text-start font-normal">#</th>
-                    <th className="text-end font-normal">{t("colTurnEnd")}</th>
-                    <th className="text-end font-normal">{t("colReply")}</th>
-                    <th className="text-end font-normal">{t("colVoice")}</th>
-                    <th className="text-end font-normal">{t("colTotal")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {call.latency.turns.map((l, i) => (
-                    <tr key={i}>
-                      <td>{i + 1}</td>
-                      <td className="text-end">{l.endOfUtteranceMs ?? "—"}</td>
-                      <td className="text-end">
-                        {l.llmFirstTextMs ?? "—"}
-                        {l.filler ? "*" : ""}
-                      </td>
-                      <td className="text-end">{l.ttsFirstByteMs ?? "—"}</td>
-                      <td className="text-end font-medium">{l.totalMs ?? "—"}</td>
+              <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                <table className="tabular w-full text-xs">
+                  <thead className="bg-[color-mix(in_srgb,var(--color-muted)_50%,transparent)] text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-1.5 text-start font-semibold">#</th>
+                      <th className="px-2 py-1.5 text-end font-semibold">{t("colTurnEnd")}</th>
+                      <th className="px-2 py-1.5 text-end font-semibold">{t("colReply")}</th>
+                      <th className="px-2 py-1.5 text-end font-semibold">{t("colVoice")}</th>
+                      <th className="px-2 py-1.5 text-end font-semibold">{t("colTotal")}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {call.latency.turns.map((l, i) => (
+                      <tr key={i} className="transition-colors hover:bg-muted/50">
+                        <td className="px-2 py-1.5 text-muted-foreground">{i + 1}</td>
+                        <td className="px-2 py-1.5 text-end">{l.endOfUtteranceMs ?? "—"}</td>
+                        <td className="px-2 py-1.5 text-end">
+                          {l.llmFirstTextMs ?? "—"}
+                          {l.filler ? "*" : ""}
+                        </td>
+                        <td className="px-2 py-1.5 text-end">{l.ttsFirstByteMs ?? "—"}</td>
+                        <td
+                          className={cn(
+                            "px-2 py-1.5 text-end font-semibold",
+                            TONE_TEXT[latencyStatus(l.totalMs ?? null).tone],
+                          )}
+                        >
+                          {l.totalMs ?? "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             ) : null}
           </Card>
         </div>

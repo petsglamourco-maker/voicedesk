@@ -1,9 +1,10 @@
 "use client";
 
-import { Alert, Badge, Button, Card, CardTitle, cn } from "@voicedesk/ui";
+import { Alert, Badge, Button, Card, CardHead, cn } from "@voicedesk/ui";
+import { AudioLines, Bot, Gauge, Mic, PhoneOff, Sparkles, Timer, UserRound } from "lucide-react";
 import { Room, RoomEvent, Track, type RemoteParticipant } from "livekit-client";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 export interface VoiceSession {
   conversationId: string;
@@ -143,57 +144,89 @@ export function VoiceCall(props: { session: VoiceSession; onEnded: () => void })
 
   const totals = latency.map(total).filter((v): v is number => v !== null);
   const medianMs = median(totals);
+  const live = !ended && agentState !== "connecting";
+  const stateColor = ended
+    ? "var(--color-muted-foreground)"
+    : agentState === "speaking"
+      ? "var(--color-primary)"
+      : agentState === "thinking"
+        ? "var(--color-warning)"
+        : "var(--color-success)";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <Card className="flex h-[560px] flex-col p-0">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex items-center gap-2 text-sm">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] [&>*]:min-w-0">
+      <Card
+        className={cn(
+          "flex h-[560px] flex-col overflow-hidden p-0 transition-[border-color,box-shadow] duration-500",
+          live && "border-primary/35 shadow-[0_0_40px_-10px_var(--color-glow)]",
+        )}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-border bg-[color-mix(in_srgb,var(--color-surface)_50%,transparent)] px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3 text-sm">
             <span
-              className={cn(
-                "inline-block size-2.5 rounded-full",
-                ended
-                  ? "bg-muted-foreground"
-                  : agentState === "speaking"
-                    ? "bg-primary"
-                    : agentState === "thinking"
-                      ? "bg-warning"
-                      : "bg-success",
-              )}
               aria-hidden
-            />
-            <span data-testid="agent-state">
-              {ended ? t("ended") : t(`state.${agentState}` as "state.listening")}
+              className="relative flex size-10 shrink-0 items-center justify-center"
+            >
+              {live ? (
+                <span
+                  className="absolute inset-0 animate-glow-pulse rounded-full blur-md"
+                  style={{ background: stateColor, opacity: 0.45 }}
+                />
+              ) : null}
+              <span
+                className="relative flex size-10 items-center justify-center rounded-full [&_svg]:size-[18px]"
+                style={{
+                  color: stateColor,
+                  background: `color-mix(in srgb, ${stateColor} 16%, transparent)`,
+                  boxShadow: live
+                    ? `0 0 0 1px color-mix(in srgb, ${stateColor} 45%, transparent)`
+                    : undefined,
+                }}
+              >
+                {ended ? (
+                  <PhoneOff />
+                ) : agentState === "speaking" ? (
+                  <AudioLines className="animate-glow-pulse" />
+                ) : agentState === "thinking" ? (
+                  <Sparkles className="animate-glow-pulse" />
+                ) : (
+                  <Mic className={cn(live && "animate-glow-pulse")} />
+                )}
+              </span>
             </span>
+            <div className="min-w-0">
+              <p className="truncate font-display font-semibold" dir="auto">
+                {props.session.personaName}
+              </p>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span
+                  className={cn("inline-block size-2 rounded-full", live && "animate-glow-pulse")}
+                  style={{ background: stateColor }}
+                  aria-hidden
+                />
+                <span data-testid="agent-state">
+                  {ended ? t("ended") : t(`state.${agentState}` as "state.listening")}
+                </span>
+              </p>
+            </div>
           </div>
           {!ended ? (
             <Button
-              variant="secondary"
+              variant="danger"
               size="sm"
+              shape="pill"
               onClick={() => void roomRef.current?.disconnect()}
             >
+              <PhoneOff aria-hidden />
               {t("hangUp")}
             </Button>
           ) : null}
         </div>
         <div className="flex-1 space-y-3 overflow-y-auto p-4" aria-live="polite">
           {segments.map((s) => (
-            <div
-              key={s.id}
-              className={cn("flex", s.role === "caller" ? "justify-end" : "justify-start")}
-            >
-              <div
-                dir="auto"
-                className={cn(
-                  "max-w-[80%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap",
-                  s.role === "caller"
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-border bg-muted",
-                )}
-              >
-                {s.text}
-              </div>
-            </div>
+            <ChatBubble key={s.id} role={s.role}>
+              {s.text}
+            </ChatBubble>
           ))}
           <div ref={bottom} />
         </div>
@@ -202,52 +235,121 @@ export function VoiceCall(props: { session: VoiceSession; onEnded: () => void })
 
       <div className="space-y-4">
         {error ? <Alert tone="error">{error}</Alert> : null}
-        <Card className="p-4">
-          <CardTitle className="text-base">{t("latency")}</CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">{t("latencyHint")}</p>
-          <p className="mt-3 text-sm">
+        <Card className="p-5">
+          <CardHead
+            icon={<Gauge />}
+            title={t("latency")}
+            hint={t("latencyHint")}
+            color="var(--color-ch-outbound)"
+          />
+          <p className="mt-4 flex items-center gap-2 text-sm">
             {t("median")}{" "}
             <Badge
               data-testid="median-latency"
-              className={cn(
-                medianMs !== null && medianMs <= 800
-                  ? "border-success/40 text-success"
-                  : "border-warning/40 text-warning",
-              )}
+              tone={medianMs !== null && medianMs <= 800 ? "success" : "warning"}
+              className="tabular px-3 py-1 text-sm"
             >
+              <Timer aria-hidden />
               {medianMs === null ? "—" : `${medianMs} ms`}
             </Badge>
           </p>
-          <table className="mt-3 w-full text-xs">
-            <caption className="caption-bottom pt-2 text-start text-muted-foreground">
-              {t("fillerHint")}
-            </caption>
-            <thead className="text-muted-foreground">
-              <tr>
-                <th className="text-start font-normal">#</th>
-                <th className="text-end font-normal">{t("colTurn")}</th>
-                <th className="text-end font-normal">{t("colLlm")}</th>
-                <th className="text-end font-normal">{t("colTts")}</th>
-                <th className="text-end font-normal">{t("colTotal")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {latency.map((l) => (
-                <tr key={l.turn}>
-                  <td>{l.turn}</td>
-                  <td className="text-end">{l.endOfUtteranceMs ?? "—"}</td>
-                  <td className="text-end" title={l.filler ? t("fillerHint") : undefined}>
-                    {l.llmFirstTextMs ?? "—"}
-                    {l.filler ? "*" : ""}
-                  </td>
-                  <td className="text-end">{l.ttsFirstByteMs ?? "—"}</td>
-                  <td className="text-end font-medium">{total(l) ?? "—"}</td>
+          <div className="mt-4 overflow-x-auto">
+            <table className="tabular w-full text-xs">
+              <caption className="caption-bottom pt-3 text-start text-muted-foreground">
+                {t("fillerHint")}
+              </caption>
+              <thead className="text-muted-foreground">
+                <tr className="border-b border-border">
+                  <th className="pb-2 text-start font-medium">#</th>
+                  <th className="pb-2 text-end font-medium">{t("colTurn")}</th>
+                  <th className="pb-2 text-end font-medium">{t("colLlm")}</th>
+                  <th className="pb-2 text-end font-medium">{t("colTts")}</th>
+                  <th className="pb-2 text-end font-medium">{t("colTotal")}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {latency.map((l) => {
+                  const sum = total(l);
+                  return (
+                    <tr key={l.turn} className="animate-rise">
+                      <td className="py-1.5 text-muted-foreground">{l.turn}</td>
+                      <td className="py-1.5 text-end">{l.endOfUtteranceMs ?? "—"}</td>
+                      <td
+                        className="py-1.5 text-end"
+                        title={l.filler ? t("fillerHint") : undefined}
+                      >
+                        {l.llmFirstTextMs ?? "—"}
+                        {l.filler ? "*" : ""}
+                      </td>
+                      <td className="py-1.5 text-end">{l.ttsFirstByteMs ?? "—"}</td>
+                      <td className="py-1.5 text-end">
+                        {sum === null ? (
+                          "—"
+                        ) : (
+                          <Badge tone={sum <= 800 ? "success" : sum <= 1500 ? "warning" : "danger"}>
+                            {sum}
+                          </Badge>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </Card>
       </div>
     </div>
+  );
+}
+
+/** One transcript bubble: the assistant on the start side, the customer on the end side. */
+export function ChatBubble(props: {
+  role: "agent" | "caller";
+  children: ReactNode;
+  /** Screen-reader prefix such as "You:" (visually hidden). */
+  label?: string;
+  /** Small line under the text (e.g. latency and cost). */
+  meta?: ReactNode;
+}) {
+  const caller = props.role === "caller";
+  return (
+    <div className={cn("flex animate-rise items-end gap-2", caller && "flex-row-reverse")}>
+      <span
+        aria-hidden
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-full [&_svg]:size-3.5",
+          caller
+            ? "bg-muted text-muted-foreground"
+            : "bg-[linear-gradient(135deg,var(--color-primary),var(--color-secondary)_60%,var(--color-accent))] text-primary-foreground shadow-[0_0_14px_-3px_var(--color-glow)]",
+        )}
+      >
+        {caller ? <UserRound /> : <Bot />}
+      </span>
+      <div
+        dir="auto"
+        className={cn(
+          "max-w-[80%] min-w-0 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed break-words whitespace-pre-wrap",
+          caller
+            ? "rounded-ee-md bg-primary text-primary-foreground shadow-[0_0_18px_-6px_var(--color-glow)]"
+            : "glass rounded-es-md",
+        )}
+      >
+        {props.label ? <span className="sr-only">{props.label} </span> : null}
+        {props.children}
+        {props.meta}
+      </div>
+    </div>
+  );
+}
+
+/** Three softly pulsing dots while the assistant is composing a reply. */
+export function TypingDots(props: { className?: string }) {
+  return (
+    <span aria-hidden className={cn("inline-flex items-center gap-1 py-1", props.className)}>
+      <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+      <span className="size-1.5 animate-pulse rounded-full bg-secondary [animation-delay:150ms]" />
+      <span className="size-1.5 animate-pulse rounded-full bg-accent [animation-delay:300ms]" />
+    </span>
   );
 }

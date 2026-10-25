@@ -1,3 +1,4 @@
+import { createHash, createHmac } from "node:crypto";
 import {
   CALENDAR_PROVIDERS,
   can,
@@ -37,12 +38,22 @@ function readCookie(request: FastifyRequest, name: string): string | undefined {
   return undefined;
 }
 
-function setNonceCookie(reply: FastifyReply, value: string, maxAge: number): void {
+function setNonceCookie(reply: FastifyReply, value: string, maxAge: number, secure: boolean): void {
   reply.header(
     "set-cookie",
-    `${NONCE_COOKIE}=${encodeURIComponent(value)}; Path=/api/integrations; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`,
+    `${NONCE_COOKIE}=${encodeURIComponent(value)}; Path=/api/integrations; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`,
   );
 }
+
+/**
+ * PKCE (security audit M7): the code verifier is derived from the one-use nonce in the
+ * HttpOnly cookie, so a stolen authorization code is useless without both.
+ */
+function pkceVerifier(secret: string, nonce: string): string {
+  return createHmac("sha256", secret).update(`pkce:${nonce}`).digest("base64url");
+}
+const pkceChallenge = (verifier: string) =>
+  createHash("sha256").update(verifier).digest("base64url");
 
 /** Calendar integrations: Google Calendar and Microsoft 365 (ADR 0014). */
 export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -50,6 +61,7 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
   const tags = ["integrations"];
   const oauth = deps.calendars?.oauth ?? {};
   const box = deps.secrets.box;
+  const secureCookie = (deps.webOrigin ?? "").startsWith("https://");
 
   function requireProvider(provider: CalendarProviderKey) {
     const client = oauth[provider];
@@ -138,8 +150,9 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
         userId: access.session.user.id,
         provider: request.params.provider,
       });
-      setNonceCookie(reply, nonce, 600);
-      return reply.redirect(client.authorizeUrl(state), 302);
+      setNonceCookie(reply, nonce, 600, secureCookie);
+      const challenge = pkceChallenge(pkceVerifier(deps.oauthStateSecret, nonce));
+      return reply.redirect(client.authorizeUrl(state, challenge), 302);
     },
   );
 
@@ -159,14 +172,11 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
     },
     async (request, reply) => {
       const session = await requireSession(deps.auth, request);
+      const nonce = readCookie(request, NONCE_COOKIE);
       const parsed = request.query.state
-        ? verifyOAuthState(
-            deps.oauthStateSecret,
-            request.query.state,
-            readCookie(request, NONCE_COOKIE),
-          )
+        ? verifyOAuthState(deps.oauthStateSecret, request.query.state, nonce)
         : null;
-      setNonceCookie(reply, "", 0); // one use only
+      setNonceCookie(reply, "", 0, secureCookie); // one use only
       // The person finishing the flow must be the one who started it, for this provider.
       if (
         !parsed ||
@@ -188,7 +198,10 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
       }
       const { client, box: secretBox } = requireProvider(provider);
       try {
-        const tokens = await client.exchangeCode(request.query.code);
+        const tokens = await client.exchangeCode(
+          request.query.code,
+          pkceVerifier(deps.oauthStateSecret, nonce ?? ""),
+        );
         if (!tokens.refreshToken) {
           return reply.redirect(`${back}?calendar=no_refresh_token`, 302);
         }
@@ -199,6 +212,15 @@ export function registerIntegrationRoutes(app: FastifyInstance, deps: AppDeps): 
           refreshToken: tokens.refreshToken,
           accountEmail: tokens.email,
         });
+        // Use the account's main calendar straight away, so bookings work without an extra
+        // step (it can still be changed on the Integrations page). Never fails the connection.
+        try {
+          const { provider: cal } = await connectedCalendar(parsed.tenantId);
+          const primary = ((await cal.listCalendars?.()) ?? []).find((c) => c.primary);
+          if (primary) await chooseCalendar(deps.db, parsed.tenantId, primary);
+        } catch (error) {
+          request.log.warn({ err: error, provider }, "choosing the primary calendar failed");
+        }
         await withTenant(deps.db, parsed.tenantId, (tx) =>
           recordAudit(tx, {
             tenantId: parsed.tenantId,

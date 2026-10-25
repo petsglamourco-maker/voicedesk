@@ -10,6 +10,7 @@ import { estimateTokens } from "@voicedesk/knowledge";
 import { desc, eq, max } from "drizzle-orm";
 import { businessProfileSchema, profileJsonSchema, type BusinessProfile } from "./profile";
 import { recordLlmUsage } from "./usage";
+import { neutraliseMarkers } from "./untrusted";
 
 /** Pages most likely to hold profile facts are read first. */
 const PRIORITY = [
@@ -87,7 +88,8 @@ export async function generateProfileDraft(
     if (used + cost > budget) continue;
     used += cost;
     parts.push(
-      `<document url="${doc.url}" title="${(doc.title ?? "").replace(/"/g, "'")}">\n${text}\n</document>`,
+      // Page text can't close the <document> tag early (security audit M2).
+      `<document url="${neutraliseMarkers(doc.url)}" title="${neutraliseMarkers(doc.title ?? "").replace(/"/g, "'")}">\n${neutraliseMarkers(text)}\n</document>`,
     );
   }
 

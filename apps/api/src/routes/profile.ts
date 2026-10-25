@@ -1,6 +1,7 @@
 import {
   approveVersion,
   businessProfileSchema,
+  MAX_BUFFER_MINUTES,
   emptyProfile,
   getProfiles,
   saveDraft,
@@ -12,6 +13,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { refuseWhenAiPaused } from "../lib/ai-pause";
 import { requireTenantAccess } from "./guards";
 
 const versionSchema = z.object({
@@ -80,6 +82,7 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
           "Switch on an AI provider in Platform admin → AI providers to generate profiles",
         );
       }
+      await refuseWhenAiPaused(deps, access.tenantId);
       await deps.jobs.enqueueAi({
         kind: "profile.generate",
         tenantId: access.tenantId,
@@ -96,7 +99,16 @@ export function registerProfileRoutes(app: FastifyInstance, deps: AppDeps): void
         tags,
         summary: "Save edits as the current draft",
         params,
-        body: businessProfileSchema,
+        body: businessProfileSchema.refine(
+          (p) => {
+            const b = p.bookingRules.bufferMinutes;
+            return b === null || (b >= 0 && b <= MAX_BUFFER_MINUTES);
+          },
+          {
+            message: `The gap between bookings must be 0 to ${MAX_BUFFER_MINUTES} minutes`,
+            path: ["bookingRules", "bufferMinutes"],
+          },
+        ),
         response: { 200: z.object({ version: z.number() }) },
       },
     },

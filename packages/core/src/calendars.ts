@@ -7,6 +7,7 @@ import {
 } from "@voicedesk/adapters/calendar/microsoft";
 import { calendarConnections, withTenant, type Database } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
+import { recordAudit } from "./audit";
 import type { SecretBox } from "./secret-box";
 
 /**
@@ -27,8 +28,11 @@ export const calendarCallbackPath = (provider: CalendarProviderKey) =>
 
 /** The OAuth parts the connect flow needs (Google and Microsoft clients both fit). */
 export interface CalendarOAuthClient {
-  authorizeUrl(state: string): string;
-  exchangeCode(code: string): Promise<{ refreshToken?: string; email?: string }>;
+  authorizeUrl(state: string, codeChallenge?: string): string;
+  exchangeCode(
+    code: string,
+    codeVerifier?: string,
+  ): Promise<{ refreshToken?: string; email?: string }>;
   revoke(token: string): Promise<void>;
 }
 
@@ -336,4 +340,35 @@ export async function tenantCalendar(
       updateRefreshToken(db, box, row, token),
     ),
   };
+}
+
+/**
+ * When someone leaves a business, a calendar they connected (their own Google or Microsoft
+ * account) stops being used: the token is revoked where possible and our copy deleted
+ * (security audit M7). Returns the provider that was disconnected, if any.
+ */
+export async function disconnectCalendarOf(
+  db: Database,
+  box: SecretBox | null,
+  oauth: Partial<Record<CalendarProviderKey, CalendarOAuthClient>>,
+  tenantId: string,
+  userId: string,
+): Promise<string | null> {
+  const row = await getCalendarConnection(db, tenantId);
+  if (!row || row.connectedBy !== userId) return null;
+  const client = isCalendarProvider(row.provider) ? oauth[row.provider] : undefined;
+  if (client && box) await client.revoke(decryptRefreshToken(box, row)).catch(() => undefined);
+  await deleteCalendarConnection(db, tenantId);
+  await withTenant(db, tenantId, (tx) =>
+    recordAudit(tx, {
+      tenantId,
+      actorType: "system",
+      actorUserId: null,
+      action: "integration.calendar_disconnected",
+      targetType: "user",
+      targetId: userId,
+      metadata: { provider: row.provider, reason: "member_removed" },
+    }),
+  );
+  return row.provider;
 }

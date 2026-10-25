@@ -29,7 +29,7 @@ test("add knowledge, approve the profile and chat with the assistant", async ({ 
   await page.getByRole("button", { name: "Add" }).click();
   await expect(page.getByTestId("source-list").getByText("Ready")).toBeVisible({ timeout: 90_000 });
   await page.getByPlaceholder("Do you have parking?").fill("Is there somewhere to park?");
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page.getByText("Mill Lane").first()).toBeVisible();
 
   // Profile: fill in by hand and approve.

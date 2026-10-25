@@ -2,16 +2,21 @@
 
 import {
   Alert,
+  Badge,
   Button,
   Card,
-  CardDescription,
-  CardTitle,
+  CardHead,
+  EmptyState,
   Input,
   Label,
   Select,
+  useConfirm,
 } from "@voicedesk/ui";
+import { Building2, MessageCircle, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
+import { ChannelDot } from "@/components/channels";
+import { WhatsAppIcon } from "@/components/shell/icons";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 
@@ -31,6 +36,7 @@ interface WhatsAppNumbers {
 export function WhatsAppNumbers() {
   const t = useTranslations("whatsappAdmin");
   const common = useTranslations("common");
+  const confirm = useConfirm();
   const [data, setData] = useState<WhatsAppNumbers | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -76,7 +82,7 @@ export function WhatsAppNumbers() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm(t("confirmRemove"))) return;
+    if (!(await confirm({ title: t("confirmRemove"), destructive: true }))) return;
     await api(`/api/platform/whatsapp-numbers/${id}`, { method: "DELETE" });
     await reload();
   }
@@ -86,19 +92,27 @@ export function WhatsAppNumbers() {
 
   return (
     <Card>
-      <CardTitle>{t("title")}</CardTitle>
-      <CardDescription>{t("hint")}</CardDescription>
+      <CardHead
+        icon={<WhatsAppIcon />}
+        title={t("title")}
+        hint={t("hint")}
+        color="var(--color-ch-whatsapp)"
+      />
       {!data.configured ? (
-        <Alert tone="error" className="mt-3">
+        <Alert tone="error" className="mt-4">
           {t("notConfigured")}
         </Alert>
       ) : null}
       {error ? (
-        <Alert tone="error" className="mt-3">
+        <Alert tone="error" className="mt-4">
           {error}
         </Alert>
       ) : null}
-      <form onSubmit={(e) => void add(e)} className="mt-4 flex flex-wrap items-end gap-3">
+      <form
+        method="post"
+        onSubmit={(e) => void add(e)}
+        className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-end [&>*]:min-w-0"
+      >
         <div>
           <Label htmlFor="wa-display">{t("number")}</Label>
           <Input
@@ -106,16 +120,16 @@ export function WhatsAppNumbers() {
             name="displayNumber"
             required
             placeholder="+44 7700 900123"
-            className="w-48"
+            className="tabular"
           />
         </div>
         <div>
           <Label htmlFor="wa-id">{t("phoneNumberId")}</Label>
-          <Input id="wa-id" name="phoneNumberId" required inputMode="numeric" className="w-52" />
+          <Input id="wa-id" name="phoneNumberId" required inputMode="numeric" className="tabular" />
         </div>
         <div>
           <Label htmlFor="wa-tenant">{t("business")}</Label>
-          <Select id="wa-tenant" name="tenantId" required className="w-56">
+          <Select id="wa-tenant" name="tenantId" required>
             {data.tenants.map((x) => (
               <option key={x.id} value={x.id}>
                 {x.name}
@@ -124,24 +138,42 @@ export function WhatsAppNumbers() {
           </Select>
         </div>
         <Button type="submit" disabled={busy}>
+          <Plus aria-hidden />
           {t("add")}
         </Button>
       </form>
-      <ul className="mt-4 divide-y divide-border text-sm">
-        {data.numbers.length === 0 ? (
-          <li className="py-2 text-muted-foreground">{t("empty")}</li>
-        ) : null}
-        {data.numbers.map((n) => (
-          <li key={n.id} className="flex flex-wrap items-center gap-3 py-2">
-            <span className="font-mono">{n.displayNumber}</span>
-            <span className="text-xs text-muted-foreground">ID {n.phoneNumberId}</span>
-            <span>{tenantName(n.tenantId)}</span>
-            <Button variant="ghost" size="sm" className="ms-auto" onClick={() => void remove(n.id)}>
-              {t("remove")}
-            </Button>
-          </li>
-        ))}
-      </ul>
+      {data.numbers.length === 0 ? (
+        <div className="mt-5 rounded-xl border border-dashed border-border">
+          <EmptyState icon={MessageCircle} title={t("empty")} className="py-8" />
+        </div>
+      ) : (
+        <ul className="mt-5 divide-y divide-border rounded-xl border border-border text-sm">
+          {data.numbers.map((n) => (
+            <li key={n.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+              <ChannelDot channel="whatsapp" />
+              <div className="min-w-0 flex-1 basis-48">
+                <p className="tabular font-display text-base font-semibold" dir="ltr">
+                  {n.displayNumber}
+                </p>
+                <p className="tabular text-xs text-muted-foreground">ID {n.phoneNumberId}</p>
+              </div>
+              <Badge tone="secondary">
+                <Building2 aria-hidden />
+                <span dir="auto">{tenantName(n.tenantId)}</span>
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-danger"
+                onClick={() => void remove(n.id)}
+              >
+                <Trash2 aria-hidden />
+                {t("remove")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

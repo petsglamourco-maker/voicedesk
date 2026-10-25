@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isLlmAvailable } from "@voicedesk/adapters";
 import { askBackOffice, scheduleCallbackFor, type ActionKind } from "@voicedesk/agent-brain";
 import { can, permissionsFor, recordAudit, type Permission } from "@voicedesk/core";
@@ -8,6 +9,7 @@ import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { refuseWhenAiPaused } from "../lib/ai-pause";
 import { cancelBookingAsStaff } from "./agent";
 import { requireTenantAccess, type TenantAccess } from "./guards";
 import { sendStaffReply } from "./inbox";
@@ -34,6 +36,10 @@ const view = (row: typeof assistantActions.$inferSelect) => ({
   result: row.result,
   createdAt: row.createdAt,
 });
+
+/** Proposals can be approved for a day; after that the situation may have changed. */
+const ACTION_TTL_MS = 24 * 60 * 60 * 1000;
+const fingerprint = (text: string) => createHash("sha256").update(text).digest("hex").slice(0, 16);
 
 export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
@@ -72,6 +78,7 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): vo
           "No AI provider is switched on (Platform admin → AI providers)",
         );
       }
+      await refuseWhenAiPaused(deps, access.tenantId);
       const [tenant] = await withTenant(deps.db, access.tenantId, (tx) =>
         tx.select().from(tenants).where(eq(tenants.id, access.tenantId)),
       );
@@ -165,6 +172,10 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): vo
       if (!can(access.role, NEEDS[kind])) {
         throw new HttpError(403, "FORBIDDEN", "Your role can't approve this action");
       }
+      // Proposals are based on the situation when they were made (security audit M9).
+      if (Date.now() - pending.createdAt.getTime() > ACTION_TTL_MS) {
+        throw new HttpError(409, "EXPIRED", "This proposal is more than a day old. Ask again.");
+      }
       const action = await claim(access, pending.id, "approving");
       const payload = action.payload as Record<string, string | null>;
       let status: "done" | "failed" = "done";
@@ -206,7 +217,19 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): vo
           action: `assistant.action_${status === "done" ? "approved" : "failed"}`,
           targetType: "assistant_action",
           targetId: action.id,
-          metadata: { kind },
+          // What exactly was approved: fingerprints, never the text (security audit M9).
+          metadata: {
+            kind,
+            proposal: fingerprint(JSON.stringify(pending.payload)),
+            edited:
+              kind === "reply" &&
+              request.body.text !== undefined &&
+              request.body.text !== (pending.payload as { text?: string }).text,
+            ...(kind === "reply" && request.body.text
+              ? { sent: fingerprint(request.body.text) }
+              : {}),
+          },
+          ipAddress: request.ip ?? null,
         });
       });
       return { status, result };
@@ -223,7 +246,38 @@ export function registerAssistantRoutes(app: FastifyInstance, deps: AppDeps): vo
         request.params.tenantId,
         "records:read",
       );
+      const [pending] = await withTenant(deps.db, access.tenantId, (tx) =>
+        tx
+          .select()
+          .from(assistantActions)
+          .where(
+            and(
+              eq(assistantActions.id, request.params.id),
+              eq(assistantActions.tenantId, access.tenantId),
+            ),
+          ),
+      );
+      if (!pending) throw notFound();
+      // Only whoever asked, or someone allowed to do it, can turn it down (security audit M9).
+      if (
+        pending.requestedBy !== access.session.user.id &&
+        !can(access.role, NEEDS[pending.kind as ActionKind])
+      ) {
+        throw new HttpError(403, "FORBIDDEN", "Your role can't decide this action");
+      }
       const row = await claim(access, request.params.id, "rejected");
+      await withTenant(deps.db, access.tenantId, (tx) =>
+        recordAudit(tx, {
+          tenantId: access.tenantId,
+          actorType: "user",
+          actorUserId: access.session.user.id,
+          action: "assistant.action_rejected",
+          targetType: "assistant_action",
+          targetId: row.id,
+          metadata: { kind: pending.kind },
+          ipAddress: request.ip ?? null,
+        }),
+      );
       return { status: row.status };
     },
   );

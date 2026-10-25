@@ -70,6 +70,15 @@ export const agentSettings = pgTable("agent_settings", {
   outboundDailyCap: integer("outbound_daily_cap").notNull().default(20),
   /** Optional TTS voice id per persona, overriding the defaults. */
   voiceIds: jsonb("voice_ids").$type<Record<string, string>>().notNull().default({}),
+  /**
+   * Monthly spend caps in pence, chosen by the business within its allowance (security
+   * batch 4, ADR 0022). AI: model costs; sms: texts; calls: voice minutes.
+   */
+  aiCapPence: integer("ai_cap_pence").notNull().default(2000),
+  smsCapPence: integer("sms_cap_pence").notNull().default(1000),
+  callsCapPence: integer("calls_cap_pence").notNull().default(2000),
+  /** Staff and VAs who answer calls may also phone customers (owners/admins always can). */
+  answerersCanCallOut: boolean("answerers_can_call_out").notNull().default(false),
   ...timestamps,
 });
 
@@ -574,4 +583,54 @@ export const assistantActions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("assistant_actions_tenant_idx").on(t.tenantId, t.status, t.createdAt)],
+);
+
+/** Spend that isn't recorded elsewhere (texts sent through a real carrier). ADR 0022. */
+export const spendEvents = pgTable(
+  "spend_events",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    category: text("category").notNull(), // "sms"
+    units: integer("units").notNull(),
+    amountPence: numeric("amount_pence", { precision: 12, scale: 4, mode: "number" }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("spend_events_tenant_created_idx").on(t.tenantId, t.createdAt)],
+);
+
+/** Spend alerts already sent (80% / 100% per category per month), so each goes out once. */
+export const spendAlerts = pgTable(
+  "spend_alerts",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    month: text("month").notNull(), // YYYY-MM in the business's time zone
+    category: text("category").notNull(), // "ai" | "sms" | "calls"
+    level: integer("level").notNull(), // 80 | 100
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("spend_alerts_once_idx").on(t.tenantId, t.month, t.category, t.level)],
+);
+
+/**
+ * Inbound messages already handled (security audit M6): providers can deliver the same
+ * webhook more than once, sometimes days apart. One row per business, channel and message id.
+ */
+export const processedMessages = pgTable(
+  "processed_messages",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    channel: text("channel").notNull(), // "whatsapp" | "form"
+    externalId: text("external_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("processed_messages_once_idx").on(t.tenantId, t.channel, t.externalId)],
 );

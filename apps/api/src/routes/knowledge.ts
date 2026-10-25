@@ -2,7 +2,13 @@ import { randomUUID } from "node:crypto";
 import { tenantKey } from "@voicedesk/adapters";
 import { recordAudit } from "@voicedesk/core";
 import { knowledgeSources, withTenant } from "@voicedesk/db";
-import { fileTypeFor, isPublicAddress, searchKnowledge } from "@voicedesk/knowledge";
+import {
+  CONTENT_TYPES,
+  contentMatches,
+  fileTypeFor,
+  isPublicAddress,
+  searchKnowledge,
+} from "@voicedesk/knowledge";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
@@ -174,16 +180,26 @@ export function registerKnowledgeRoutes(app: FastifyInstance, deps: AppDeps): vo
       const file = await request.file();
       if (!file) throw new HttpError(400, "NO_FILE", "Attach a file");
       const fileName = file.filename.replace(/[^\w.\- ]+/g, "_").slice(0, 150) || "upload";
-      if (!fileTypeFor(fileName, file.mimetype)) {
+      const type = fileTypeFor(fileName, file.mimetype);
+      if (!type) {
         throw new HttpError(400, "UNSUPPORTED_FILE", "Upload a PDF, DOCX, CSV or TXT file");
       }
       const data = await file.toBuffer(); // throws 413 above the multipart size limit
+      // The bytes must match the type; the name and the browser's MIME type aren't trusted
+      // (security audit M5).
+      if (!contentMatches(data, type)) {
+        throw new HttpError(
+          400,
+          "FILE_CONTENT_MISMATCH",
+          `This file isn't a valid ${type.toUpperCase()} file`,
+        );
+      }
       const key = tenantKey(
         access.tenantId,
         "knowledge",
         `${randomUUID()}-${fileName.replace(/ /g, "_")}`,
       );
-      await deps.storage.put({ key, body: data, contentType: file.mimetype });
+      await deps.storage.put({ key, body: data, contentType: CONTENT_TYPES[type] });
 
       const source = await withTenant(deps.db, access.tenantId, async (tx) => {
         const [row] = await tx
@@ -194,7 +210,7 @@ export function registerKnowledgeRoutes(app: FastifyInstance, deps: AppDeps): vo
             title: fileName,
             fileKey: key,
             fileName,
-            mimeType: file.mimetype,
+            mimeType: CONTENT_TYPES[type],
             createdBy: access.session.user.id,
           })
           .returning();

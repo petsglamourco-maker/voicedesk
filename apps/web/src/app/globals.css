@@ -1,57 +1,406 @@
 @import "tailwindcss";
 @source "../../../../packages/ui/src";
 
-/* Design tokens. Colours meet WCAG 2.2 AA contrast for text on their backgrounds. */
+/*
+ * "Aurora Glow" design tokens (DESIGN.md). Dark is the default and showcase; light is fully
+ * designed. The theme comes from <html data-theme="dark|light|system"> (cookie, no flash).
+ * Never hard-code colours in components: use these tokens.
+ *
+ * Contrast (WCAG 2.2 AA) is verified by src/lib/contrast.test.ts. Light-mode success, info,
+ * accent, danger, secondary and warning are one shade darker than the brief so small text
+ * (including badges on their own tint) passes 4.5:1.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 @theme {
-  --color-background: #f7f7f8;
-  --color-surface: #ffffff;
-  --color-foreground: #17171c;
-  --color-muted: #f0f0f3;
-  --color-muted-foreground: #55555f;
-  --color-border: #dcdce2;
-  --color-primary: #3b3fd8;
-  --color-primary-foreground: #ffffff;
-  --color-ring: #3b3fd8;
-  --color-danger: #b42318;
-  --color-success: #067647;
-  --color-warning: #b54708;
-  /* Dashboard: one colour per touchpoint (distinct in hue and lightness for colour-blind users). */
-  --color-ch-voice: #3b3fd8;
-  --color-ch-outbound: #7c3aed;
-  --color-ch-web: #0e9384;
-  --color-ch-whatsapp: #16a34a;
-  --color-ch-email: #d97706;
-  --color-ch-form: #db2777;
+  /* Dark (default) */
+  --color-background: #070b14;
+  --color-surface: #0f1626;
+  --color-surface-raised: #152036;
+  --color-foreground: #e8eef9;
+  --color-muted: #131c2e;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #1e293b;
+  --color-input: #64748b;
+  --color-primary: #2dd4bf;
+  --color-primary-foreground: #04211d;
+  --color-secondary: #60a5fa;
+  --color-secondary-foreground: #061a33;
+  --color-accent: #e879f9;
+  --color-accent-foreground: #2a0730;
+  --color-info: #38bdf8;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-danger-foreground: #2b0606;
+  --color-ring: #2dd4bf;
+  --color-glow: rgb(45 212 191 / 0.3);
+  --color-highlight: rgb(255 255 255 / 0.08);
+  --color-glass: rgb(15 22 38 / 0.7);
+  --color-aurora-1: #2dd4bf;
+  --color-aurora-2: #3b82f6;
+  --color-aurora-3: #d946ef;
+
+  /* Touchpoints: one colour each (official WhatsApp green); paired with icons, never alone. */
+  --color-ch-voice: #2dd4bf;
+  --color-ch-outbound: #a78bfa;
+  --color-ch-web: #60a5fa;
+  --color-ch-whatsapp: #25d366;
+  --color-ch-email: #fbbf24;
+  --color-ch-form: #f472b6;
+
   --font-sans:
-    ui-sans-serif, system-ui, "Segoe UI", Roboto, "Noto Sans", "Noto Sans Arabic", "Noto Sans SC",
+    var(--font-manrope), ui-sans-serif, system-ui, "Segoe UI", "Noto Sans Arabic", "Noto Sans SC",
     sans-serif;
+  --font-display: var(--font-sora), var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+  --animate-aurora: aurora-drift 32s ease-in-out infinite alternate;
+  --animate-glow-pulse: glow-pulse 2.4s ease-in-out infinite;
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-draw: draw 1.2s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-bar-grow: bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-rise: rise 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-gauge: gauge-fill 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #111114;
-    --color-surface: #1a1a1f;
-    --color-foreground: #ededf0;
-    --color-muted: #24242b;
-    --color-muted-foreground: #a8a8b3;
-    --color-border: #33333c;
-    --color-primary: #8b8ef5;
-    --color-primary-foreground: #111114;
-    --color-ring: #8b8ef5;
-    --color-danger: #f97066;
-    --color-success: #47cd89;
-    --color-warning: #fdb022;
-    --color-ch-voice: #8b8ef5;
-    --color-ch-outbound: #b692f6;
-    --color-ch-web: #2ed3b7;
-    --color-ch-whatsapp: #4ade80;
-    --color-ch-email: #fbbf24;
-    --color-ch-form: #f472b6;
+/* Light: pale aurora washes, crisp ink. */
+@layer base {
+  [data-theme="light"] {
+    --color-background: #f6f8fc;
+    --color-surface: #ffffff;
+    --color-surface-raised: #ffffff;
+    --color-foreground: #0b1220;
+    --color-muted: #eef2f8;
+    --color-muted-foreground: #475569;
+    --color-border: #e2e8f0;
+    --color-input: #64748b;
+    --color-primary: #0f766e;
+    --color-primary-foreground: #ffffff;
+    --color-secondary: #1d4ed8;
+    --color-secondary-foreground: #ffffff;
+    --color-accent: #a21caf;
+    --color-accent-foreground: #ffffff;
+    --color-info: #0369a1;
+    --color-success: #047857;
+    --color-warning: #92400e;
+    --color-danger: #b91c1c;
+    --color-danger-foreground: #ffffff;
+    --color-ring: #0f766e;
+    --color-glow: rgb(15 118 110 / 0.25);
+    --color-highlight: rgb(255 255 255 / 0.7);
+    --color-glass: rgb(255 255 255 / 0.8);
+    --color-aurora-1: #99f6e4;
+    --color-aurora-2: #bfdbfe;
+    --color-aurora-3: #f5d0fe;
+    --color-ch-voice: #0f766e;
+    --color-ch-outbound: #6d28d9;
+    --color-ch-web: #2563eb;
+    --color-ch-whatsapp: #128c7e;
+    --color-ch-email: #b45309;
+    --color-ch-form: #be185d;
+  }
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] {
+      --color-background: #f6f8fc;
+      --color-surface: #ffffff;
+      --color-surface-raised: #ffffff;
+      --color-foreground: #0b1220;
+      --color-muted: #eef2f8;
+      --color-muted-foreground: #475569;
+      --color-border: #e2e8f0;
+      --color-input: #64748b;
+      --color-primary: #0f766e;
+      --color-primary-foreground: #ffffff;
+      --color-secondary: #1d4ed8;
+      --color-secondary-foreground: #ffffff;
+      --color-accent: #a21caf;
+      --color-accent-foreground: #ffffff;
+      --color-info: #0369a1;
+      --color-success: #047857;
+      --color-warning: #92400e;
+      --color-danger: #b91c1c;
+      --color-danger-foreground: #ffffff;
+      --color-ring: #0f766e;
+      --color-glow: rgb(15 118 110 / 0.25);
+      --color-highlight: rgb(255 255 255 / 0.7);
+      --color-glass: rgb(255 255 255 / 0.8);
+      --color-aurora-1: #99f6e4;
+      --color-aurora-2: #bfdbfe;
+      --color-aurora-3: #f5d0fe;
+      --color-ch-voice: #0f766e;
+      --color-ch-outbound: #6d28d9;
+      --color-ch-web: #2563eb;
+      --color-ch-whatsapp: #128c7e;
+      --color-ch-email: #b45309;
+      --color-ch-form: #be185d;
+    }
+  }
+
+  html {
+    color-scheme: dark;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: light) {
+    [data-theme="system"] {
+      color-scheme: light;
+    }
+  }
+
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 35%, transparent);
   }
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
+@layer components {
+  /* Frosted glass: blurred translucent surface with a 1px inner highlight. */
+  .glass {
+    background: var(--color-glass);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid var(--color-border);
+    box-shadow: inset 0 1px 0 0 var(--color-highlight);
+  }
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass {
+      background: var(--color-surface);
+    }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .glass {
+      background: var(--color-surface);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+  }
+
+  /* Soft coloured glow for primary actions, focus and live data. */
+  .glow {
+    box-shadow: 0 0 22px 0 var(--color-glow);
+  }
+
+  /* Gradient fill for big numbers (contrast checked against the background). */
+  .text-aurora {
+    background: linear-gradient(
+      100deg,
+      var(--color-foreground) 0%,
+      var(--color-primary) 55%,
+      var(--color-secondary) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Signature: a slowly turning aurora edge for hero surfaces (static with reduced motion). */
+  .aurora-border {
+    position: relative;
+    isolation: isolate;
+  }
+  .aurora-border::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    z-index: -1;
+    padding: 1px;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--aurora-angle),
+      var(--color-primary),
+      var(--color-secondary),
+      var(--color-accent),
+      transparent 70%,
+      var(--color-primary)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box exclude,
+      linear-gradient(#000 0 0);
+    animation: aurora-spin 12s linear infinite;
+    pointer-events: none;
+  }
+
+  /* Faint star-dot texture that fades out from one corner. */
+  .dot-grid {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--color-foreground) 16%, transparent) 1px,
+      transparent 1.4px
+    );
+    background-size: 18px 18px;
+    mask-image: radial-gradient(ellipse at 85% 0%, #000 0%, transparent 65%);
+  }
+
+  /* Soft light from the top corner of a card. */
+  .spotlight {
+    background: radial-gradient(
+      600px circle at 0% 0%,
+      color-mix(in srgb, var(--color-primary) 16%, transparent),
+      transparent 60%
+    );
+  }
+
+  /* Page sections rise in one after another (instant with reduced motion). */
+  .stagger > * {
+    animation: rise 0.55s var(--ease-spring) both;
+  }
+  .stagger > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .stagger > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .stagger > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .stagger > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .stagger > :nth-child(n + 6) {
+    animation-delay: 300ms;
+  }
+
+  /* Film grain over the aurora: keeps large gradients from banding and feels less flat. */
+  .grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+  }
+  [data-theme="light"] .grain {
+    opacity: 0.05;
+    mix-blend-mode: multiply;
+  }
+}
+
+@layer base {
+  /* Native controls that remain take the brand colour. */
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="range"],
+  progress {
+    accent-color: var(--color-primary);
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+}
+
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes aurora-spin {
+  to {
+    --aurora-angle: 360deg;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* The gauge arc fills from empty; --gauge-from is the arc length (pathLength 100). */
+@keyframes gauge-fill {
+  from {
+    stroke-dashoffset: var(--gauge-from);
+  }
+}
+
+@keyframes aurora-drift {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(6%, -4%, 0) scale(1.08);
+  }
+  100% {
+    transform: translate3d(-5%, 5%, 0) scale(0.96);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

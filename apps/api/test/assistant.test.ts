@@ -1,6 +1,6 @@
 import { MockLlmProvider } from "@voicedesk/adapters";
-import { bookings, withTenant } from "@voicedesk/db";
-import { eq } from "drizzle-orm";
+import { assistantActions, auditLog, bookings, withTenant } from "@voicedesk/db";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
 
@@ -105,5 +105,71 @@ describe("Ask VoiceDesk", () => {
     expect(list.json<{ actions: Array<{ status: string }> }>().actions[0]).toMatchObject({
       status: "done",
     });
+  });
+});
+
+describe("approvals (audit M9)", () => {
+  async function propose(createdAt = new Date()) {
+    const [row] = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx
+        .insert(assistantActions)
+        .values({
+          tenantId: biz.tenantId,
+          kind: "cancel_booking",
+          payload: { bookingId },
+          summary: "Cancel AK-1",
+          createdAt,
+        })
+        .returning(),
+    );
+    return row!.id;
+  }
+
+  it("expire after a day", async () => {
+    const id = await propose(new Date(Date.now() - 25 * 60 * 60 * 1000));
+    const res = await h.app.inject({
+      method: "POST",
+      url: url(`/actions/${id}/approve`),
+      headers: headers(),
+      payload: {},
+    });
+    expect(res.statusCode).toBe(409);
+    expect(res.json()).toMatchObject({ error: "EXPIRED" });
+  });
+
+  it("record a fingerprint of what was approved, and the IP", async () => {
+    const [row] = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx
+        .select()
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.tenantId, biz.tenantId),
+            eq(auditLog.action, "assistant.action_approved"),
+          ),
+        ),
+    );
+    const meta = row?.metadata as { kind?: string; proposal?: string } | undefined;
+    expect(meta?.kind).toBe("cancel_booking");
+    expect(meta?.proposal).toMatch(/^[0-9a-f]{16}$/);
+    expect(row?.ipAddress).toBeTruthy();
+  });
+
+  it("can only be rejected by whoever asked or someone allowed to do it", async () => {
+    const id = await propose();
+    // A rejection by the owner (allowed to cancel bookings) works and is audited.
+    const res = await h.app.inject({
+      method: "POST",
+      url: url(`/actions/${id}/reject`),
+      headers: headers(),
+    });
+    expect(res.json()).toMatchObject({ status: "rejected" });
+    const rows = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.action, "assistant.action_rejected"), eq(auditLog.targetId, id))),
+    );
+    expect(rows).toHaveLength(1);
   });
 });

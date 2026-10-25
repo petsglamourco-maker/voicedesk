@@ -94,6 +94,17 @@ describe("knowledge API", () => {
     });
     expect(file.statusCode).toBe(400);
 
+    // A program renamed to .pdf (with a PDF MIME type) is refused by its contents (audit M5).
+    const renamed = multipart("prices.pdf", "MZ this is a program", "application/pdf");
+    const disguised = await h.app.inject({
+      method: "POST",
+      url: `${base()}/files`,
+      headers: { ...asOwner(), "content-type": renamed.contentType },
+      payload: renamed.body,
+    });
+    expect(disguised.statusCode).toBe(400);
+    expect(disguised.json()).toMatchObject({ error: "FILE_CONTENT_MISMATCH" });
+
     for (const url of [
       "http://127.0.0.1/admin",
       "http://169.254.169.254/",

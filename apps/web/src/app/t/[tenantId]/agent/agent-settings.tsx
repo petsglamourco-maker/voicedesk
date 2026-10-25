@@ -1,20 +1,50 @@
 "use client";
 
+import { Alert, Avatar, Button, Card, CardHead, cn, Input, Label, Select } from "@voicedesk/ui";
 import {
-  Alert,
-  Button,
-  Card,
-  CardDescription,
-  CardTitle,
-  cn,
-  Input,
-  Label,
-  Select,
-} from "@voicedesk/ui";
+  Bell,
+  CheckCircle2,
+  Languages,
+  Mic,
+  Newspaper,
+  PhoneForwarded,
+  PhoneOutgoing,
+  Play,
+  Smile,
+  UserRound,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { api } from "@/lib/client-api";
 import { LOCALES } from "@/i18n/locales";
+import { ScreenHero } from "@/components/screen-hero";
+
+/** A setting that's on or off: a bordered row whose whole surface toggles the checkbox. */
+function ToggleRow(props: {
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+  label: ReactNode;
+  hint?: ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border px-4 py-3 text-sm transition-[border-color,background-color] duration-200 hover:border-input has-[:checked]:border-primary/50 has-[:checked]:bg-primary/8 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring">
+      <input
+        type="checkbox"
+        className="mt-0.5 size-4 shrink-0 accent-primary focus-visible:outline-none"
+        checked={props.checked}
+        disabled={props.disabled}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+      <span className="min-w-0">
+        <span className="block font-medium">{props.label}</span>
+        {props.hint ? (
+          <span className="mt-0.5 block text-muted-foreground">{props.hint}</span>
+        ) : null}
+      </span>
+    </label>
+  );
+}
 
 interface Settings {
   personaId: string;
@@ -58,6 +88,7 @@ export function AgentSettingsForm(props: {
   canEdit: boolean;
 }) {
   const t = useTranslations("agent");
+  const shell = useTranslations("shell");
   const tv = useTranslations("voice");
   const tn = useTranslations("notifications");
   const tt = useTranslations("transfers");
@@ -119,70 +150,91 @@ export function AgentSettingsForm(props: {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t("subtitle")}</p>
-      </div>
+    <div className="stagger space-y-6">
+      <ScreenHero
+        icon="agent"
+        eyebrow={shell("groups.assistant")}
+        title={t("title")}
+        description={t("subtitle")}
+      />
       {error ? <Alert tone="error">{error}</Alert> : null}
       {saved ? <Alert tone="success">{t("saved")}</Alert> : null}
 
       <fieldset disabled={!props.canEdit || pending} className="space-y-6">
         <Card>
-          <CardTitle>{t("persona")}</CardTitle>
-          <CardDescription>{t("personaHint")}</CardDescription>
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <Label htmlFor="previewLanguage" className="text-sm">
-              {tv("preview")}:
-            </Label>
-            <Select
-              id="previewLanguage"
-              className="h-9 w-40"
-              value={previewLanguage}
-              onChange={(e) => setPreviewLanguage(e.target.value)}
-            >
-              {LOCALES.map((code) => (
-                <option key={code} value={code}>
-                  {languages(code)}
-                </option>
-              ))}
-            </Select>
-          </div>
+          <CardHead
+            icon={<UserRound />}
+            title={t("persona")}
+            hint={t("personaHint")}
+            className="flex-wrap"
+            aside={
+              <div className="flex items-center gap-2 text-sm">
+                <Label htmlFor="previewLanguage" className="mb-0 text-sm whitespace-nowrap">
+                  {tv("preview")}:
+                </Label>
+                <Select
+                  id="previewLanguage"
+                  className="h-9 w-36"
+                  value={previewLanguage}
+                  onChange={(e) => setPreviewLanguage(e.target.value)}
+                >
+                  {LOCALES.map((code) => (
+                    <option key={code} value={code}>
+                      {languages(code)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            }
+          />
           <div
             role="radiogroup"
             aria-label={t("persona")}
-            className="mt-4 grid gap-3 sm:grid-cols-2"
+            className="mt-5 grid gap-3 sm:grid-cols-2 [&>*]:min-w-0"
           >
             {props.initial.personas.map((p) => {
               const selected = settings.personaId === p.id;
+              const name = settings.personaNames[p.id] || p.defaultName;
               return (
                 <div
                   key={p.id}
                   className={cn(
-                    "rounded-lg border p-4",
-                    selected ? "border-primary ring-2 ring-primary/30" : "border-border",
+                    "glass relative rounded-xl p-4 transition-[box-shadow,border-color] duration-300 ease-[var(--ease-spring)] has-[input[type=radio]:focus-visible]:outline-2 has-[input[type=radio]:focus-visible]:outline-offset-2 has-[input[type=radio]:focus-visible]:outline-ring",
+                    selected
+                      ? "border-primary/60 shadow-[0_0_24px_-6px_var(--color-glow)] ring-2 ring-primary"
+                      : "hover:border-input",
                   )}
                 >
-                  <label className="flex items-start gap-3">
+                  <label className="flex cursor-pointer items-start gap-3">
                     <input
                       type="radio"
                       name="persona"
-                      className="mt-1"
+                      className="sr-only"
                       checked={selected}
                       onChange={() => update({ personaId: p.id })}
                     />
-                    <span>
-                      <span className="block font-medium">
-                        {settings.personaNames[p.id] || p.defaultName}{" "}
+                    <Avatar name={name} size="lg" />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-display text-base font-semibold" dir="auto">
+                          {name}
+                        </span>
                         <span className="text-xs text-muted-foreground">
                           ({t(`gender.${p.gender}`)})
                         </span>
                       </span>
-                      <span className="block text-sm text-muted-foreground">{p.style}</span>
+                      <span className="mt-0.5 block text-sm text-muted-foreground">{p.style}</span>
                       <span className="mt-1 block text-xs">{t("bestFor", { use: p.bestFor })}</span>
                     </span>
+                    <CheckCircle2
+                      aria-hidden
+                      className={cn(
+                        "size-5 shrink-0 text-primary transition-[opacity,transform] duration-300 ease-[var(--ease-spring)]",
+                        selected ? "scale-100 opacity-100" : "scale-75 opacity-0",
+                      )}
+                    />
                   </label>
-                  <div className="mt-3">
+                  <div className="mt-4 border-t border-border pt-3">
                     <Label htmlFor={`name-${p.id}`} className="text-xs">
                       {t("rename")}
                     </Label>
@@ -191,6 +243,7 @@ export function AgentSettingsForm(props: {
                       className="h-9"
                       placeholder={p.defaultName}
                       maxLength={40}
+                      dir="auto"
                       value={settings.personaNames[p.id] ?? ""}
                       onChange={(e) => {
                         const names = { ...settings.personaNames, [p.id]: e.target.value };
@@ -200,13 +253,22 @@ export function AgentSettingsForm(props: {
                     />
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="secondary"
                     size="sm"
-                    className="mt-2"
+                    shape="pill"
+                    className="mt-3"
                     onClick={() => void preview(p.id)}
                     disabled={previewing !== null}
                   >
-                    {previewing === p.id ? common("working") : `▶ ${tv("preview")}`}
+                    {previewing === p.id ? (
+                      <span
+                        className="size-2 animate-glow-pulse rounded-full bg-primary"
+                        aria-hidden
+                      />
+                    ) : (
+                      <Play aria-hidden />
+                    )}
+                    {previewing === p.id ? common("working") : tv("preview")}
                   </Button>
                 </div>
               );
@@ -215,13 +277,21 @@ export function AgentSettingsForm(props: {
         </Card>
 
         <Card>
-          <CardTitle>{t("languages")}</CardTitle>
-          <CardDescription>{t("languagesHint")}</CardDescription>
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <CardHead
+            icon={<Languages />}
+            title={t("languages")}
+            hint={t("languagesHint")}
+            color="var(--color-secondary)"
+          />
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3 [&>*]:min-w-0">
             {LOCALES.map((code) => (
-              <label key={code} className="flex items-center gap-2 text-sm">
+              <label
+                key={code}
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border px-3 py-2.5 text-sm font-medium transition-[border-color,background-color] duration-200 hover:border-input has-[:checked]:border-secondary/50 has-[:checked]:bg-secondary/10 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring"
+              >
                 <input
                   type="checkbox"
+                  className="size-4 shrink-0 accent-secondary focus-visible:outline-none"
                   checked={settings.enabledLanguages.includes(code)}
                   onChange={(e) =>
                     update({
@@ -231,11 +301,11 @@ export function AgentSettingsForm(props: {
                     })
                   }
                 />
-                {languages(code)}
+                <span className="truncate">{languages(code)}</span>
               </label>
             ))}
           </div>
-          <div className="mt-4 max-w-xs">
+          <div className="mt-5 max-w-xs">
             <Label htmlFor="adminLanguage">{t("adminLanguage")}</Label>
             <Select
               id="adminLanguage"
@@ -252,68 +322,77 @@ export function AgentSettingsForm(props: {
         </Card>
 
         <Card>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={settings.recordCalls}
-              onChange={(e) => update({ recordCalls: e.target.checked })}
-            />
-            <span>
-              <span className="block font-medium">{tv("recordCalls")}</span>
-              <span className="block text-sm text-muted-foreground">{tv("recordCallsHint")}</span>
+          <div className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-danger/14 text-danger [&_svg]:size-[18px]"
+            >
+              <Mic />
             </span>
-          </label>
-        </Card>
-
-        <Card>
-          <CardTitle>{tn("title")}</CardTitle>
-          <CardDescription>{tn("hint")}</CardDescription>
-          <div className="mt-4 space-y-4">
-            <label className="flex items-start gap-3 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={settings.customerConfirmations}
-                onChange={(e) => update({ customerConfirmations: e.target.checked })}
+            <div className="min-w-0 flex-1">
+              <ToggleRow
+                checked={settings.recordCalls}
+                onChange={(checked) => update({ recordCalls: checked })}
+                label={tv("recordCalls")}
+                hint={tv("recordCallsHint")}
               />
-              <span>
-                <span className="block font-medium">{tn("confirmations")}</span>
-                <span className="block text-muted-foreground">{tn("confirmationsHint")}</span>
-              </span>
-            </label>
-            <div className="max-w-xs">
-              <Label htmlFor="reminderHours">{tn("reminder")}</Label>
-              <Select
-                id="reminderHours"
-                value={String(settings.reminderHours)}
-                onChange={(e) => update({ reminderHours: Number(e.target.value) })}
-              >
-                {[0, 2, 12, 24, 48].map((h) => (
-                  <option key={h} value={h}>
-                    {h === 0 ? tn("noReminder") : tn("hoursBefore", { hours: h })}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="max-w-xs">
-              <Label htmlFor="alertPhone">{tn("alertPhone")}</Label>
-              <Input
-                id="alertPhone"
-                inputMode="tel"
-                placeholder="07700 900123"
-                value={settings.alertPhone ?? ""}
-                onChange={(e) => update({ alertPhone: e.target.value || null })}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">{tn("alertPhoneHint")}</p>
             </div>
           </div>
         </Card>
 
         <Card>
-          <CardTitle>{tt("title")}</CardTitle>
-          <CardDescription>{tt("hint")}</CardDescription>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <CardHead
+            icon={<Bell />}
+            title={tn("title")}
+            hint={tn("hint")}
+            color="var(--color-warning)"
+          />
+          <div className="mt-5 space-y-4">
+            <ToggleRow
+              checked={settings.customerConfirmations}
+              onChange={(checked) => update({ customerConfirmations: checked })}
+              label={tn("confirmations")}
+              hint={tn("confirmationsHint")}
+            />
+            <div className="grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
+              <div>
+                <Label htmlFor="reminderHours">{tn("reminder")}</Label>
+                <Select
+                  id="reminderHours"
+                  value={String(settings.reminderHours)}
+                  onChange={(e) => update({ reminderHours: Number(e.target.value) })}
+                >
+                  {[0, 2, 12, 24, 48].map((h) => (
+                    <option key={h} value={h}>
+                      {h === 0 ? tn("noReminder") : tn("hoursBefore", { hours: h })}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="alertPhone">{tn("alertPhone")}</Label>
+                <Input
+                  id="alertPhone"
+                  inputMode="tel"
+                  className="tabular"
+                  placeholder="07700 900123"
+                  value={settings.alertPhone ?? ""}
+                  onChange={(e) => update({ alertPhone: e.target.value || null })}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">{tn("alertPhoneHint")}</p>
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHead
+            icon={<PhoneForwarded />}
+            title={tt("title")}
+            hint={tt("hint")}
+            color="var(--color-info)"
+          />
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 [&>*]:min-w-0">
             <div>
               <Label htmlFor="handoffRoute">{tt("route")}</Label>
               <Select
@@ -332,6 +411,7 @@ export function AgentSettingsForm(props: {
               <Input
                 id="ringSeconds"
                 type="number"
+                className="tabular"
                 min={10}
                 max={120}
                 value={settings.ringSeconds}
@@ -344,6 +424,7 @@ export function AgentSettingsForm(props: {
               <Input
                 id="transferPhone"
                 inputMode="tel"
+                className="tabular"
                 placeholder="07700 900123"
                 value={settings.transferPhone ?? ""}
                 onChange={(e) => update({ transferPhone: e.target.value || null })}
@@ -366,6 +447,7 @@ export function AgentSettingsForm(props: {
                 id="urgentSituations"
                 placeholder={tt("urgentPlaceholder")}
                 maxLength={500}
+                dir="auto"
                 value={settings.urgentSituations ?? ""}
                 onChange={(e) => update({ urgentSituations: e.target.value || null })}
               />
@@ -375,39 +457,38 @@ export function AgentSettingsForm(props: {
               <Input
                 id="onCallPhone"
                 inputMode="tel"
+                className="tabular"
                 placeholder="07700 900456"
                 value={settings.onCallPhone ?? ""}
                 onChange={(e) => update({ onCallPhone: e.target.value || null })}
               />
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">{tt("note")}</p>
+          <p className="mt-5 border-t border-border pt-3 text-xs text-muted-foreground">
+            {tt("note")}
+          </p>
         </Card>
 
         <Card>
-          <CardTitle>{tf("title")}</CardTitle>
-          <CardDescription>{tf("hint")}</CardDescription>
-          <div className="mt-4 space-y-3 text-sm">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={settings.feedbackEnabled}
-                onChange={(e) => update({ feedbackEnabled: e.target.checked })}
-              />
-              <span>{tf("enabled")}</span>
-            </label>
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={settings.feedbackAfterCalls}
-                disabled={!settings.feedbackEnabled}
-                onChange={(e) => update({ feedbackAfterCalls: e.target.checked })}
-              />
-              <span>{tf("afterCalls")}</span>
-            </label>
-            <div className="max-w-xs">
+          <CardHead
+            icon={<Smile />}
+            title={tf("title")}
+            hint={tf("hint")}
+            color="var(--color-success)"
+          />
+          <div className="mt-5 space-y-3 text-sm">
+            <ToggleRow
+              checked={settings.feedbackEnabled}
+              onChange={(checked) => update({ feedbackEnabled: checked })}
+              label={tf("enabled")}
+            />
+            <ToggleRow
+              checked={settings.feedbackAfterCalls}
+              disabled={!settings.feedbackEnabled}
+              onChange={(checked) => update({ feedbackAfterCalls: checked })}
+              label={tf("afterCalls")}
+            />
+            <div className="max-w-xs pt-1">
               <Label htmlFor="npsEvery">{tf("nps")}</Label>
               <Select
                 id="npsEvery"
@@ -424,32 +505,29 @@ export function AgentSettingsForm(props: {
         </Card>
 
         <Card>
-          <CardTitle>{to("title")}</CardTitle>
-          <CardDescription>{to("hint")}</CardDescription>
-          <div className="mt-4 space-y-3 text-sm">
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={settings.aiCallbacks}
-                onChange={(e) => update({ aiCallbacks: e.target.checked })}
-              />
-              <span>{to("callbacks")}</span>
-            </label>
-            <label className="flex items-start gap-2">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={settings.confirmationCalls}
-                onChange={(e) => update({ confirmationCalls: e.target.checked })}
-              />
-              <span>{to("confirmations")}</span>
-            </label>
-            <div className="max-w-xs">
+          <CardHead
+            icon={<PhoneOutgoing />}
+            title={to("title")}
+            hint={to("hint")}
+            color="var(--color-accent)"
+          />
+          <div className="mt-5 space-y-3 text-sm">
+            <ToggleRow
+              checked={settings.aiCallbacks}
+              onChange={(checked) => update({ aiCallbacks: checked })}
+              label={to("callbacks")}
+            />
+            <ToggleRow
+              checked={settings.confirmationCalls}
+              onChange={(checked) => update({ confirmationCalls: checked })}
+              label={to("confirmations")}
+            />
+            <div className="max-w-xs pt-1">
               <Label htmlFor="outboundDailyCap">{to("cap")}</Label>
               <Input
                 id="outboundDailyCap"
                 type="number"
+                className="tabular"
                 min={1}
                 max={500}
                 value={settings.outboundDailyCap}
@@ -461,22 +539,26 @@ export function AgentSettingsForm(props: {
         </Card>
 
         <Card>
-          <CardTitle>{tb("title")}</CardTitle>
-          <CardDescription>{tb("hint")}</CardDescription>
-          <label className="mt-4 flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1"
+          <CardHead
+            icon={<Newspaper />}
+            title={tb("title")}
+            hint={tb("hint")}
+            color="var(--color-secondary)"
+          />
+          <div className="mt-5">
+            <ToggleRow
               checked={settings.dailyBrief}
-              onChange={(e) => update({ dailyBrief: e.target.checked })}
+              onChange={(checked) => update({ dailyBrief: checked })}
+              label={tb("enabled")}
             />
-            <span>{tb("enabled")}</span>
-          </label>
+          </div>
           <BriefPreview tenantId={props.tenantId} />
         </Card>
 
         {props.canEdit ? (
           <Button
+            size="lg"
+            className="min-w-32"
             onClick={() => void save()}
             disabled={pending || settings.enabledLanguages.length === 0}
           >
@@ -506,14 +588,21 @@ function BriefPreview(props: { tenantId: string }) {
     }
   }
   return (
-    <div className="mt-3">
+    <div className="mt-4">
       <Button variant="secondary" size="sm" disabled={busy} onClick={() => void load()}>
+        <Newspaper aria-hidden />
         {t("preview")}
       </Button>
       {brief ? (
-        <div className="mt-3 rounded-md border border-border bg-muted p-3 text-sm">
-          <p className="font-medium">{brief.subject}</p>
-          <pre className="mt-2 font-sans whitespace-pre-wrap" data-testid="brief-preview">
+        <div className="mt-3 animate-rise rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_65%,transparent)] p-4 text-sm">
+          <p className="font-display font-semibold" dir="auto">
+            {brief.subject}
+          </p>
+          <pre
+            className="mt-2 border-t border-border pt-2 font-sans leading-relaxed whitespace-pre-wrap"
+            data-testid="brief-preview"
+            dir="auto"
+          >
             {brief.text}
           </pre>
         </div>

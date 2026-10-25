@@ -3,6 +3,15 @@ import { parseHTML } from "linkedom";
 import mammoth from "mammoth";
 import Papa from "papaparse";
 import { extractText, getDocumentProxy } from "unpdf";
+import {
+  checkDocxLimits,
+  contentMatches,
+  FileRejectedError,
+  MAX_CSV_ROWS,
+  MAX_PDF_PAGES,
+  MAX_TEXT_CHARS,
+  withTimeout,
+} from "./file-safety";
 import { cleanText } from "./text";
 
 export interface ExtractedPage {
@@ -154,13 +163,28 @@ export function fileTypeFor(fileName: string, mimeType?: string): SupportedFileT
 }
 
 export async function extractFile(data: Uint8Array, type: SupportedFileType): Promise<string> {
+  // Never trust the name: the bytes must match (security audit M5).
+  if (!contentMatches(data, type)) {
+    throw new FileRejectedError(`This file isn't a valid ${type.toUpperCase()} file.`);
+  }
+  const text = await withTimeout(extractUnchecked(data, type));
+  return text.length > MAX_TEXT_CHARS ? text.slice(0, MAX_TEXT_CHARS) : text;
+}
+
+async function extractUnchecked(data: Uint8Array, type: SupportedFileType): Promise<string> {
   switch (type) {
     case "pdf": {
       const pdf = await getDocumentProxy(new Uint8Array(data));
+      if (pdf.numPages > MAX_PDF_PAGES) {
+        throw new FileRejectedError(
+          `This PDF has ${pdf.numPages} pages; the most is ${MAX_PDF_PAGES}. Split it into smaller files.`,
+        );
+      }
       const { text } = await extractText(pdf, { mergePages: false });
       return cleanText(text.map((page, i) => `# Page ${i + 1}\n\n${page}`).join("\n\n"));
     }
     case "docx": {
+      checkDocxLimits(data);
       const { value } = await mammoth.convertToHtml({ buffer: Buffer.from(data) });
       const doc = parseDocument(`<html><body>${value}</body></html>`);
       return doc.body ? domToText(doc.body) : "";
@@ -169,6 +193,7 @@ export async function extractFile(data: Uint8Array, type: SupportedFileType): Pr
       const parsed = Papa.parse<Record<string, string>>(new TextDecoder().decode(data), {
         header: true,
         skipEmptyLines: true,
+        preview: MAX_CSV_ROWS,
       });
       // One line per row: "Header: value; Header: value" — readable for both humans and RAG.
       return cleanText(

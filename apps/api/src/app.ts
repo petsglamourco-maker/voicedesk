@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import swaggerUi from "@fastify/swagger-ui";
@@ -13,9 +14,10 @@ import {
 import type { TextChannel } from "@voicedesk/agent-brain";
 import type { Container } from "./container";
 import { registerAuthRoutes } from "./lib/auth-routes";
+import { registerOriginCheck } from "./lib/origin-check";
 import { registerAgentRoutes } from "./routes/agent";
 import { registerConversationRoutes } from "./routes/conversations";
-import { registerPlatformRoutes } from "./routes/platform";
+import { registerPlatformAudit, registerPlatformRoutes } from "./routes/platform";
 import { registerErrorHandler } from "./lib/errors";
 import { registerHealthRoutes } from "./routes/health";
 import { registerKnowledgeRoutes } from "./routes/knowledge";
@@ -34,9 +36,12 @@ import { registerWhatsAppRoutes, whatsAppSender } from "./routes/whatsapp";
 import { emailSender, registerMailboxRoutes } from "./routes/mailbox";
 import { registerFormRoutes } from "./routes/forms";
 import { registerVaRoutes } from "./routes/va";
+import { registerCspReportRoute } from "./routes/csp-report";
 import { registerOutboundRoutes } from "./routes/outbound";
+import { registerSpendRoutes } from "./routes/spend";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
+import { registerHelpRoutes } from "./routes/help";
 import { registerDashboardRoutes } from "./routes/dashboard";
 import { WhatsAppCloudProvider } from "@voicedesk/adapters/messaging/whatsapp-cloud";
 
@@ -49,6 +54,19 @@ export type AppDeps = Omit<Container, "close"> & {
 };
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+
+const SESSION_COOKIE = /(?:^|;\s*)(?:__Secure-)?better-auth\.session_token=([^;]+)/;
+
+/** Rate-limit bucket: a hash of the session cookie when signed in, else the client IP. */
+export function rateLimitKey(request: { headers: { cookie?: string }; ip: string }): string {
+  const token = SESSION_COOKIE.exec(request.headers.cookie ?? "")?.[1];
+  return token
+    ? `s:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`
+    : `ip:${request.ip}`;
+}
+
+/** Routes each app registered (tests use it to check access rules on every route). */
+export const registeredRoutes = new WeakMap<object, Array<{ method: string; url: string }>>();
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   deps = {
@@ -76,6 +94,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     logger: {
       ...loggerOptions("api", deps.logLevel),
       serializers: {
+        ...loggerOptions("api", deps.logLevel).serializers,
         // Query strings can carry tokens (e.g. email verification) — never log them.
         req: (req: { method: string; url: string; id: string }) => ({
           id: req.id,
@@ -84,16 +103,34 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
         }),
       },
     },
-    // Locally the Next.js dev server proxies /api/*; restrict to known proxies in production.
-    trustProxy: true,
+    // Only these proxies may say who the client is (security audit H4): locally the Next.js
+    // dev server on this machine. Anyone else's X-Forwarded-For is ignored.
+    trustProxy: deps.trustedProxies ?? ["127.0.0.1", "::1"],
     bodyLimit: 1024 * 1024,
   }).withTypeProvider<ZodTypeProvider>();
+
+  // Every route, for the generic access tests (each tenant route must refuse outsiders).
+  const routes: Array<{ method: string; url: string }> = [];
+  registeredRoutes.set(app, routes);
+  app.addHook("onRoute", (route) => {
+    for (const method of [route.method].flat()) routes.push({ method, url: route.url });
+  });
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
+  registerOriginCheck(app, deps.webOrigin ?? "http://localhost:3000");
+  registerPlatformAudit(app, deps);
 
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // Shared across API processes (Valkey). Signed-in traffic is counted per session, so an
+  // office behind one IP isn't throttled together; everything else per client IP.
+  await app.register(rateLimit, {
+    max: 300,
+    timeWindow: "1 minute",
+    nameSpace: "api-rl:",
+    ...(deps.rateLimitRedis ? { redis: deps.rateLimitRedis } : {}),
+    keyGenerator: rateLimitKey,
+  });
   await app.register(swagger, {
     openapi: {
       info: { title: "VoiceDesk API", version: "0.1.0" },
@@ -108,7 +145,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   await app.register(swaggerUi, { routePrefix: "/api/docs" });
   await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } });
 
-  registerAuthRoutes(app, deps.auth);
+  registerAuthRoutes(app, deps);
   registerHealthRoutes(app, deps);
   registerMeRoutes(app, deps);
   registerTenantRoutes(app, deps);
@@ -130,8 +167,11 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerFormRoutes(app, deps);
   registerVaRoutes(app, deps);
   registerOutboundRoutes(app, deps);
+  registerSpendRoutes(app, deps);
+  registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);
+  registerHelpRoutes(app, deps);
   registerDashboardRoutes(app, deps);
 
   return app;

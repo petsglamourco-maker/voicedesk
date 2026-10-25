@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { dirname } from "node:path";
 import { ImapMailbox } from "@voicedesk/adapters/email/mailbox";
-import { SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
+import { ReservedDomainRouter, SmtpEmailProvider } from "@voicedesk/adapters/email/smtp";
 import { embeddingsFromEnv, smsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createLogger } from "@voicedesk/compliance/logger";
 import { loadRootEnv } from "@voicedesk/config/load-env";
@@ -46,12 +46,14 @@ const env = z
     WORKER_HEALTH_PORT: z.coerce.number().int().positive().default(4100),
     WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
     SMS_FROM: z.string().min(1).max(15).default("VoiceDesk"),
+    MAILPIT_SMTP_HOST: z.string().default("localhost"),
+    MAILPIT_SMTP_PORT: z.coerce.number().int().positive().default(1025),
   })
   .parse(process.env);
 
 const log = createLogger("workers", env.LOG_LEVEL);
 const connection = createRedisConnection(env.REDIS_URL);
-const email = new SmtpEmailProvider({
+const smtp = new SmtpEmailProvider({
   host: env.SMTP_HOST,
   port: env.SMTP_PORT,
   user: env.SMTP_USER || undefined,
@@ -92,7 +94,19 @@ const whatsapp = process.env.WHATSAPP_ACCESS_TOKEN
       graphVersion: process.env.WHATSAPP_GRAPH_VERSION || undefined,
     })
   : null;
-const sms = await smsFromEnv(email);
+// With a real email service, reserved test/demo addresses (example.com, *.test, *.local…) and
+// stand-in texts (SMS_PROVIDER=mailpit) still go to the local Mailpit: they could only bounce,
+// and stand-in texts must never send customer messages to a third party.
+const smtpIsLocal = /^(localhost|127\.0\.0\.1|mailpit)$/i.test(env.SMTP_HOST);
+const localMail = smtpIsLocal
+  ? smtp
+  : new SmtpEmailProvider({
+      host: env.MAILPIT_SMTP_HOST,
+      port: env.MAILPIT_SMTP_PORT,
+      defaultFrom: env.EMAIL_FROM,
+    });
+const email = smtpIsLocal ? smtp : new ReservedDomainRouter(smtp, localMail);
+const sms = await smsFromEnv(localMail);
 
 const workers = [
   new Worker<SendEmailJob>(QUEUES.email, createSendEmailProcessor(email, log), {

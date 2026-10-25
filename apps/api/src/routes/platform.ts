@@ -6,19 +6,71 @@ import {
   testProvider,
   toView,
   updateProvider,
+  MfaRequiredError,
+  recordAudit,
 } from "@voicedesk/core";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
+import { requireFreshAuth } from "../lib/fresh-auth";
+import { setupStatus } from "../lib/setup";
 import { requireSession } from "./guards";
 
 /** Platform-owner-only settings. Everyone else gets 404 (the routes don't "exist" for them). */
 export async function requirePlatformOwner(deps: AppDeps, request: FastifyRequest) {
   const session = await requireSession(deps.auth, request);
   if (!session.user.isPlatformOwner) throw notFound();
+  // Platform admin controls keys, phone routing and every business: two-step login first (C1).
+  if (!session.user.twoFactorEnabled) throw new MfaRequiredError();
+  // Changes need the password confirmed in the last few minutes (security audit H6).
+  if (request.method !== "GET") await requireFreshAuth(deps.freshAuth, session.session.id);
+  (request as PlatformRequest).platformActorId = session.user.id;
   return session;
+}
+
+type PlatformRequest = FastifyRequest & { platformActorId?: string };
+
+/**
+ * Every successful change under /api/platform/* is written to the audit log with the
+ * platform owner, IP, target id and the NAMES of the fields changed, never their values
+ * (API keys!) (security audit H6). Covers future platform routes automatically.
+ */
+export function registerPlatformAudit(app: FastifyInstance, deps: AppDeps): void {
+  app.addHook("onResponse", async (request: PlatformRequest, reply) => {
+    const route = request.routeOptions.url ?? "";
+    if (
+      !route.startsWith("/api/platform/") ||
+      request.method === "GET" ||
+      reply.statusCode >= 400 ||
+      !request.platformActorId
+    ) {
+      return;
+    }
+    const slug = route
+      .replace("/api/platform/", "")
+      .replace(/\/:\w+/g, "")
+      .replace(/\//g, ".");
+    const params = (request.params ?? {}) as { id?: string };
+    const body = request.body;
+    await deps.db
+      .transaction((tx) =>
+        recordAudit(tx, {
+          tenantId: null,
+          actorType: "platform_owner",
+          actorUserId: request.platformActorId!,
+          action: `platform.${slug}.${request.method.toLowerCase()}`,
+          targetType: slug.split(".")[0],
+          targetId: params.id,
+          metadata: {
+            fields: body && typeof body === "object" ? Object.keys(body).sort() : [],
+          },
+          ipAddress: request.ip ?? null,
+        }),
+      )
+      .catch((err: unknown) => request.log.warn({ err }, "platform audit failed"));
+  });
 }
 
 const idParams = z.object({ id: z.string().uuid() });
@@ -35,6 +87,25 @@ export function registerPlatformRoutes(app: FastifyInstance, deps: AppDeps): voi
     async (request) => {
       await requirePlatformOwner(deps, request);
       return { providers: await views(), encryptionConfigured: deps.secrets.box !== null };
+    },
+  );
+
+  r.get(
+    "/api/platform/setup",
+    {
+      schema: {
+        tags,
+        summary: "Which features are ready on this server and which settings each still needs",
+      },
+    },
+    async (request) => {
+      await requirePlatformOwner(deps, request);
+      const providers = await views();
+      return {
+        items: setupStatus(process.env, {
+          enabledReady: providers.filter((p) => p.enabled && p.ready).length,
+        }),
+      };
     },
   );
 

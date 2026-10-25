@@ -22,6 +22,7 @@ export function makeReference(businessName: string): string {
  * validation arrives with contacts (Phase 3).
  */
 export function normalisePhone(raw: string, countryCode: string): string | null {
+  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
   const digits = raw.replace(/[^\d+]/g, "");
   if (digits.startsWith("+")) return /^\+\d{8,15}$/.test(digits) ? digits : null;
   if (digits.startsWith("00")) return normalisePhone(`+${digits.slice(2)}`, countryCode);

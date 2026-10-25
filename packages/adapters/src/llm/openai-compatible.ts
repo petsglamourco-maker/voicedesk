@@ -9,6 +9,7 @@ import {
   type LlmResponse,
   type ModelTier,
   type TaggedRaw,
+  REALTIME_TIMEOUT_MS,
 } from "./types";
 
 /**
@@ -84,11 +85,16 @@ export class OpenAiCompatibleProvider implements LlmProvider {
     const filter = new ThinkFilter(onText);
 
     try {
-      const stream = await this.client.chat.completions.create({
-        ...body,
-        stream: true,
-        stream_options: { include_usage: true },
-      } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming);
+      const stream = await this.client.chat.completions.create(
+        {
+          ...body,
+          stream: true,
+          stream_options: { include_usage: true },
+        } as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming,
+        // Live conversations can't wait minutes: fail fast so the router tries the next
+        // provider or the engine falls back (security audit M15).
+        request.tier === "realtime" ? { timeout: REALTIME_TIMEOUT_MS } : undefined,
+      );
       for await (const chunk of stream) {
         if (chunk.usage) usage = chunk.usage;
         const choice = chunk.choices[0];

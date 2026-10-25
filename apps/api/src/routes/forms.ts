@@ -105,17 +105,6 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const ownOrigin = deps.webOrigin ?? "http://localhost:3000";
 
-  // Many form tools post classic HTML form encoding.
-  if (!app.hasContentTypeParser("application/x-www-form-urlencoded")) {
-    app.addContentTypeParser(
-      "application/x-www-form-urlencoded",
-      { parseAs: "string", bodyLimit: 64 * 1024 },
-      (_req, body, done) => {
-        done(null, Object.fromEntries(new URLSearchParams(body as string)));
-      },
-    );
-  }
-
   async function endpointFor(key: string): Promise<PublicEndpoint> {
     const endpoint = await resolvePublicEndpoint(deps.db, "form", key);
     if (!endpoint || !endpoint.enabled) throw notFound();
@@ -146,6 +135,8 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
         businessName: ctx.businessName,
         title: config.title || null,
         intro: config.intro || null,
+        /** Turnstile site key when the bot check is on (ADR 0022). */
+        siteKey: deps.humanCheck?.siteKey ?? null,
       };
     },
   );
@@ -168,6 +159,8 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
             /** Honeypot: hidden from people, filled in by bots. */
             website: z.string().max(200).optional(),
             elapsedMs: z.number().int().min(0),
+            /** Bot-check token (Cloudflare Turnstile), when the check is switched on. */
+            human: z.string().max(2048).optional(),
           })
           .refine((b) => Boolean(b.email || b.phone), {
             message: "Give an email address or a phone number",
@@ -182,6 +175,13 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
       // Bots: pretend it worked so they don't adapt.
       if (body.website || body.elapsedMs < MIN_FILL_MS)
         return reply.code(202).send({ received: true });
+      if (deps.humanCheck) {
+        const verdict = await deps.humanCheck.verify(body.human ?? "", request.ip);
+        if (verdict === "bot") {
+          throw new HttpError(403, "HUMAN_CHECK_FAILED", "Please confirm you're not a robot");
+        }
+        if (verdict === "unavailable") request.log.warn("bot check unavailable; form allowed");
+      }
       await submit(endpoint, {
         submissionId: randomUUID(),
         name: body.name,
@@ -197,31 +197,57 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
     },
   );
 
-  r.post(
-    "/api/webhooks/forms/:key",
-    {
-      schema: {
-        tags: ["public forms"],
-        summary: "Receive a submission from an existing form (JSON or form-encoded)",
-        params: z.object({ key: z.string().max(64) }),
-        querystring: z.object({ secret: z.string().max(100).optional() }),
+  // Many form tools post classic HTML form encoding. Only this webhook accepts it: elsewhere
+  // a form-encoded body is refused, so a page on another site can't post an HTML form to a
+  // signed-in user's API (security audit M1).
+  app.register((scope, _opts, done) => {
+    scope.addContentTypeParser(
+      "application/x-www-form-urlencoded",
+      { parseAs: "string", bodyLimit: 64 * 1024 },
+      (_req, body, done) => {
+        done(null, Object.fromEntries(new URLSearchParams(body as string)));
       },
-      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
-    },
-    async (request, reply) => {
-      const endpoint = await endpointFor(request.params.key);
-      const config = endpoint.config as FormConfig;
-      const header = request.headers["x-voicedesk-secret"];
-      const given = request.query.secret ?? (typeof header === "string" ? header : undefined);
-      if (!secretMatches(config.secret, given)) throw notFound();
-      const mapped = mapFields(flattenFields(request.body), config.fieldMap);
-      if (!mapped.message && !mapped.email && !mapped.phone && !Object.keys(mapped.extra).length) {
-        throw new HttpError(400, "EMPTY_SUBMISSION", "No form fields received");
-      }
-      await submit(endpoint, { ...mapped, submissionId: randomUUID(), source: "webhook" });
-      return reply.code(202).send({ received: true });
-    },
-  );
+    );
+    scope.withTypeProvider<ZodTypeProvider>().post(
+      "/api/webhooks/forms/:key",
+      {
+        schema: {
+          tags: ["public forms"],
+          summary: "Receive a submission from an existing form (JSON or form-encoded)",
+          params: z.object({ key: z.string().max(64) }),
+          querystring: z.object({ secret: z.string().max(100).optional() }),
+        },
+        config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      },
+      async (request, reply) => {
+        const endpoint = await endpointFor(request.params.key);
+        const config = endpoint.config as FormConfig;
+        // The header is preferred: secrets in URLs end up in logs and browser history
+        // (security audit M6). The ?secret= form still works for existing forms.
+        const header = request.headers["x-voicedesk-secret"];
+        const given = typeof header === "string" ? header : request.query.secret;
+        if (!secretMatches(config.secret, given)) throw notFound();
+        if (typeof header !== "string") request.log.warn("form webhook secret sent in the URL");
+        // A form tool's retries carry the same key, so the enquiry is handled once.
+        // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
+        const idem = request.headers["idempotency-key"];
+        const submissionId =
+          typeof idem === "string" && /^[\w.:-]{8,120}$/.test(idem) ? `key:${idem}` : randomUUID();
+        const mapped = mapFields(flattenFields(request.body), config.fieldMap);
+        if (
+          !mapped.message &&
+          !mapped.email &&
+          !mapped.phone &&
+          !Object.keys(mapped.extra).length
+        ) {
+          throw new HttpError(400, "EMPTY_SUBMISSION", "No form fields received");
+        }
+        await submit(endpoint, { ...mapped, submissionId, source: "webhook" });
+        return reply.code(202).send({ received: true });
+      },
+    );
+    done();
+  });
 
   // ---- Settings ----
 
@@ -259,6 +285,9 @@ export function registerFormRoutes(app: FastifyInstance, deps: AppDeps): void {
       fieldMap: config.fieldMap ?? {},
       hostedUrl: `${base}/f/${row.key}`,
       webhookPath: `/api/webhooks/forms/${row.key}?secret=${config.secret ?? ""}`,
+      /** Recommended: the address without the secret, and the secret in this header. */
+      webhookUrlPath: `/api/webhooks/forms/${row.key}`,
+      secretHeader: { name: "X-VoiceDesk-Secret", value: config.secret ?? "" },
     };
   };
 

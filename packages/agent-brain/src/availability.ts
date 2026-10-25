@@ -75,6 +75,9 @@ function weekdayOf(date: string): (typeof WEEKDAYS)[number] {
   return WEEKDAYS[(js + 6) % 7]!;
 }
 
+/** Longest gap kept between appointments. More than this is a typo (it would block whole days). */
+export const MAX_BUFFER_MINUTES = 240;
+
 export interface AvailabilityQuery {
   profile: BusinessProfile;
   timeZone: string;
@@ -110,7 +113,10 @@ export function findSlots(q: AvailabilityQuery): AvailabilityResult {
     return { ok: false, reason: "Opening hours for that day are not known" };
 
   const duration = service.durationMinutes ?? 30;
-  const buffer = q.profile.bookingRules.bufferMinutes ?? 0;
+  const buffer = Math.min(
+    Math.max(q.profile.bookingRules.bufferMinutes ?? 0, 0),
+    MAX_BUFFER_MINUTES,
+  );
   const earliest = q.now.getTime() + (q.profile.bookingRules.minNoticeHours ?? 1) * 3_600_000;
   const open = zonedToUtc(q.date, hours.open, q.timeZone).getTime();
   const close = zonedToUtc(q.date, hours.close, q.timeZone).getTime();

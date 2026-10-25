@@ -3,7 +3,6 @@ import {
   conversationMessages,
   outboundCalls,
   staffMessages,
-  user,
   withTenant,
 } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
@@ -16,6 +15,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -52,7 +52,7 @@ const NIGHT = new Date("2026-10-20T21:30:00Z");
 beforeAll(async () => {
   h = await createHarness({ sip, voice });
   const platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await makePlatformOwner(h, platform);
   biz = await createOwnerWithTenant(h, "Callback Co");
   await h.app.inject({
     method: "POST",

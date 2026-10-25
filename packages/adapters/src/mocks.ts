@@ -8,6 +8,7 @@ import type {
 } from "./calendar/types";
 import type { EmailMessage, EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
+import type { HumanCheck } from "./human/types";
 import type { LlmContentBlock, LlmProvider, LlmRequest, LlmResponse } from "./llm/types";
 import type {
   SmsMessage,
@@ -304,5 +305,17 @@ export class InMemoryCalendarProvider implements CalendarProvider {
   deleteEvent(calendarId: string, eventId: string): Promise<void> {
     this.calendar(calendarId).delete(eventId);
     return Promise.resolve();
+  }
+}
+
+/** Accepts the token "human"; "down" acts like an unreachable service. */
+export class MockHumanCheck implements HumanCheck {
+  readonly name = "mock-human";
+  readonly siteKey = "mock-site-key";
+  readonly checked: string[] = [];
+
+  verify(token: string): Promise<"human" | "bot" | "unavailable"> {
+    this.checked.push(token);
+    return Promise.resolve(token === "human" ? "human" : token === "down" ? "unavailable" : "bot");
   }
 }

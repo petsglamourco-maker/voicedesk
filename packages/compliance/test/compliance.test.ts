@@ -49,4 +49,84 @@ describe("logger", () => {
     expect(entry.contact).toEqual({ email: "[redacted]", phoneE164: "[redacted]" });
     expect(entry.tenantId).toBe("t1");
   });
+
+  it("redacts at any depth, including message content (audit M13)", () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lines.push(chunk.toString());
+        cb();
+      },
+    });
+    const log = pino(loggerOptions("test", "info"), sink);
+    log.warn(
+      {
+        job: { data: { form: { name: "Sam", email: "s@x.com", message: "my address is…" } } },
+        reply: { text: "Your booking is at 10" },
+        counts: { sms: 2 },
+      },
+      "processed",
+    );
+    const entry = JSON.parse(lines[0]!) as {
+      job: { data: { form: Record<string, string> } };
+      reply: unknown;
+      counts: unknown;
+    };
+    expect(entry.job.data.form).toEqual({
+      name: "[redacted]",
+      email: "[redacted]",
+      message: "[redacted]",
+    });
+    expect(entry.reply).toBe("[redacted]");
+    expect(entry.counts).toEqual({ sms: 2 });
+  });
+
+  it("keeps errors useful but strips query parameters and personal data", () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lines.push(chunk.toString());
+        cb();
+      },
+    });
+    const log = pino(loggerOptions("test", "info"), sink);
+    const err = new Error(
+      'Failed query: select * from "user" where "email" = $1\nparams: sam@example.com',
+    );
+    log.error({ err, tenantId: "t1" }, "lookup failed");
+    const entry = JSON.parse(lines[0]!) as {
+      err: { message: string; stack: string; type: string };
+    };
+    expect(entry.err.type).toBe("Error");
+    expect(entry.err.message).toContain("Failed query");
+    expect(JSON.stringify(entry)).not.toContain("sam@example.com");
+  });
+
+  it("leaves class instances (e.g. requests) to their serializers", () => {
+    const lines: string[] = [];
+    const sink = new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lines.push(chunk.toString());
+        cb();
+      },
+    });
+    class FakeRequest {
+      get url() {
+        return "/api/x?token=secret";
+      }
+    }
+    const options = loggerOptions("test", "info");
+    const log = pino(
+      {
+        ...options,
+        serializers: {
+          ...options.serializers,
+          req: (r: FakeRequest) => ({ path: r.url.split("?")[0] }),
+        },
+      },
+      sink,
+    );
+    log.info({ req: new FakeRequest() }, "incoming");
+    expect(JSON.parse(lines[0]!)).toMatchObject({ req: { path: "/api/x" } });
+  });
 });

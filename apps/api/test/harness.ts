@@ -8,17 +8,24 @@ import {
 import type { AuthEmail } from "@voicedesk/auth";
 import { loadRootEnv, requireEnv } from "@voicedesk/config/load-env";
 import { SecretBox, type ProviderSecrets } from "@voicedesk/core";
-import { closeDb, createDb, type Database } from "@voicedesk/db";
+import { closeDb, createDb, user, type Database } from "@voicedesk/db";
+import { eq } from "drizzle-orm";
 import type { AiJob, ChannelJob, NotificationJob, ProcessSourceJob } from "@voicedesk/jobs";
 import { processSource } from "@voicedesk/knowledge";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { expect } from "vitest";
 import { buildApp, type AppDeps } from "../src/app";
-import { createAppAuth, type JobDispatcher } from "../src/container";
-import { parseEnv } from "../src/env";
+import {
+  createAppAuth,
+  disconnectRemovedMembersCalendar,
+  type JobDispatcher,
+} from "../src/container";
+import { freshAuthStore } from "../src/lib/fresh-auth";
+import { memoryKv, type Kv } from "../src/lib/kv";
+import { oauthStateSecretFor, parseEnv } from "../src/env";
 
 export const ORIGIN = "http://localhost:3000";
-const PASSWORD = "correct-horse-battery";
+export const PASSWORD = "correct-horse-battery";
 
 export interface TestHarness {
   app: FastifyInstance;
@@ -35,6 +42,7 @@ export interface TestHarness {
   };
   llm: MockLlmProvider;
   storage: InMemoryObjectStorage;
+  kv: Kv;
   close: () => Promise<void>;
 }
 
@@ -43,8 +51,15 @@ export interface TestHarness {
  * run inline, so tests can assert on processed results without a worker.
  */
 export async function createHarness(
-  options: Pick<AppDeps, "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient"> & {
+  options: Pick<
+    AppDeps,
+    "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient" | "humanCheck"
+  > & {
     llm?: LlmProvider;
+    /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
+    breachCheck?: boolean;
+    /** Turn Better Auth's own request limits on (off by default: tests sign in a lot). */
+    authRateLimit?: boolean;
   } = {},
 ): Promise<TestHarness> {
   loadRootEnv();
@@ -52,13 +67,23 @@ export async function createHarness(
     ...process.env,
     DATABASE_URL: requireEnv("TEST_DATABASE_URL"),
     LOG_LEVEL: "silent",
+    PASSWORD_BREACH_CHECK: options.breachCheck ? "on" : "off",
   });
   const db = createDb(env.DATABASE_URL);
   const outbox: AuthEmail[] = [];
-  const auth = createAppAuth(env, db, (email) => {
+  const kv = memoryKv();
+  const sendAuthEmail = (email: AuthEmail) => {
     outbox.push(email);
     return Promise.resolve();
-  });
+  };
+  const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
+  const auth = createAppAuth(
+    env,
+    db,
+    sendAuthEmail,
+    options.authRateLimit ? kv : undefined,
+    disconnectRemovedMembersCalendar(db, secrets, options.calendars),
+  );
   const storage = new InMemoryObjectStorage();
   const embeddings = new MockEmbeddingProvider();
   const llm = new MockLlmProvider();
@@ -96,7 +121,6 @@ export async function createHarness(
       return Promise.resolve();
     },
   };
-  const secrets: ProviderSecrets = { box: new SecretBox(randomBytes(32).toString("base64")) };
   const app = await buildApp({
     db,
     secrets,
@@ -111,7 +135,11 @@ export async function createHarness(
     calendars: options.calendars,
     whatsapp: options.whatsapp ?? { accessToken: null, appSecret: null, verifyToken: null },
     mailboxClient: options.mailboxClient,
-    oauthStateSecret: env.BETTER_AUTH_SECRET,
+    humanCheck: options.humanCheck ?? null,
+    oauthStateSecret: oauthStateSecretFor(env),
+    freshAuth: freshAuthStore(kv),
+    kv,
+    sendAuthEmail,
     checkRedis: () => Promise.resolve(true),
     logLevel: "silent",
   });
@@ -123,6 +151,7 @@ export async function createHarness(
     jobs: recorded,
     llm,
     storage,
+    kv,
     close: async () => {
       await app.close();
       await closeDb(db);
@@ -185,4 +214,35 @@ export async function createOwnerWithTenant(h: TestHarness, businessName = "Brig
   });
   expect(res.statusCode).toBe(201);
   return { ...owner, tenantId: res.json<{ id: string }>().id };
+}
+
+/** Confirms the password (step-up re-auth) so sensitive admin actions are allowed. */
+export async function reauth(h: TestHarness, cookie: string): Promise<void> {
+  const res = await h.app.inject({
+    method: "POST",
+    url: "/api/me/reauth",
+    headers: { cookie, origin: ORIGIN },
+    payload: { password: PASSWORD },
+  });
+  expect(res.statusCode).toBe(200);
+}
+
+/** Makes an account the platform owner, with two-step login on and a fresh password check. */
+export async function makePlatformOwner(
+  h: TestHarness,
+  account: { email: string; cookie: string },
+): Promise<void> {
+  await h.db
+    .update(user)
+    .set({ isPlatformOwner: true, twoFactorEnabled: true })
+    .where(eq(user.email, account.email));
+  await reauth(h, account.cookie);
+}
+
+/** The signed token the website chat frame carries (security audit M3). */
+export async function widgetToken(h: TestHarness, key: string): Promise<string> {
+  const frame = await h.app.inject({ method: "GET", url: `/api/public/chat/${key}/frame` });
+  const token = /"token":"([^"]+)"/.exec(frame.body)?.[1];
+  if (!token) throw new Error("no widget token in the chat frame");
+  return token;
 }

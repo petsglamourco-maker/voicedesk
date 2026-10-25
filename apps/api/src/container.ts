@@ -1,5 +1,6 @@
 import type {
   EmbeddingProvider,
+  HumanCheck,
   LlmProvider,
   ObjectStorage,
   TextToSpeechProvider,
@@ -9,11 +10,12 @@ import {
   type MailboxClient,
   type MailboxCredentials,
 } from "@voicedesk/adapters/email/mailbox";
-import { embeddingsFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
+import { embeddingsFromEnv, humanCheckFromEnv, storageFromEnv } from "@voicedesk/adapters/from-env";
 import { createAuth, type Auth, type AuthAuditEvent, type AuthEmail } from "@voicedesk/auth";
 import {
   createAppLlm,
   calendarsFromEnv,
+  disconnectCalendarOf,
   recordAudit,
   SecretBox,
   type CalendarIntegrations,
@@ -36,15 +38,18 @@ import {
   type ChannelJob,
   type ProcessSourceJob,
 } from "@voicedesk/jobs";
-import type { Env } from "./env";
+import { createLogger } from "@voicedesk/compliance/logger";
+import { oauthStateSecretFor, type Env } from "./env";
 import { whatsAppSettingsFromEnv, type WhatsAppSettings } from "./routes/whatsapp";
+import { freshAuthStore, type FreshAuthStore } from "./lib/fresh-auth";
+import { kvRateLimitStorage, redisKv, type Kv } from "./lib/kv";
 import { bridgeLiveFromRedis } from "./lib/live";
 import { sipGatewayFromEnv, type SipGateway } from "./lib/sip";
 import { ttsFromEnv, voiceGatewayFromEnv, type VoiceGateway } from "./lib/voice";
 
 export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promise<void> {
   return async (event) => {
-    const entry = { ...event, actorType: "user" as const };
+    const entry = { ...event, actorType: "user" as const, ipAddress: event.ipAddress ?? null };
     if (event.tenantId) {
       await withTenant(db, event.tenantId, (tx) => recordAudit(tx, entry));
     } else {
@@ -53,10 +58,14 @@ export function createAuditSink(db: Database): (event: AuthAuditEvent) => Promis
   };
 }
 
+const authLog = createLogger("auth");
+
 export function createAppAuth(
   env: Env,
   db: Database,
   sendEmail: (email: AuthEmail) => Promise<void>,
+  kv?: Kv,
+  onMemberRemoved?: (event: { tenantId: string; userId: string }) => Promise<void>,
 ): Auth {
   return createAuth({
     db,
@@ -65,7 +74,23 @@ export function createAppAuth(
     trustedOrigins: [env.WEB_ORIGIN],
     sendEmail,
     audit: createAuditSink(db),
+    checkBreachedPasswords: env.PASSWORD_BREACH_CHECK === "on",
+    onBreachCheckUnavailable: () =>
+      authLog.warn("breached-password check unavailable; password allowed"),
+    ...(kv ? { rateLimitStorage: kvRateLimitStorage(kv) } : {}),
+    ...(onMemberRemoved ? { onMemberRemoved } : {}),
   });
+}
+
+/** A removed member's own calendar stops being used (security audit M7). */
+export function disconnectRemovedMembersCalendar(
+  db: Database,
+  secrets: ProviderSecrets,
+  calendars: CalendarIntegrations | undefined,
+) {
+  return async ({ tenantId, userId }: { tenantId: string; userId: string }) => {
+    await disconnectCalendarOf(db, secrets.box, calendars?.oauth ?? {}, tenantId, userId);
+  };
 }
 
 /** Background work the API hands to apps/workers. Narrow so tests can fake it. */
@@ -105,6 +130,18 @@ export interface Container {
   mailboxClient?: (creds: MailboxCredentials) => MailboxClient;
   /** Signs OAuth `state` values (the Better Auth secret). */
   oauthStateSecret: string;
+  /** Recent password confirmations for sensitive admin actions (step-up re-auth). */
+  freshAuth: FreshAuthStore;
+  /** Short-lived security state: sign-in failures, lockouts, password re-checks. */
+  kv: Kv;
+  /** Security emails to account holders (lockout, new device), outside Better Auth. */
+  sendAuthEmail: (email: AuthEmail) => Promise<void>;
+  /** Bot check for public chat and forms; null until Turnstile keys are set. */
+  humanCheck?: HumanCheck | null;
+  /** Valkey for the API's request limits, shared by every API process. */
+  rateLimitRedis?: ReturnType<typeof createRedisConnection>;
+  /** Proxies whose X-Forwarded-For is believed (TRUSTED_PROXIES). */
+  trustedProxies?: string[];
   checkRedis: () => Promise<boolean>;
   close: () => Promise<void>;
 }
@@ -119,16 +156,26 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
   const notificationQueue = createNotificationQueue(redis);
   const channelQueue = createChannelQueue(redis);
   const stopLiveBridge = await bridgeLiveFromRedis(redis.duplicate(), LIVE_CHANNEL);
-  const auth = createAppAuth(env, db, async (email) => {
+  const kv = redisKv(redis);
+  const sendAuthEmail = async (email: AuthEmail) => {
     await emailQueue.add(email.kind, email);
-  });
-  const storage = storageFromEnv();
-  await storage.ensureBucket();
-  let embeddings: Promise<EmbeddingProvider> | undefined;
-  const secrets: ProviderSecrets = {
+  };
+  const secretsEarly: ProviderSecrets = {
     box: SecretBox.fromEnv(),
     anthropicEnvKey: process.env.ANTHROPIC_API_KEY || undefined,
   };
+  const calendars = calendarsFromEnv();
+  const auth = createAppAuth(
+    env,
+    db,
+    sendAuthEmail,
+    kv,
+    disconnectRemovedMembersCalendar(db, secretsEarly, calendars),
+  );
+  const storage = storageFromEnv();
+  await storage.ensureBucket();
+  let embeddings: Promise<EmbeddingProvider> | undefined;
+  const secrets = secretsEarly;
 
   return {
     db,
@@ -139,10 +186,18 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     voice: voiceGatewayFromEnv(),
     tts: await ttsFromEnv(),
     sip: sipGatewayFromEnv(),
-    calendars: calendarsFromEnv(),
+    calendars,
     whatsapp: whatsAppSettingsFromEnv(),
     mailboxClient: (creds) => new ImapMailbox(creds),
-    oauthStateSecret: env.BETTER_AUTH_SECRET,
+    oauthStateSecret: oauthStateSecretFor(env),
+    freshAuth: freshAuthStore(kv),
+    kv,
+    sendAuthEmail,
+    humanCheck: await humanCheckFromEnv(),
+    rateLimitRedis: redis,
+    trustedProxies: env.TRUSTED_PROXIES.split(",")
+      .map((p) => p.trim())
+      .filter(Boolean),
     embeddings: () => (embeddings ??= embeddingsFromEnv(process.env, repoRoot)),
     jobs: {
       processSource: async (job) => {

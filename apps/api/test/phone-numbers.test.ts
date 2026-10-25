@@ -1,5 +1,3 @@
-import { user } from "@voicedesk/db";
-import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   sipGatewayFromEnv,
@@ -14,6 +12,7 @@ import {
   createOwnerWithTenant,
   ORIGIN,
   signUpVerified,
+  makePlatformOwner,
   type TestHarness,
 } from "./harness";
 
@@ -57,7 +56,7 @@ const unique = () => `+44 20 ${Math.floor(1000_0000 + Math.random() * 8999_9999)
 beforeAll(async () => {
   h = await createHarness({ sip });
   platform = await signUpVerified(h, "Platform");
-  await h.db.update(user).set({ isPlatformOwner: true }).where(eq(user.email, platform.email));
+  await makePlatformOwner(h, platform);
   bizA = await createOwnerWithTenant(h, "Phone A");
   bizB = await createOwnerWithTenant(h, "Phone B");
 });

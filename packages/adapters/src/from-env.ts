@@ -2,6 +2,7 @@
 import { join } from "node:path";
 import type { EmailProvider } from "./email/types";
 import type { EmbeddingProvider } from "./embeddings/types";
+import type { HumanCheck } from "./human/types";
 import type { LlmProvider } from "./llm/types";
 import type { SmsProvider } from "./messaging/types";
 import { MockEmbeddingProvider, MockLlmProvider } from "./mocks";
@@ -94,4 +95,14 @@ export async function smsFromEnv(
   });
   if (providers.length === 0) return new MailpitSmsProvider(email);
   return providers.length === 1 ? providers[0]! : new FallbackSmsProvider(providers);
+}
+
+/** Bot check for public pages; null (off) until both Turnstile keys are set. */
+export async function humanCheckFromEnv(env: Env = process.env): Promise<HumanCheck | null> {
+  if (!env.TURNSTILE_SITE_KEY || !env.TURNSTILE_SECRET_KEY) return null;
+  const { TurnstileHumanCheck } = await import("./human/turnstile");
+  return new TurnstileHumanCheck({
+    siteKey: env.TURNSTILE_SITE_KEY,
+    secretKey: env.TURNSTILE_SECRET_KEY,
+  });
 }

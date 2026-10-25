@@ -47,6 +47,7 @@ export async function ingestDocument(
       .from(knowledgeDocuments)
       .where(and(eq(knowledgeDocuments.sourceId, sourceId), eq(knowledgeDocuments.url, input.url))),
   );
+  // nosemgrep: ajinabraham.njsscan.crypto.timing_attack_node.node_timing_attack -- reviewed: not a secret comparison (empty-string check / content hash)
   if (existing[0]?.hash === hash) return { chunks: 0, unchanged: true };
 
   const chunks = chunkText(text);

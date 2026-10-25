@@ -1,5 +1,6 @@
 export * from "./audit";
 export * from "./permissions";
+export * from "./mfa";
 export * from "./tenants";
 export * from "./ai-providers";
 export { maskSecret, SecretBox } from "./secret-box";
@@ -8,3 +9,4 @@ export * from "./csv";
 export * from "./mailboxes";
 export * from "./answerers";
 export * from "./handoffs";
+export { reencryptAll, type ReencryptReport } from "./reencrypt";

@@ -36,7 +36,13 @@ export type { AgentContext } from "./context";
 export { buildSystemPrompt, PROMPT_VERSION } from "./prompt";
 export * from "./state";
 export * from "./services";
-export { findSlots, localDateString, zonedToUtc, type Slot } from "./availability";
+export {
+  findSlots,
+  localDateString,
+  MAX_BUFFER_MINUTES,
+  zonedToUtc,
+  type Slot,
+} from "./availability";
 export { toolDefinitions } from "./tools";
 export { runTurn, startConversation, type TurnEvent, type TurnResult } from "./engine";
 export { ConversationDriver } from "./driver";
@@ -45,6 +51,7 @@ export {
   createDbAgentServices,
   invalidateBusyCache,
   loadAgentContext,
+  aiPauseFor,
   type AgentNotification,
   type DbServiceDeps,
 } from "./services-db";
@@ -80,6 +87,7 @@ export {
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
+  planSupportRequest,
   planTransferContext,
   type NotificationPlan,
   type OutgoingMessage,
@@ -171,3 +179,46 @@ export {
   type BackOfficeTurn,
   type BackOfficeUser,
 } from "./back-office";
+export {
+  askHelp,
+  helpFromSearch,
+  type HelpAnswer,
+  type HelpDeps,
+  type HelpSearchHit,
+  type HelpTurn,
+  type HelpUser,
+} from "./help";
+export {
+  ALERT_LEVELS,
+  DEFAULT_CAPS,
+  SPEND_CATEGORIES,
+  allowanceFor,
+  capsFor,
+  getPlatformSpendSettings,
+  monthSpend,
+  monthWindow,
+  recordSmsSpend,
+  smsSegments,
+  spendOverview,
+  spendStatus,
+  stateFor,
+  type Pence,
+  type SpendCategory,
+  type SpendState,
+  type SpendStatus,
+} from "./spend";
+export {
+  checkDestination,
+  countryOfNumber,
+  destinationMessage,
+  type DestinationCheck,
+} from "./destinations";
+export {
+  checkSend,
+  sendRefusalMessage,
+  smsCostsMoney,
+  type SendDecision,
+  type SendRefusal,
+} from "./send-guard";
+export { planSpendAlerts } from "./spend-alerts";
+export { claimInbound } from "./inbound-dedupe";
