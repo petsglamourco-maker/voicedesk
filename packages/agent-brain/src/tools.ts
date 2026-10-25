@@ -795,6 +795,56 @@ export const TOOLS = {
       };
     },
   }),
+  send_payment_link: define({
+    description:
+      "Sends the business's secure payment link to the customer by text or email, when their department has one. Confirm the number or email address with the customer first. Never take card details yourself.",
+    input: z.object({
+      channel: z.enum(["sms", "email"]),
+      to: z
+        .string()
+        .optional()
+        .describe(
+          "The mobile number or email address the customer confirmed; for a text, leave empty to use the number they're calling from",
+        ),
+    }),
+    run: async (env, { channel, to }) => {
+      const department = env.state.department
+        ? env.ctx.menu?.departments.find((d) => d.id === env.state.department!.id)
+        : env.ctx.menu?.departments.find((d) => d.paymentLink);
+      if (!department?.paymentLink || !env.services.sendPaymentLink) {
+        return error(
+          "There is no payment link for this conversation. Offer to take a message so the team can help with the payment.",
+        );
+      }
+      const address = to?.trim() || (channel === "sms" ? env.state.callerPhone : null);
+      if (!address) {
+        return error(
+          channel === "sms"
+            ? "Ask for the mobile number to text the link to."
+            : "Ask for the email address.",
+        );
+      }
+      const result = await env.services.sendPaymentLink({
+        departmentId: department.id,
+        channel,
+        to: address,
+        language: env.state.language,
+      });
+      if (!result.sent) {
+        return error(
+          result.reason === "invalid"
+            ? "That number or address doesn't look right; check it with the customer."
+            : "There is no payment link for this department.",
+        );
+      }
+      return {
+        result: {
+          sent: true,
+          next: "Tell the customer the secure payment link is on its way and that they can pay there. Never ask for or repeat card details.",
+        },
+      };
+    },
+  }),
   request_human: define({
     description:
       "Only when the caller explicitly asks to speak to a person now. Never when they are just saying goodbye or thanks. Not for callback requests: those go on the complaint (wantsCallback) or a message.",

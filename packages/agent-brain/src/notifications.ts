@@ -769,3 +769,39 @@ async function departmentAudience(
     : [];
   return { name: row.name, email: row.email, people };
 }
+
+const PAYMENT_LINK: Record<Lang, (business: string, url: string) => string> = {
+  en: (b, u) => `${b}: here's our secure payment link: ${u}`,
+  es: (b, u) => `${b}: este es nuestro enlace de pago seguro: ${u}`,
+  fr: (b, u) => `${b} : voici notre lien de paiement sécurisé : ${u}`,
+  de: (b, u) => `${b}: Hier ist unser sicherer Zahlungslink: ${u}`,
+  zh: (b, u) => `${b}：这是我们的安全付款链接：${u}`,
+  ar: (b, u) => `${b}: هذا رابط الدفع الآمن الخاص بنا: ${u}`,
+};
+
+/** ADR 0025: the business's own payment link to the customer (texts go through checkSend). */
+export async function planPaymentLink(
+  db: Database,
+  job: {
+    tenantId: string;
+    departmentId: string;
+    channel: "sms" | "email";
+    to: string;
+    language: string;
+  },
+): Promise<NotificationPlan> {
+  const business = await loadBusiness(db, job.tenantId);
+  const [department] = await withTenant(db, job.tenantId, (tx) =>
+    tx.select().from(departments).where(eq(departments.id, job.departmentId)),
+  );
+  const url = department?.paymentLink;
+  if (!url?.startsWith("https://")) return { messages: [] };
+  const text = PAYMENT_LINK[toLang(job.language, "en")](business.name, url);
+  return {
+    messages: [
+      job.channel === "sms"
+        ? { channel: "sms", to: job.to, text, kind: "payment.link" }
+        : { channel: "email", to: job.to, subject: `${business.name}`, text, kind: "payment.link" },
+    ],
+  };
+}

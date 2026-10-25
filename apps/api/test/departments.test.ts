@@ -3,6 +3,7 @@ import {
   createConversation,
   createDbAgentServices,
   loadAgentContext,
+  planPaymentLink,
   planRingingPush,
   planStaffAlert,
   recordDepartmentChoice,
@@ -330,5 +331,58 @@ describe("departments and the phone menu", () => {
     const emails = alert.messages.filter((m) => m.channel === "email");
     expect(emails.map((m) => m.to)).toContain("support-team@example.com");
     expect(emails[0]!.subject).toContain("[Support]");
+  });
+
+  it("payment links: the business's own link, texted through the usual checks", async () => {
+    const biz = await createOwnerWithTenant(h, "Pay Co");
+    const saved = (
+      await save(biz, {
+        departments: [{ key: 4, name: "Payments", paymentLink: "https://buy.stripe.com/test_x" }],
+      })
+    ).json<MenuView>();
+    const ctx = await loadAgentContext(h.db, biz.tenantId, "voice");
+    const call = await createConversation(h.db, ctx, { tenantId: biz.tenantId, channel: "voice" });
+    const events: unknown[] = [];
+    const services = createDbAgentServices(
+      {
+        db: h.db,
+        embeddings: new MockEmbeddingProvider(),
+        notify: (e) => {
+          events.push(e);
+          return Promise.resolve();
+        },
+      },
+      { tenantId: biz.tenantId, conversationId: call.conversationId, businessName: "Pay Co" },
+    );
+    const sent = await services.sendPaymentLink!({
+      departmentId: saved.departments[0]!.id,
+      channel: "sms",
+      to: "07700 900123",
+      language: "en",
+    });
+    expect(sent).toEqual({ sent: true });
+    expect(events).toEqual([
+      expect.objectContaining({ kind: "payment.link", channel: "sms", to: "+447700900123" }),
+    ]);
+    const plan = await planPaymentLink(h.db, {
+      tenantId: biz.tenantId,
+      departmentId: saved.departments[0]!.id,
+      channel: "sms",
+      to: "+447700900123",
+      language: "en",
+    });
+    expect(plan.messages).toEqual([
+      expect.objectContaining({
+        channel: "sms",
+        text: expect.stringContaining("https://buy.stripe.com/test_x"),
+      }),
+    ]);
+    const bad = await services.sendPaymentLink!({
+      departmentId: saved.departments[0]!.id,
+      channel: "email",
+      to: "not-an-email",
+      language: "en",
+    });
+    expect(bad).toEqual({ sent: false, reason: "invalid" });
   });
 });

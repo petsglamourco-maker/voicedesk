@@ -15,6 +15,7 @@ import {
   planSpendAlerts,
   planStaffAlert,
   planRingingPush,
+  planPaymentLink,
   planSupportRequest,
   planTransferContext,
   type NotificationPlan,
@@ -177,6 +178,8 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       }
       case "transfer.context":
         return execute(job, data.tenantId, await planTransferContext(deps.db, data));
+      case "payment.link":
+        return execute(job, data.tenantId, await planPaymentLink(deps.db, data));
       case "call.ringing":
         return execute(job, data.tenantId, await planRingingPush(deps.db, data));
       case "support.request":

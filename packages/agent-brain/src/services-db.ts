@@ -37,7 +37,7 @@ import { handoffPlan, isOpenNow, PEOPLE_TARGET, toHandoffRoute, transferTarget }
 import { getApprovedProfile } from "./profile-store";
 import type { BusyRange } from "./availability";
 import type { AgentServices, Created } from "./services";
-import { makeReference } from "./util";
+import { makeReference, normalisePhone } from "./util";
 
 export interface DbServiceDeps {
   db: Database;
@@ -59,7 +59,15 @@ export interface DbServiceDeps {
 export type AgentNotification =
   | { kind: "booking.changed"; bookingId: string; change: "created" | "moved" | "cancelled" }
   | { kind: "staff.alert"; record: "ticket" | "message" | "handoff" | "feedback"; id: string }
-  | { kind: "transfer.context"; conversationId: string; to: string; reason: string };
+  | { kind: "transfer.context"; conversationId: string; to: string; reason: string }
+  | {
+      kind: "payment.link";
+      conversationId: string;
+      departmentId: string;
+      channel: "sms" | "email";
+      to: string;
+      language: string;
+    };
 
 const BUSY_CACHE_MS = 60_000;
 const busyCache = new Map<string, { at: number; ranges: BusyRange[] }>();
@@ -405,6 +413,44 @@ export function createDbAgentServices(
         return row!.id;
       });
       return { id, reference };
+    },
+
+    async sendPaymentLink(input) {
+      // The link itself is the business's own (set in Departments); only sent when set.
+      const [department] = await tx((t) =>
+        t.select().from(departments).where(eq(departments.id, input.departmentId)),
+      );
+      if (!department?.paymentLink) return { sent: false, reason: "no_link" as const };
+      let to = input.to.trim();
+      if (input.channel === "sms") {
+        const [tenant] = await tx((t) =>
+          t.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
+        );
+        const e164 = normalisePhone(to, tenant?.c ?? "GB");
+        if (!e164) return { sent: false, reason: "invalid" as const };
+        to = e164;
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+        return { sent: false, reason: "invalid" as const };
+      }
+      await notify({
+        kind: "payment.link",
+        conversationId,
+        departmentId: department.id,
+        channel: input.channel,
+        to,
+        language: input.language,
+      });
+      await tx((t) =>
+        t.insert(auditLog).values({
+          tenantId,
+          actorType: "ai",
+          action: "conversation.payment_link_sent",
+          targetType: "conversation",
+          targetId: conversationId,
+          metadata: { departmentId: department.id, channel: input.channel },
+        }),
+      );
+      return { sent: true as const };
     },
 
     async chooseDepartment(departmentId, via) {

@@ -126,4 +126,34 @@ describe("departments in the conversation", () => {
     const missing = await runTool("set_department", { key: 7 }, { ctx, services, state });
     expect(missing.isError).toBe(true);
   });
+
+  it("send_payment_link sends the department's link, never without one", async () => {
+    const services = new InMemoryAgentServices();
+    const ctx = makeContext({ menu: MENU });
+    const state = initialState("en", "+447700900123");
+    // Support has no link.
+    state.department = { id: "d-2", key: 2, name: "Support" };
+    const none = await runTool("send_payment_link", { channel: "sms" }, { ctx, services, state });
+    expect(none.isError).toBe(true);
+    state.department = { id: "d-4", key: 4, name: "Payments" };
+    const sms = await runTool("send_payment_link", { channel: "sms" }, { ctx, services, state });
+    expect(sms.isError).toBeFalsy();
+    expect(sms.result.next).toMatch(/Never ask for or repeat card details/);
+    const email = await runTool(
+      "send_payment_link",
+      { channel: "email", to: "pat@example.com" },
+      { ctx, services, state },
+    );
+    expect(email.isError).toBeFalsy();
+    expect(services.paymentLinks).toEqual([
+      { departmentId: "d-4", channel: "sms", to: "+447700900123", language: "en" },
+      { departmentId: "d-4", channel: "email", to: "pat@example.com", language: "en" },
+    ]);
+    const noAddress = await runTool(
+      "send_payment_link",
+      { channel: "email" },
+      { ctx, services, state },
+    );
+    expect(noAddress.isError).toBe(true);
+  });
 });

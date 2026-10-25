@@ -83,6 +83,13 @@ export interface AgentServices {
   registerCustomer(input: SignupInput): Promise<Created>;
   /** Logs a question the assistant couldn't answer, so the business can fill the gap. */
   noteKnowledgeGap(question: string): Promise<void>;
+  /** ADR 0025: texts or emails the department's payment link (the business's own). */
+  sendPaymentLink?(input: {
+    departmentId: string;
+    channel: "sms" | "email";
+    to: string;
+    language: string;
+  }): Promise<{ sent: true } | { sent: false; reason: "no_link" | "invalid" }>;
   /** ADR 0025: saves the conversation's department ("keypad", "speech", "chat", "assistant"). */
   chooseDepartment?(departmentId: string, via: string): Promise<void>;
 }
@@ -196,6 +203,12 @@ export class InMemoryAgentServices implements AgentServices {
   }
 
   readonly departmentChoices: Array<{ departmentId: string; via: string }> = [];
+  readonly paymentLinks: Array<{ departmentId: string; channel: string; to: string }> = [];
+
+  sendPaymentLink(input: { departmentId: string; channel: "sms" | "email"; to: string }) {
+    this.paymentLinks.push({ ...input });
+    return Promise.resolve({ sent: true as const });
+  }
 
   chooseDepartment(departmentId: string, via: string): Promise<void> {
     this.departmentChoices.push({ departmentId, via });

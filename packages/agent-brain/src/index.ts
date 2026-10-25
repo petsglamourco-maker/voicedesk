@@ -90,6 +90,7 @@ export {
   planBookingReminder,
   planFeedbackRequest,
   planStaffAlert,
+  planPaymentLink,
   planRingingPush,
   planSupportRequest,
   planTransferContext,

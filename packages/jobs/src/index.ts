@@ -122,6 +122,16 @@ export type NotificationJob =
   | { kind: "brief.tick" }
   /** ADR 0021: someone used "Contact support" in the Help assistant; email the platform owners. */
   | { kind: "support.request"; requestId: string }
+  /** ADR 0025: the business's own payment link, by text or email, to the customer. */
+  | {
+      kind: "payment.link";
+      tenantId: string;
+      conversationId: string;
+      departmentId: string;
+      channel: "sms" | "email";
+      to: string;
+      language: string;
+    }
   /** A handed-over call is ringing: push to the people who answer calls (ADR 0024). */
   | { kind: "call.ringing"; tenantId: string; handoffId: string }
   | {
