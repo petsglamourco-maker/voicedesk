@@ -371,12 +371,9 @@ describe("departments and the phone menu", () => {
       to: "+447700900123",
       language: "en",
     });
-    expect(plan.messages).toEqual([
-      expect.objectContaining({
-        channel: "sms",
-        text: expect.stringContaining("https://buy.stripe.com/test_x"),
-      }),
-    ]);
+    expect(plan.messages).toHaveLength(1);
+    expect(plan.messages[0]).toMatchObject({ channel: "sms", to: "+447700900123" });
+    expect(plan.messages[0]!.text).toContain("https://buy.stripe.com/test_x");
     const bad = await services.sendPaymentLink!({
       departmentId: saved.departments[0]!.id,
       channel: "email",
