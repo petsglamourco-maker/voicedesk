@@ -8,6 +8,7 @@ import {
   Checkbox,
   Field,
   Input,
+  Select,
   StatusPill,
   Switch,
   useConfirm,
@@ -40,10 +41,12 @@ export interface PlatformSpending {
     name: string;
     status: "onboarding" | "active" | "suspended";
     spend: Pick<SpendView, "month" | "categories">;
+    plan: { id: string; name: string; status: string; usable: boolean };
   }>;
 }
 
 const CATEGORIES: SpendCategory[] = ["ai", "sms", "calls"];
+const PLAN_CHOICES = ["trial", "starter", "growth", "pro"] as const;
 const COUNTRIES = ["GB", "IE", "FR", "DE", "ES", "US"] as const;
 const COSTS = [
   "voicePencePerMinute",
@@ -113,18 +116,56 @@ export function SpendingPanel(props: { initial: PlatformSpending }) {
     }
   }
 
+  /** Gives a plan free (comp) or restarts a 14-day trial (ADR 0023). */
+  async function setPlan(tenantId: string, name: string, planId: string) {
+    const ok = await confirm({
+      title:
+        planId === "trial"
+          ? t("plan.trialConfirm", { name })
+          : t("plan.compConfirm", { name, plan: t(`plan.names.${planId}`) }),
+    });
+    if (!ok) return;
+    setPending(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api(`/api/platform/tenants/${tenantId}/plan`, {
+        method: "PUT",
+        body: JSON.stringify({ planId }),
+      });
+      setData((d) => ({
+        ...d,
+        businesses: d.businesses.map((b) =>
+          b.tenantId === tenantId
+            ? {
+                ...b,
+                plan: {
+                  id: planId,
+                  name: t(`plan.names.${planId}`),
+                  status: planId === "trial" ? "trialing" : "active",
+                  usable: true,
+                },
+              }
+            : b,
+        ),
+      }));
+      setNotice(t("plan.saved"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : common("errorGeneric"));
+    } finally {
+      setPending(false);
+    }
+  }
+
   function onLimits(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const maxCapPence = Object.fromEntries(
-      CATEGORIES.map((c) => [c, Math.round(Number(formString(form, `max-${c}`)) * 100)]),
-    ) as Pence;
     const costs = Object.fromEntries(
       COSTS.map((k) => [k, Number(formString(form, k))]),
     ) as Settings["costs"];
     const allowedCountries = COUNTRIES.filter((c) => form.get(`country-${c}`) === "on");
     if (allowedCountries.length === 0) return setError(t("countryNeeded"));
-    void save({ maxCapPence, costs, allowedCountries }, t("saved"));
+    void save({ costs, allowedCountries }, t("saved"));
   }
 
   return (
@@ -156,10 +197,11 @@ export function SpendingPanel(props: { initial: PlatformSpending }) {
       <Card>
         <CardHead icon={<Users />} title={t("businessesTitle")} hint={t("businessesHint")} />
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm" data-testid="spending-businesses">
+          <table className="w-full min-w-[860px] text-sm" data-testid="spending-businesses">
             <thead>
               <tr className="border-b border-border text-start text-xs text-muted-foreground">
                 <th className="py-2 pe-3 text-start font-medium">{t("business")}</th>
+                <th className="py-2 pe-3 text-start font-medium">{t("plan.column")}</th>
                 {CATEGORIES.map((c) => (
                   <th key={c} className="py-2 pe-3 text-start font-medium">
                     {usage(`categories.${c}`)}
@@ -173,6 +215,40 @@ export function SpendingPanel(props: { initial: PlatformSpending }) {
                 <tr key={b.tenantId} className="border-b border-border/60 last:border-0">
                   <td className="py-3 pe-3 font-medium" dir="auto">
                     {b.name}
+                  </td>
+                  <td className="py-3 pe-3">
+                    <div className="flex items-center gap-2">
+                      <StatusPill
+                        tone={
+                          !b.plan.usable
+                            ? "danger"
+                            : b.plan.status === "past_due"
+                              ? "warning"
+                              : b.plan.status === "trialing"
+                                ? "info"
+                                : "success"
+                        }
+                        label={b.plan.name}
+                      />
+                      <Select
+                        aria-label={t("plan.setLabel", { name: b.name })}
+                        className="h-8 w-auto text-xs"
+                        value=""
+                        disabled={pending}
+                        onChange={(e) => {
+                          if (e.target.value) void setPlan(b.tenantId, b.name, e.target.value);
+                        }}
+                      >
+                        <option value="">{t("plan.change")}</option>
+                        {PLAN_CHOICES.map((p) => (
+                          <option key={p} value={p}>
+                            {p === "trial"
+                              ? t("plan.restartTrial")
+                              : t("plan.giveFree", { plan: t(`plan.names.${p}`) })}
+                          </option>
+                        ))}
+                      </Select>
+                    </div>
                   </td>
                   {CATEGORIES.map((c) => {
                     const v = b.spend.categories[c];
@@ -236,26 +312,6 @@ export function SpendingPanel(props: { initial: PlatformSpending }) {
           </span>
         </label>
         <form method="post" onSubmit={onLimits} className="mt-5 space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            {CATEGORIES.map((c) => (
-              <Field
-                key={c}
-                id={`max-${c}`}
-                label={t("maxLabel", { what: usage(`categories.${c}`) })}
-              >
-                <Input
-                  id={`max-${c}`}
-                  name={`max-${c}`}
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  defaultValue={(data.settings.maxCapPence[c] / 100).toFixed(2)}
-                  required
-                />
-              </Field>
-            ))}
-          </div>
-
           <fieldset>
             <legend className="mb-2 flex items-center gap-2 text-sm font-semibold">
               <Globe2 className="size-4 text-muted-foreground" aria-hidden />

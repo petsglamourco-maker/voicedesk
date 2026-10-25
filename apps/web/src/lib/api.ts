@@ -78,6 +78,36 @@ export const getMe = () => apiGetOrNull<Me>("/api/me");
 
 /** Monthly spending limits (ADR 0022); amounts in pence. */
 export type SpendCategory = "ai" | "sms" | "calls";
+export interface BillingPlan {
+  id: "trial" | "starter" | "growth" | "pro";
+  name: string;
+  pricePence: number;
+  minutes: number;
+  texts: number;
+  aiPence: number;
+  phoneNumbers: number;
+  seats: number;
+  features: Array<"whatsapp" | "va_console" | "feedback" | "daily_brief" | "ai_calls">;
+}
+
+/** GET /api/tenants/:id/billing (ADR 0023). */
+export interface BillingView {
+  plan: BillingPlan;
+  status: "trialing" | "active" | "past_due" | "canceled";
+  usable: boolean;
+  reason: "trial_ended" | "canceled" | "unpaid" | null;
+  comped: boolean;
+  trialEndsAt: string | null;
+  trialDaysLeft: number | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  pastDueSince: string | null;
+  hasBillingAccount: boolean;
+  billingReady: boolean;
+  canManage: boolean;
+  plans: Array<BillingPlan & { available: boolean }>;
+}
+
 export interface SpendView {
   month: string;
   categories: Record<

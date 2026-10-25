@@ -138,6 +138,19 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
 - **Consent:** every marketing-consent change is recorded by a database trigger (`consent_events`).
 - **DeepSeek:** it processes data in China. Use it with **demo data only** until a UK GDPR transfer risk assessment exists; Platform admin shows this warning.
 
+### Payments (security standard §10, ADR 0023)
+
+- **No card data:** card details are only entered on Stripe's hosted Checkout and customer portal, so VoiceDesk is outside PCI DSS card-data scope (SAQ A). Card payments are never taken by voice.
+- **Prices from the server:** the client only names a plan, and the API picks its Stripe Price from `.env`.
+- **Who can pay:** buying or changing a plan needs `billing:manage` (owners only) and a fresh password check.
+- **Webhooks:**
+  - the signature is verified against the raw body (5-minute tolerance against replays);
+  - handled event ids are recorded in `stripe_events`;
+  - the subscription's latest state is fetched from Stripe rather than trusted from the payload;
+  - mismatched businesses, customers or unknown prices are refused.
+- **Plan records:** `subscriptions` can only be written through the platform login. Every plan change is audited (`billing.plan_changed` as system, `billing.plan_set` by the platform owner).
+- **Keys:** Stripe keys only in `.env`. `pnpm billing:prices` refuses live keys; live keys are for launch only.
+
 ### Supply chain (ASVS V14.2)
 
 - Exact dependency pins and a frozen lockfile; pnpm's release-age gate; install scripts allow-listed.

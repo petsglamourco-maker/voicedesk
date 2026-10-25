@@ -47,6 +47,8 @@ const billingView = z.object({
   reason: z.enum(["trial_ended", "canceled", "unpaid"]).nullable(),
   comped: z.boolean(),
   trialEndsAt: z.string().nullable(),
+  /** Whole days left in the trial (rounded up); null when not on a trial. */
+  trialDaysLeft: z.number().nullable(),
   currentPeriodEnd: z.string().nullable(),
   cancelAtPeriodEnd: z.boolean(),
   pastDueSince: z.string().nullable(),
@@ -97,6 +99,10 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
         reason: state.reason,
         comped: sub?.comped ?? false,
         trialEndsAt: iso(sub?.trialEndsAt),
+        trialDaysLeft:
+          state.status === "trialing" && sub?.trialEndsAt
+            ? Math.max(0, Math.ceil((sub.trialEndsAt.getTime() - Date.now()) / 86_400_000))
+            : null,
         currentPeriodEnd: iso(sub?.currentPeriodEnd),
         cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
         pastDueSince: iso(sub?.pastDueSince),

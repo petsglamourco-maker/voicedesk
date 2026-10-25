@@ -5,7 +5,13 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { AppShell, SIDEBAR_COOKIE, type NavGroup } from "@/components/shell/app-shell";
-import { apiGetOrNull, getMe, type SpendView, type TenantDetail } from "@/lib/api";
+import {
+  apiGetOrNull,
+  getMe,
+  type BillingView,
+  type SpendView,
+  type TenantDetail,
+} from "@/lib/api";
 import { THEME_COOKIE, toTheme } from "@/lib/theme";
 import { BusinessSwitcher } from "./business-switcher";
 
@@ -30,6 +36,15 @@ export default async function TenantLayout(props: {
   const spend = canSeeSpend
     ? await apiGetOrNull<SpendView>(`/api/tenants/${tenantId}/spend`)
     : null;
+  const billing = canSeeSpend
+    ? await apiGetOrNull<BillingView>(`/api/tenants/${tenantId}/billing`)
+    : null;
+  const trialDaysLeft = billing?.trialDaysLeft ?? null;
+  const billingLink = (
+    <Link href={`${base}/billing`} className="font-semibold text-primary hover:underline">
+      {s("billingLink")}
+    </Link>
+  );
   const usageLink = (
     <Link href={`${base}/usage`} className="font-semibold text-primary hover:underline">
       {s("usageLink")}
@@ -78,7 +93,10 @@ export default async function TenantLayout(props: {
       items: [
         { href: `${base}/members`, label: t("members"), icon: "members" },
         ...(canSeeSpend
-          ? [{ href: `${base}/usage`, label: t("usage"), icon: "usage" as const }]
+          ? [
+              { href: `${base}/usage`, label: t("usage"), icon: "usage" as const },
+              { href: `${base}/billing`, label: t("billing"), icon: "billing" as const },
+            ]
           : []),
         { href: `${base}/account`, label: t("account"), icon: "account" },
       ],
@@ -145,9 +163,22 @@ export default async function TenantLayout(props: {
         <Alert tone="error" className="mb-6" data-testid="suspended-banner">
           {s("suspendedBanner")}
         </Alert>
+      ) : billing && !billing.usable ? (
+        <Alert tone="error" className="mb-6" data-testid="plan-banner">
+          {s(`planBanner.${billing.reason ?? "canceled"}`)} {billingLink}
+        </Alert>
+      ) : billing?.status === "past_due" ? (
+        <Alert tone="warning" className="mb-6" data-testid="plan-banner">
+          {s("planBanner.pastDue")} {billingLink}
+        </Alert>
       ) : spend?.categories.ai.state === "reached" ? (
         <Alert tone="warning" className="mb-6" data-testid="spend-banner">
-          {s("aiCapBanner")} {usageLink}
+          {s(spend.businessCaps ? "aiCapBanner" : "aiAllowanceBanner")}{" "}
+          {spend.businessCaps ? usageLink : billingLink}
+        </Alert>
+      ) : trialDaysLeft !== null && trialDaysLeft <= 3 ? (
+        <Alert tone="info" className="mb-6" data-testid="trial-banner">
+          {s("trialBanner", { days: trialDaysLeft })} {billingLink}
         </Alert>
       ) : spend && (spend.paused.ai || spend.paused.sms || spend.paused.outboundCalls) ? (
         <Alert tone="warning" className="mb-6" data-testid="paused-banner">

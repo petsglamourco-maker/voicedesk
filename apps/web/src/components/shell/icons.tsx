@@ -3,6 +3,7 @@ import {
   Bot,
   Building2,
   ClipboardList,
+  CreditCard,
   FileText,
   FlaskConical,
   Gauge,
@@ -58,6 +59,7 @@ export type NavIcon =
   | "console"
   | "members"
   | "usage"
+  | "billing"
   | "account";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
@@ -79,5 +81,6 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
   console: FlaskConical,
   members: UsersRound,
   usage: Gauge,
+  billing: CreditCard,
   account: UserCog,
 };

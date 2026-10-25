@@ -19,7 +19,7 @@ Each part has a progress bar against your monthly allowance: what your plan incl
 
 ## Your allowance
 
-Your allowance comes from your plan. You can use all of it; VoiceDesk doesn't limit anything your plan covers. If you regularly run out, contact VoiceDesk support for a bigger allowance. Once billing is available, you'll be able to move to a bigger plan.
+Your allowance comes from your plan ([Plan & billing](/t/:tenant/billing)). You can use all of it; VoiceDesk doesn't limit anything your plan covers. If you regularly run out, move to a bigger plan.
 
 If VoiceDesk has switched on **own limits**, the owner can also choose lower limits within the allowance under **Your monthly limits**, and change them whenever they like. Set a limit to 0 to switch that kind of spending off.
 
@@ -29,7 +29,7 @@ If VoiceDesk has switched on **own limits**, the owner can also choose lower lim
 - **Texts**: confirmations, reminders and alert texts stop. Emails still go.
 - **Calls**: the assistant's callbacks and confirmation calls, and people phoning customers, stop. Incoming calls are still answered, so customers can always reach you.
 
-Owners and admins get an email at 80% and again at 100%. Everything starts again on the 1st of next month, or straight away when the allowance is raised.
+Owners and admins get an email at 80% and again at 100%. Everything starts again on the 1st of next month, or straight away when you move to a bigger plan.
 
 ## Where calls and texts can go
 

@@ -2,6 +2,7 @@
 
 import { Alert, Button, Card, CardHead, Field, Input, Progress, StatusPill } from "@voicedesk/ui";
 import { Gauge } from "lucide-react";
+import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import type { SpendCategory, SpendView } from "@/lib/api";
@@ -134,7 +135,15 @@ export function UsageLimits(props: { tenantId: string; initial: SpendView }) {
           </form>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">
-            {view.businessCaps ? t("ownersOnly") : t("planOnly")}
+            {view.businessCaps ? t("ownersOnly") : t("planOnly")}{" "}
+            {view.businessCaps ? null : (
+              <Link
+                href={`/t/${props.tenantId}/billing`}
+                className="font-semibold text-primary hover:underline"
+              >
+                {t("seePlans")}
+              </Link>
+            )}
           </p>
         )}
         <p className="mt-4 text-xs text-muted-foreground">{t("estimateNote")}</p>

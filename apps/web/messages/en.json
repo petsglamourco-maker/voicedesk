@@ -104,7 +104,8 @@
     "vaConsole": "VA console",
     "feedback": "Feedback",
     "ask": "Ask VoiceDesk",
-    "usage": "Usage & limits"
+    "usage": "Usage & limits",
+    "billing": "Plan & billing"
   },
   "roles": {
     "owner": "Owner",
@@ -1227,6 +1228,15 @@
       "ai": "AI answers (the assistant takes messages)",
       "sms": "texts",
       "calls": "outbound calls"
+    },
+    "billingLink": "Plan & billing",
+    "aiAllowanceBanner": "This month's AI allowance is used up, so the assistant is taking messages instead of answering questions. Upgrade your plan for more:",
+    "trialBanner": "Your free trial ends in {days, plural, =0 {less than a day} one {# day} other {# days}}. Choose a plan to keep your assistant answering:",
+    "planBanner": {
+      "trial_ended": "Your free trial has ended, so the assistant only takes messages. Choose a plan to switch it back on:",
+      "canceled": "Your plan has ended, so the assistant only takes messages. Choose a plan to switch it back on:",
+      "unpaid": "Your payment hasn't gone through for over a week, so the assistant only takes messages. Update your card:",
+      "pastDue": "Your last payment didn't go through. Everything keeps working for 7 days; please update your card:"
     }
   },
   "design": {
@@ -1424,7 +1434,8 @@
     "suspended": "This business is suspended, so nothing is being spent.",
     "allowanceTitle": "Your monthly allowance",
     "allowanceHint": "What your plan includes each month. Owners and admins are emailed at 80% and 100%.",
-    "planOnly": "Your allowance comes from your plan. If you need more, contact VoiceDesk support (with billing, you'll be able to move to a bigger plan)."
+    "planOnly": "Your allowance comes from your plan. If you need more, move to a bigger plan.",
+    "seePlans": "See plans"
   },
   "spending": {
     "title": "Spending & limits",
@@ -1459,9 +1470,8 @@
     "resume": "Resume",
     "suspendConfirm": "Suspend {name}? Its assistant stops answering and its texts and calls stop.",
     "resumeConfirm": "Resume {name}?",
-    "limitsTitle": "Allowances, countries and cost estimates",
-    "limitsHint": "Each business's monthly allowance. With billing, each plan will set it instead.",
-    "maxLabel": "Monthly allowance for {what} (£)",
+    "limitsTitle": "Countries and cost estimates",
+    "limitsHint": "Each business's monthly allowance comes from its plan (Plan & billing). These settings turn plan minutes and texts into pounds, and limit where calls and texts can go.",
     "countries": "Countries calls and texts may go to",
     "countriesHint": "Premium-rate and special-rate numbers are always blocked.",
     "countryNeeded": "Choose at least one country.",
@@ -1484,6 +1494,77 @@
     "costsHint": "Estimates used to work out spend. Update them from your provider bills (Twilio, Deepgram, ElevenLabs, LiveKit).",
     "save": "Save",
     "businessCaps": "Let businesses set their own limits",
-    "businessCapsHint": "Off: each business can use its whole allowance, and is asked to get more when it runs out. On: owners can also choose lower limits within it."
+    "businessCapsHint": "Off: each business can use its whole allowance, and is asked to get more when it runs out. On: owners can also choose lower limits within it.",
+    "plan": {
+      "column": "Plan",
+      "change": "Change…",
+      "setLabel": "Change the plan for {name}",
+      "restartTrial": "Restart 14-day trial",
+      "giveFree": "Give {plan} free",
+      "names": {
+        "trial": "Free trial",
+        "starter": "Starter",
+        "growth": "Growth",
+        "pro": "Pro"
+      },
+      "trialConfirm": "Restart a 14-day free trial for {name}?",
+      "compConfirm": "Give {name} the {plan} plan free of charge? Stripe won't bill them for it.",
+      "saved": "Plan changed. It's recorded in the audit log."
+    }
+  },
+  "billing": {
+    "title": "Plan & billing",
+    "subtitle": "Your plan sets what your assistant can do each month. Payments are handled by Stripe.",
+    "currentTitle": "Your plan: {plan}",
+    "status": {
+      "trial": "Free trial: {days, plural, =0 {ends today} one {# day left} other {# days left}} (until {date}). No card needed.",
+      "trialEnded": "Your free trial has ended. Choose a plan to switch the assistant back on.",
+      "canceled": "Your plan has ended. Choose a plan to switch the assistant back on.",
+      "unpaid": "Payment hasn't gone through for over 7 days, so the assistant only takes messages. Update your card in Manage billing.",
+      "pastDue": "Your last payment didn't go through. Everything keeps working for 7 days while you update your card.",
+      "comped": "Given to you by VoiceDesk, free of charge.",
+      "endsOn": "Cancelled: it stays on until {date}.",
+      "renews": "Renews on {date}.",
+      "active": "Active."
+    },
+    "pill": {
+      "trialing": "Trial",
+      "active": "Active",
+      "past_due": "Payment due",
+      "canceled": "Ended",
+      "stopped": "Stopped"
+    },
+    "allowance": {
+      "minutes": "Phone minutes a month",
+      "texts": "Texts a month",
+      "ai": "AI allowance a month"
+    },
+    "manage": "Manage billing",
+    "manageHint": "Opens Stripe: change plan, update your card, download invoices or cancel.",
+    "changeInPortal": "Change in Manage billing",
+    "choose": "Choose {plan}",
+    "current": "Current plan",
+    "popular": "Most popular",
+    "perMonth": "a month",
+    "lines": {
+      "minutes": "{n, number} phone minutes",
+      "texts": "{n, number} texts",
+      "ai": "{amount} of AI (chat, email, summaries)",
+      "numbers": "{n, plural, one {# phone number} other {# phone numbers}}",
+      "seats": "{n, plural, one {# team member} other {# team members}}",
+      "basics": "Website chat, forms, email inbox, bookings and calendars"
+    },
+    "features": {
+      "whatsapp": "WhatsApp",
+      "va_console": "Virtual assistants and people answering calls",
+      "feedback": "Customer feedback surveys",
+      "daily_brief": "Daily brief email",
+      "ai_calls": "AI callbacks and confirmation calls"
+    },
+    "ownersOnly": "Only the business owner can change the plan.",
+    "notReady": "Payments aren't switched on yet. Plans can be chosen once VoiceDesk's Stripe account is connected.",
+    "checkoutDone": "Thank you! Your plan updates in a moment, once Stripe confirms the payment.",
+    "checkoutCancelled": "No change made: the checkout was cancelled.",
+    "vatNote": "Prices exclude VAT. Card details are entered on Stripe's page and never reach VoiceDesk."
   }
 }

@@ -23,6 +23,7 @@ const SCREENS = [
   "/t/:tenant/console",
   "/t/:tenant/members",
   "/t/:tenant/usage",
+  "/t/:tenant/billing",
   "/t/:tenant/account",
   "/va",
   "/platform/setup",

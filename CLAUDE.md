@@ -39,7 +39,12 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **"Ask VoiceDesk":** a back-office assistant that proposes actions; a person approves them.
 - **Help assistant (ADR 0021): built.** A floating help orb on every signed-in screen: answers from `packages/help` articles plus yes/no setup facts; Contact support emails the platform owner and lists requests under Platform admin → Support requests.
 - **Security hardening (security standard): in progress** on branch `security/hardening` (`docs/security/AUDIT.md`). All six batches are done (see `docs/security/REPORT.md`): every critical and high item except H7 (data on the dev machine) and all medium items. Remaining: enforce CSP, the pre-launch list, and pushing to GitHub so CI runs.
-- **Next:** Phase 7 (compliance hardening, billing and launch), which needs plan approval. The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
+- **Phase 7a, plans and billing (ADR 0023): built, Stripe test mode.**
+  - Plans live in `packages/core/src/plans.ts` (trial / Starter £29 / Growth £79 / Pro £219). They set allowances, features and limits.
+  - The **Plan & billing** page uses Stripe Checkout and the customer portal, with a signed webhook.
+  - In Platform admin the owner can give a plan free or restart a trial.
+  - Live tests need a Stripe test key (`pnpm billing:prices`, `pnpm billing:listen`).
+- **Next:** Phase 7a part B, the mobile web app (ADR 0024). Then the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-24.1 (injection defences) is waiting for the owner's OK.
 
 ## Layout
 
@@ -82,6 +87,7 @@ packages/config   tsconfig bases + loadRootEnv()
 | `RUN_LIVE_LLM=1 pnpm --filter @voicedesk/adapters test`         | Live Anthropic adapter tests (fractions of a cent)                                                                                                |
 | `RUN_LOCAL_EMBEDDINGS=1 pnpm --filter @voicedesk/adapters test` | Local embedding model tests (downloads ~120 MB once)                                                                                              |
 | `pnpm --filter @voicedesk/auth generate-schema`                 | Regenerate the Better Auth tables after changing auth plugins                                                                                     |
+| `pnpm billing:prices` / `pnpm billing:listen`                   | Create the plans in Stripe **test mode** (refuses live keys) / forward Stripe test webhooks to the local API (Stripe CLI)                         |
 
 Tests need the Docker infra running. They use the separate `voicedesk_test` database; e2e uses the dev database.
 
@@ -152,6 +158,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `SMS_PROVIDER` (`mailpit` default; `twilio` / `telnyx` cost money; a list like `telnyx,twilio` falls back in order), `SMS_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`: free Cloudflare bot check on the website chat and hosted forms (off while empty; ADR 0022)
 - `PASSWORD_BREACH_CHECK` (`on`), `TRUSTED_PROXIES` (`127.0.0.1,::1`)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER|GROWTH|PRO`: billing (ADR 0023; off until set; test keys only before launch)
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
 
 ## Local URLs
@@ -179,6 +186,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **Plans** (ADR 0023):
+  - The plan is the only source of allowances and features. Gate new paid features with `requireFeature` (API, 402) and check `planAllows` in background jobs.
+  - `subscriptions` is written only by the Stripe webhook and Platform admin (platform login).
+  - The webhook re-fetches the subscription and never trusts the event payload's state.
+  - Prices come from `.env`, never from the client.
 - **Approval gates** (ADR 0020): the "Ask VoiceDesk" agent only ever _proposes_ (`assistant_actions` rows). Approved actions must run through the shared dashboard functions (`sendStaffReply`, `cancelBookingAsStaff`, `scheduleCallbackFor`), never their own copies.
 - **Outbound AI calls** (ADR 0019):
   - every placement goes through `decideOutboundCall`; never dial around it;

@@ -25,5 +25,7 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0019](0019-ai-outbound-calls.md)              | Calls the assistant places (callbacks, confirmations) | Accepted           |
 | [0020](0020-feedback-brief-back-office.md)     | Feedback, daily brief and the back-office assistant   | Accepted           |
 | [0021](0021-help-assistant.md)                 | In-app Help assistant and Contact support             | Accepted           |
+| [0022](0022-spending-limits.md)                | Spending limits, safe destinations, emergency stop    | Accepted           |
+| [0023](0023-plans-and-billing.md)              | Plans and billing (Stripe)                            | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.

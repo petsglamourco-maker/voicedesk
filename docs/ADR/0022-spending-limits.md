@@ -14,7 +14,7 @@ The security audit (H3, M10) found that nothing on the server limited spending. 
   - AI: `llm_usage.cost_usd` × the USD→GBP rate;
   - calls: voice minutes (rounded up per call) × voice rate, plus the carrier rate for phone calls by direction;
   - texts: `spend_events` rows written when a real carrier sends a text (Mailpit stand-ins cost nothing).
-  Months follow the business's time zone.
+    Months follow the business's time zone.
 - **What happens when the limit is reached** (the allowance, or the business's own lower limit):
   - AI: `loadAgentContext` sets `ctx.aiPaused`; `runTurn` takes a fixed **take-a-message** route (name → number → message → `services.takeMessage`) in all six languages with no model call. Ask VoiceDesk, profile generation and AI summaries pause; Help answers from articles only.
   - Texts: skipped in the workers' notification processor (emails still go).
@@ -24,7 +24,7 @@ The security audit (H3, M10) found that nothing on the server limited spending. 
   - a suspended business;
   - a reached cap;
   - a destination outside the allowed countries (GB by default) or a premium/special-rate number (UK 09, 087, 084, 070, 118, pagers 076 except Isle of Man 07624).
-  Transfer, on-call and alert numbers are checked when saved too.
+    Transfer, on-call and alert numbers are checked when saved too.
 - **`calls:outbound` permission.** Owners and admins always; staff and VAs only when the business turns on "People who answer calls can also phone customers" (`agent_settings.answerers_can_call_out`, default off).
 - **Emergency stop and suspension** in **Platform admin → Spending & limits**: pause outbound calls, texts or AI for every business; suspend or resume a business (audited, password re-check). A suspended business's assistant only says the service isn't available, and its texts and calls stop.
 - **Alerts:** at 80% and 100% of a cap, owners and admins get one email per category per month (`spend_alerts` unique row); platform owners get a copy at 100%. Runs on the workers' 15-minute tick.
