@@ -59,7 +59,7 @@ function saveTurns(tenantId: string | undefined, turns: Turn[]) {
  * come from the help articles (and yes/no facts about the business); "Contact support" sends
  * the question to the VoiceDesk team.
  */
-export function HelpWidget(props: { tenantId?: string }) {
+export function HelpWidget(props: { tenantId?: string; aboveTabBar?: boolean }) {
   const t = useTranslations("help");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -224,6 +224,8 @@ export function HelpWidget(props: { tenantId?: string }) {
         className={cn(
           "group fixed end-5 bottom-5 z-40 flex size-14 items-center justify-center rounded-full text-primary-foreground transition-transform duration-300 ease-[var(--ease-spring)] hover:scale-105 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:end-6 sm:bottom-6",
           open && "max-sm:hidden",
+          // Phones: sit above the bottom tab bar.
+          props.aboveTabBar && "max-md:bottom-[calc(5rem+env(safe-area-inset-bottom))]",
         )}
       >
         <span

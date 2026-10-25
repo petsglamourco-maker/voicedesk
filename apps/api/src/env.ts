@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { z } from "zod";
+import { parseExtraOrigins } from "./lib/origin-check";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -16,6 +17,18 @@ const envSchema = z.object({
   ),
   BETTER_AUTH_URL: z.string().url(),
   WEB_ORIGIN: z.string().url(),
+  /** More addresses for the web app: phone testing over home Wi-Fi (ADR 0024). */
+  EXTRA_WEB_ORIGINS: z
+    .string()
+    .default("")
+    .transform((raw, ctx) => {
+      try {
+        return parseExtraOrigins(raw);
+      } catch (error) {
+        ctx.addIssue({ code: "custom", message: (error as Error).message });
+        return z.NEVER;
+      }
+    }),
   API_PORT: z.coerce.number().int().positive().default(4000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   /** Refuse passwords from known breaches (Have I Been Pwned range API). Tests use "off". */

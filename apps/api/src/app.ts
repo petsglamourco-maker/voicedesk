@@ -40,6 +40,7 @@ import { registerCspReportRoute } from "./routes/csp-report";
 import { registerOutboundRoutes } from "./routes/outbound";
 import { registerSpendRoutes } from "./routes/spend";
 import { registerBillingRoutes } from "./routes/billing";
+import { registerTodayRoutes } from "./routes/today";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
 import { registerHelpRoutes } from "./routes/help";
@@ -52,6 +53,8 @@ export type AppDeps = Omit<Container, "close"> & {
   channelSenders?: Partial<Record<TextChannel, ChannelSender>>;
   /** Browser-facing origin (website chat previews, links). */
   webOrigin?: string;
+  /** EXTRA_WEB_ORIGINS: phone testing over home Wi-Fi (ADR 0024). */
+  extraWebOrigins?: string[];
 };
 
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
@@ -120,7 +123,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app);
-  registerOriginCheck(app, deps.webOrigin ?? "http://localhost:3000");
+  registerOriginCheck(app, [
+    deps.webOrigin ?? "http://localhost:3000",
+    ...(deps.extraWebOrigins ?? []),
+  ]);
   registerPlatformAudit(app, deps);
 
   // Shared across API processes (Valkey). Signed-in traffic is counted per session, so an
@@ -170,6 +176,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerOutboundRoutes(app, deps);
   registerSpendRoutes(app, deps);
   registerBillingRoutes(app, deps);
+  registerTodayRoutes(app, deps);
   registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);

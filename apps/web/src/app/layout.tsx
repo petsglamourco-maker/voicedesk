@@ -16,9 +16,17 @@ const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope", displa
 export const metadata: Metadata = {
   title: { default: "VoiceDesk", template: "%s · VoiceDesk" },
   description: "AI receptionist, customer support and virtual assistant for your business.",
+  icons: {
+    icon: [{ url: "/icons/favicon-32.png", sizes: "32x32", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // Installed on an iPhone home screen: full screen, VoiceDesk's name under the icon.
+  appleWebApp: { capable: true, title: "VoiceDesk", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
+  // Content can reach the screen edges; the mobile tab bar pads for the home indicator.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#070b14" },
     { media: "(prefers-color-scheme: light)", color: "#f6f8fc" },

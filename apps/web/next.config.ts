@@ -8,6 +8,18 @@ const apiUrl = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:4000";
 const webOrigin = process.env.WEB_ORIGIN ?? "http://localhost:3000";
 const https = webOrigin.startsWith("https://");
 const dev = process.env.NODE_ENV !== "production";
+/** Phone testing over home Wi-Fi (pnpm mobile:lan, ADR 0024); the API validates the list. */
+const extraHosts = (process.env.EXTRA_WEB_ORIGINS ?? "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean)
+  .flatMap((s) => {
+    try {
+      return [new URL(s).hostname];
+    } catch {
+      return [];
+    }
+  });
 
 /**
  * Content Security Policy (security audit M4), in report-only mode first: nothing is blocked,
@@ -46,8 +58,9 @@ const nextConfig: NextConfig = {
   // Workspace packages ship TypeScript source.
   transpilePackages: ["@voicedesk/ui", "@voicedesk/auth"],
   poweredByHeader: false,
-  // Keep the dev badge away from the Help button (bottom-right).
-  devIndicators: { position: "bottom-left" },
+  allowedDevOrigins: extraHosts,
+  // No dev badge: bottom-left covers the phone tab bar and bottom-right the Help button.
+  devIndicators: false,
   // The browser only ever talks to this origin; /api/* is proxied to the API service, so
   // auth cookies are first-party and no CORS is needed.
   rewrites() {
@@ -68,6 +81,15 @@ const nextConfig: NextConfig = {
           ...(https
             ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
             : []),
+        ],
+      },
+      {
+        // The service worker is always fetched fresh and may control the whole site.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
       {

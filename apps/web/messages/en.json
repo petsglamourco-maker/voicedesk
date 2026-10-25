@@ -105,7 +105,8 @@
     "feedback": "Feedback",
     "ask": "Ask VoiceDesk",
     "usage": "Usage & limits",
-    "billing": "Plan & billing"
+    "billing": "Plan & billing",
+    "today": "Today"
   },
   "roles": {
     "owner": "Owner",
@@ -1237,7 +1238,8 @@
       "canceled": "Your plan has ended, so the assistant only takes messages. Choose a plan to switch it back on:",
       "unpaid": "Your payment hasn't gone through for over a week, so the assistant only takes messages. Update your card:",
       "pastDue": "Your last payment didn't go through. Everything keeps working for 7 days; please update your card:"
-    }
+    },
+    "more": "More"
   },
   "design": {
     "title": "Design system",
@@ -1566,5 +1568,56 @@
     "checkoutDone": "Thank you! Your plan updates in a moment, once Stripe confirms the payment.",
     "checkoutCancelled": "No change made: the checkout was cancelled.",
     "vatNote": "Prices exclude VAT. Card details are entered on Stripe's page and never reach VoiceDesk."
+  },
+  "pwa": {
+    "offlineTitle": "You're offline",
+    "offlineBody": "VoiceDesk needs a connection to show your calls, chats and bookings. Your assistant keeps answering customers while you're away.",
+    "tryAgain": "Try again"
+  },
+  "today": {
+    "title": "Today",
+    "subtitle": "What needs you today: bookings, customers waiting for a person, missed calls and messages.",
+    "todo": "To do",
+    "chips": {
+      "chats": "Chats waiting",
+      "missed": "Missed calls today",
+      "messages": "Messages to return",
+      "callbacks": "Callbacks booked"
+    },
+    "bookings": {
+      "title": "Today's bookings",
+      "none": "No bookings today.",
+      "noName": "Booking"
+    },
+    "chats": {
+      "title": "Waiting for a person",
+      "none": "Nobody is waiting. The assistant is handling every chat.",
+      "unknown": "Customer"
+    },
+    "missed": {
+      "title": "Calls nobody answered",
+      "none": "No missed calls today.",
+      "call": "Call handed to your team",
+      "urgent": "Urgent call"
+    },
+    "messages": {
+      "title": "Messages to return",
+      "none": "No new messages.",
+      "unknown": "Caller",
+      "urgent": "Urgent"
+    },
+    "channels": {
+      "whatsapp": "WhatsApp",
+      "web_chat": "Website chat",
+      "email": "Email",
+      "web_form": "Form",
+      "voice": "Phone",
+      "test_console": "Test console",
+      "sms": "Text"
+    },
+    "allowance": {
+      "title": "This month's allowance",
+      "details": "Details"
+    }
   }
 }

@@ -78,7 +78,7 @@ export function createAppAuth(
     db,
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [env.WEB_ORIGIN],
+    trustedOrigins: [env.WEB_ORIGIN, ...env.EXTRA_WEB_ORIGINS],
     sendEmail,
     audit: createAuditSink(db),
     checkBreachedPasswords: env.PASSWORD_BREACH_CHECK === "on",

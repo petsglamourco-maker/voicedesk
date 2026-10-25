@@ -53,7 +53,15 @@ export interface TestHarness {
 export async function createHarness(
   options: Pick<
     AppDeps,
-    "voice" | "tts" | "sip" | "calendars" | "whatsapp" | "mailboxClient" | "humanCheck" | "billing" | "billingPrices"
+    | "voice"
+    | "tts"
+    | "sip"
+    | "calendars"
+    | "whatsapp"
+    | "mailboxClient"
+    | "humanCheck"
+    | "billing"
+    | "billingPrices"
   > & {
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */

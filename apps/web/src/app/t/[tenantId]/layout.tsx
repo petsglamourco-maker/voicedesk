@@ -56,6 +56,7 @@ export default async function TenantLayout(props: {
       label: s("groups.overview"),
       items: [
         { href: base, label: t("overview"), icon: "dashboard" },
+        { href: `${base}/today`, label: t("today"), icon: "today" },
         { href: `${base}/inbox`, label: t("inbox"), icon: "inbox" },
         { href: `${base}/ask`, label: t("ask"), icon: "ask" },
       ],
@@ -131,6 +132,12 @@ export default async function TenantLayout(props: {
         theme: s("theme"),
         themes: { dark: s("themes.dark"), light: s("themes.light"), system: s("themes.system") },
         vaConsole: t("vaConsole"),
+        tabs: {
+          today: t("today"),
+          inbox: t("inbox"),
+          calls: t("calls"),
+          more: s("more"),
+        },
         platformAdmin: t("platformAdmin"),
         help: help("palette"),
         signOut: common("signOut"),

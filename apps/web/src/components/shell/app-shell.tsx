@@ -38,6 +38,7 @@ import { authClient } from "@/lib/auth-client";
 import { THEME_COOKIE, type Theme } from "@/lib/theme";
 import { HELP_OPEN_EVENT, HelpWidget } from "../help/help-widget";
 import { CommandPalette } from "./command-palette";
+import { MobileTabBar } from "./mobile-tab-bar";
 import { NAV_ICONS, type NavIcon } from "./icons";
 import { Notifications } from "./notifications";
 
@@ -74,6 +75,7 @@ export interface ShellLabels {
     actions: string;
   };
   notices: { chats: string; calls: string; none: string };
+  tabs: { today: string; inbox: string; calls: string; more: string };
 }
 
 export const SIDEBAR_COOKIE = "vd-sidebar";
@@ -358,7 +360,10 @@ export function AppShell(props: {
             </div>
           </div>
         </header>
-        <main id="main" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
+        <main
+          id="main"
+          className="mx-auto max-w-7xl px-4 pt-8 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-6 md:pb-8 lg:py-10"
+        >
           {props.children}
         </main>
       </div>
@@ -381,7 +386,12 @@ export function AppShell(props: {
             : []),
         ]}
       />
-      <HelpWidget tenantId={props.tenantId} />
+      <MobileTabBar
+        tenantId={props.tenantId}
+        labels={{ nav: labels.nav, ...labels.tabs }}
+        onMore={() => setDrawerOpen(true)}
+      />
+      <HelpWidget tenantId={props.tenantId} aboveTabBar />
     </div>
   );
 }

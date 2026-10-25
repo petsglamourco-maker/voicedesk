@@ -8,7 +8,12 @@ import { startOutboundDialer } from "./lib/outbound-dialer";
 const envFile = loadRootEnv();
 const env = parseEnv();
 const container = await createContainer(env, envFile ? dirname(envFile) : process.cwd());
-const app = await buildApp({ ...container, logLevel: env.LOG_LEVEL, webOrigin: env.WEB_ORIGIN });
+const app = await buildApp({
+  ...container,
+  logLevel: env.LOG_LEVEL,
+  webOrigin: env.WEB_ORIGIN,
+  extraWebOrigins: env.EXTRA_WEB_ORIGINS,
+});
 
 // Calls the assistant places itself (Phase 6): only once LiveKit is configured.
 const stopDialer =

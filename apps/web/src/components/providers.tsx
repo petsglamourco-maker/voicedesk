@@ -4,6 +4,7 @@ import { ConfirmProvider, TooltipProvider } from "@voicedesk/ui";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { Toaster } from "sonner";
+import { RegisterServiceWorker } from "./pwa/register-sw";
 import { ReauthPrompt } from "./reauth-prompt";
 
 /** App-wide UI providers: tooltips, styled confirm dialogs, toasts. */
@@ -15,6 +16,7 @@ export function Providers(props: { children: ReactNode }) {
         {props.children}
       </ConfirmProvider>
       <ReauthPrompt />
+      <RegisterServiceWorker />
       <Toaster
         position="bottom-right"
         offset={{ bottom: 96, right: 24 }}

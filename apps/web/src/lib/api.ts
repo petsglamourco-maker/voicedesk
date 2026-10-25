@@ -90,6 +90,44 @@ export interface BillingPlan {
   features: Array<"whatsapp" | "va_console" | "feedback" | "daily_brief" | "ai_calls">;
 }
 
+/** GET /api/tenants/:id/today (ADR 0024). */
+export interface TodayView {
+  date: string;
+  timezone: string;
+  bookings: Array<{
+    id: string;
+    startsAt: string;
+    endsAt: string | null;
+    service: string | null;
+    customerName: string | null;
+    status: string;
+  }>;
+  waitingChats: {
+    count: number;
+    items: Array<{
+      id: string;
+      channel: string;
+      displayName: string | null;
+      lastMessageAt: string;
+    }>;
+  };
+  missedCalls: {
+    count: number;
+    items: Array<{ conversationId: string; at: string; urgent: boolean }>;
+  };
+  callbacks: { count: number };
+  messages: {
+    count: number;
+    items: Array<{
+      id: string;
+      callerName: string | null;
+      reason: string;
+      urgency: string;
+      createdAt: string;
+    }>;
+  };
+}
+
 /** GET /api/tenants/:id/billing (ADR 0023). */
 export interface BillingView {
   plan: BillingPlan;

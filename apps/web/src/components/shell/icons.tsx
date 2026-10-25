@@ -15,6 +15,7 @@ import {
   Plug,
   Sparkles,
   Star,
+  Sun,
   UserCog,
   Users,
   UsersRound,
@@ -42,6 +43,7 @@ export function WhatsAppIcon(props: LucideProps) {
 
 export type NavIcon =
   | "dashboard"
+  | "today"
   | "inbox"
   | "ask"
   | "calls"
@@ -64,6 +66,7 @@ export type NavIcon =
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
   dashboard: LayoutDashboard,
+  today: Sun,
   inbox: Inbox,
   ask: Sparkles,
   calls: Phone,

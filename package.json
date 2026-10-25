@@ -23,6 +23,7 @@
     "test:e2e": "pnpm --filter @voicedesk/web test:e2e",
     "eval": "pnpm --filter @voicedesk/agent-brain eval",
     "tunnel": "node infra/tunnel.mjs",
+    "mobile:lan": "node infra/mobile-lan.mjs",
     "billing:prices": "pnpm --filter @voicedesk/api billing:prices",
     "billing:listen": "stripe listen --forward-to http://127.0.0.1:4000/api/webhooks/stripe --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,customer.subscription.paused,customer.subscription.resumed"
   },
