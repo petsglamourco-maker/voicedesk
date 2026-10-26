@@ -1,5 +1,12 @@
 import { MockLlmProvider, type EmbeddingProvider, type LlmProvider } from "@voicedesk/adapters";
-import { processKnowledgeGaps } from "@voicedesk/agent-brain";
+import {
+  getProfiles,
+  loadAgentContext,
+  buildSystemPrompt,
+  processKnowledgeGaps,
+  saveDraft,
+  emptyProfile,
+} from "@voicedesk/agent-brain";
 import {
   gapAnswers,
   knowledgeChunks,
@@ -10,7 +17,7 @@ import {
 } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createHarness, createOwnerWithTenant, type TestHarness } from "./harness";
+import { createHarness, createOwnerWithTenant, ORIGIN, type TestHarness } from "./harness";
 
 let h: TestHarness;
 beforeAll(async () => {
@@ -138,5 +145,91 @@ describe("unanswered questions", () => {
     );
     expect(group!.draft).toBeNull();
     expect(llm.calls).toBe(1);
+  });
+
+  it("approving puts the answer in the live profile, keeps an open draft, resolves the questions", async () => {
+    const biz = await createOwnerWithTenant(h, "Approve Co");
+    const as = { cookie: biz.cookie, origin: ORIGIN };
+    await seed(biz.tenantId, ["Are you open on Saturdays?", "Do you open Saturday mornings?"]);
+    await processKnowledgeGaps(
+      { db: h.db, llm: llmSaying("Yes, Saturdays 9am to 1pm."), embeddings },
+      new Date(),
+      [biz.tenantId],
+    );
+    // Someone is half-way through editing the profile.
+    const owner = await h.db.query.member.findFirst({
+      where: (m, { eq: e }) => e(m.organizationId, biz.tenantId),
+    });
+    await saveDraft(
+      h.db,
+      biz.tenantId,
+      { ...emptyProfile("Approve Co"), summary: "WIP" },
+      owner!.userId,
+    );
+
+    const list = await h.app.inject({
+      method: "GET",
+      url: `/api/tenants/${biz.tenantId}/gap-answers`,
+      headers: as,
+    });
+    const [question] = list.json<{
+      questions: Array<{ id: string; count: number; draft: string }>;
+    }>().questions;
+    expect(question).toMatchObject({ count: 2, draft: "Yes, Saturdays 9am to 1pm." });
+
+    const approved = await h.app.inject({
+      method: "POST",
+      url: `/api/tenants/${biz.tenantId}/gap-answers/${question!.id}/approve`,
+      headers: as,
+      payload: { question: "Are you open on Saturdays?", answer: "Yes, Saturdays 9am to 1pm." },
+    });
+    expect(approved.statusCode).toBe(200);
+    const profiles = await getProfiles(h.db, biz.tenantId);
+    expect(profiles.approved?.data.faqs).toEqual([
+      {
+        question: "Are you open on Saturdays?",
+        answer: "Yes, Saturdays 9am to 1pm.",
+        sourceUrl: null,
+      },
+    ]);
+    // The draft is kept (with the new FAQ) and still the newest version.
+    expect(profiles.draft?.data.summary).toBe("WIP");
+    expect(profiles.draft?.data.faqs).toHaveLength(1);
+    // The assistant knows it now.
+    const ctx = await loadAgentContext(h.db, biz.tenantId, "chat");
+    expect(buildSystemPrompt(ctx).join("\n")).toContain("Yes, Saturdays 9am to 1pm.");
+    const open = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx.select().from(knowledgeGaps).where(eq(knowledgeGaps.status, "open")),
+    );
+    expect(open).toEqual([]);
+    // Approving twice is a 404; so is another business.
+    const again = await h.app.inject({
+      method: "POST",
+      url: `/api/tenants/${biz.tenantId}/gap-answers/${question!.id}/approve`,
+      headers: as,
+      payload: { question: "Any question?", answer: "Any answer." },
+    });
+    expect(again.statusCode).toBe(404);
+  });
+
+  it("dismissing closes the group's questions", async () => {
+    const biz = await createOwnerWithTenant(h, "Dismiss Co");
+    await seed(biz.tenantId, ["Do you take American Express?"]);
+    await processKnowledgeGaps({ db: h.db, llm: llmSaying("NOT_FOUND"), embeddings }, new Date(), [
+      biz.tenantId,
+    ]);
+    const [group] = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx.select().from(gapAnswers).where(eq(gapAnswers.tenantId, biz.tenantId)),
+    );
+    const res = await h.app.inject({
+      method: "POST",
+      url: `/api/tenants/${biz.tenantId}/gap-answers/${group!.id}/dismiss`,
+      headers: { cookie: biz.cookie, origin: ORIGIN },
+    });
+    expect(res.statusCode).toBe(200);
+    const open = await withTenant(h.db, biz.tenantId, (tx) =>
+      tx.select().from(knowledgeGaps).where(eq(knowledgeGaps.status, "open")),
+    );
+    expect(open).toEqual([]);
   });
 });

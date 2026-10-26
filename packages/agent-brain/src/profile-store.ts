@@ -1,6 +1,11 @@
-import { auditLog, businessProfiles, withTenant, type Database } from "@voicedesk/db";
+import { auditLog, businessProfiles, tenants, withTenant, type Database } from "@voicedesk/db";
 import { and, desc, eq, max } from "drizzle-orm";
-import { businessProfileSchema, normalizeProfile, type BusinessProfile } from "./profile";
+import {
+  businessProfileSchema,
+  emptyProfile,
+  normalizeProfile,
+  type BusinessProfile,
+} from "./profile";
 
 export interface ProfileVersion {
   version: number;
@@ -127,5 +132,76 @@ export async function approveVersion(
       targetId: String(version),
     });
     return true;
+  });
+}
+
+/**
+ * ADR 0026: an answer a person approved becomes an FAQ in the live profile straight away (a
+ * new approved version). An open draft gets the same FAQ and stays the newest version, so
+ * half-finished edits are neither lost nor published.
+ */
+export async function addApprovedFaq(
+  db: Database,
+  tenantId: string,
+  faq: { question: string; answer: string },
+  userId: string,
+  now: Date = new Date(),
+): Promise<number> {
+  return withTenant(db, tenantId, async (tx) => {
+    const rows = await tx
+      .select()
+      .from(businessProfiles)
+      .where(eq(businessProfiles.tenantId, tenantId))
+      .orderBy(desc(businessProfiles.version));
+    const approved = rows.find((r) => r.status === "approved");
+    const draft = rows.find(
+      (r) => r.status === "draft" && (!approved || r.version > approved.version),
+    );
+    const top = rows[0]?.version ?? 0;
+    const entry = { question: faq.question, answer: faq.answer, sourceUrl: null };
+    const withFaq = (data: BusinessProfile) =>
+      businessProfileSchema.parse({ ...data, faqs: [...data.faqs, entry] });
+    let base: BusinessProfile;
+    if (approved) {
+      base = normalizeProfile(approved.data);
+    } else {
+      const [tenant] = await tx
+        .select({ name: tenants.name })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId));
+      base = emptyProfile(tenant?.name ?? "");
+    }
+    if (approved) {
+      await tx
+        .update(businessProfiles)
+        .set({ status: "superseded" })
+        .where(eq(businessProfiles.id, approved.id));
+    }
+    const version = top + 1;
+    await tx.insert(businessProfiles).values({
+      tenantId,
+      version,
+      status: "approved",
+      data: withFaq(base),
+      generatedBy: "manual",
+      createdBy: userId,
+      approvedBy: userId,
+      approvedAt: now,
+    });
+    if (draft) {
+      await tx
+        .update(businessProfiles)
+        .set({ version: version + 1, data: withFaq(normalizeProfile(draft.data)) })
+        .where(eq(businessProfiles.id, draft.id));
+    }
+    await tx.insert(auditLog).values({
+      tenantId,
+      actorType: "user",
+      actorUserId: userId,
+      action: "profile.faq_approved",
+      targetType: "business_profile",
+      targetId: String(version),
+    });
+    return version;
   });
 }

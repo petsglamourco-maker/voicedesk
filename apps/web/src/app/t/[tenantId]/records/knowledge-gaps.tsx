@@ -44,7 +44,7 @@ export function KnowledgeGaps(props: { tenantId: string; gaps: Gap[]; canEdit: b
           {props.canEdit ? (
             <>
               <Link
-                href={`/t/${props.tenantId}/profile`}
+                href={`/t/${props.tenantId}/knowledge#questions`}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
               >
                 <BookPlus className="size-4 shrink-0" aria-hidden />

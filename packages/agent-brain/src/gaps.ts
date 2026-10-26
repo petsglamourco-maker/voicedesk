@@ -6,7 +6,8 @@ import {
 } from "@voicedesk/adapters";
 import { gapAnswers, knowledgeGaps, organization, withTenant, type Database } from "@voicedesk/db";
 import { searchKnowledge } from "@voicedesk/knowledge";
-import { and, asc, cosineDistance, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, cosineDistance, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { addApprovedFaq } from "./profile-store";
 import { aiPauseFor } from "./services-db";
 import { untrustedBlock } from "./untrusted";
 import { recordLlmUsage } from "./usage";
@@ -176,4 +177,101 @@ export async function draftAnswers(deps: GapDeps, tenantId: string, now: Date): 
     if (draft) drafted++;
   }
   return drafted;
+}
+
+export interface GapAnswerView {
+  id: string;
+  question: string;
+  count: number;
+  lastAskedAt: Date;
+  draft: string | null;
+  sources: Array<{ title: string | null; url: string | null }>;
+  drafting: boolean;
+}
+
+/** Pending questions to answer, most asked first. */
+export async function pendingGapAnswers(db: Database, tenantId: string): Promise<GapAnswerView[]> {
+  const rows = await withTenant(db, tenantId, (tx) =>
+    tx
+      .select()
+      .from(gapAnswers)
+      .where(and(eq(gapAnswers.tenantId, tenantId), eq(gapAnswers.status, "pending")))
+      .orderBy(desc(gapAnswers.count), desc(gapAnswers.lastAskedAt))
+      .limit(50),
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    question: r.question,
+    count: r.count,
+    lastAskedAt: r.lastAskedAt,
+    draft: r.draft,
+    sources: r.sources,
+    drafting: r.draftedAt === null,
+  }));
+}
+
+/**
+ * A person approves (and may edit) the answer: it becomes an FAQ in the live profile, and
+ * every question in the group is resolved. Null when it isn't pending any more.
+ */
+export async function approveGapAnswer(
+  db: Database,
+  tenantId: string,
+  id: string,
+  input: { question: string; answer: string },
+  userId: string,
+  now: Date = new Date(),
+): Promise<{ version: number } | null> {
+  const claimed = await withTenant(db, tenantId, (tx) =>
+    tx
+      .update(gapAnswers)
+      .set({ status: "approved", decidedBy: userId, decidedAt: now })
+      .where(
+        and(
+          eq(gapAnswers.id, id),
+          eq(gapAnswers.tenantId, tenantId),
+          eq(gapAnswers.status, "pending"),
+        ),
+      )
+      .returning({ id: gapAnswers.id }),
+  );
+  if (claimed.length === 0) return null;
+  const version = await addApprovedFaq(db, tenantId, input, userId, now);
+  await resolveGroup(db, tenantId, id, now);
+  return { version };
+}
+
+/** Not worth answering (spam, one-off): the group's questions are closed too. */
+export async function dismissGapAnswer(
+  db: Database,
+  tenantId: string,
+  id: string,
+  userId: string,
+  now: Date = new Date(),
+): Promise<boolean> {
+  const rows = await withTenant(db, tenantId, (tx) =>
+    tx
+      .update(gapAnswers)
+      .set({ status: "dismissed", decidedBy: userId, decidedAt: now })
+      .where(
+        and(
+          eq(gapAnswers.id, id),
+          eq(gapAnswers.tenantId, tenantId),
+          eq(gapAnswers.status, "pending"),
+        ),
+      )
+      .returning({ id: gapAnswers.id }),
+  );
+  if (rows.length === 0) return false;
+  await resolveGroup(db, tenantId, id, now);
+  return true;
+}
+
+async function resolveGroup(db: Database, tenantId: string, id: string, now: Date) {
+  await withTenant(db, tenantId, (tx) =>
+    tx
+      .update(knowledgeGaps)
+      .set({ status: "resolved", resolvedAt: now })
+      .where(and(eq(knowledgeGaps.gapAnswerId, id), eq(knowledgeGaps.status, "open"))),
+  );
 }

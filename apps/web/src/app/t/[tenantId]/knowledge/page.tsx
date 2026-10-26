@@ -3,14 +3,19 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { apiGetOrNull, type TenantDetail } from "@/lib/api";
 import { KnowledgePanel } from "./knowledge-panel";
+import { QuestionsToAnswer, type GapAnswer } from "./questions-to-answer";
 import { ScreenHero } from "@/components/screen-hero";
 
 export const metadata: Metadata = { title: "Knowledge" };
 
 export default async function KnowledgePage(props: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await props.params;
-  const detail = await apiGetOrNull<TenantDetail>(`/api/tenants/${tenantId}`);
+  const [detail, gaps] = await Promise.all([
+    apiGetOrNull<TenantDetail>(`/api/tenants/${tenantId}`),
+    apiGetOrNull<{ questions: GapAnswer[] }>(`/api/tenants/${tenantId}/gap-answers`),
+  ]);
   if (!detail) notFound();
+  const canEdit = detail.permissions.includes("knowledge:write");
   const t = await getTranslations("knowledge");
   const shell = await getTranslations("shell");
   return (
@@ -21,10 +26,8 @@ export default async function KnowledgePage(props: { params: Promise<{ tenantId:
         title={t("title")}
         description={t("subtitle")}
       />
-      <KnowledgePanel
-        tenantId={tenantId}
-        canEdit={detail.permissions.includes("knowledge:write")}
-      />
+      <QuestionsToAnswer tenantId={tenantId} initial={gaps?.questions ?? []} canEdit={canEdit} />
+      <KnowledgePanel tenantId={tenantId} canEdit={canEdit} />
     </div>
   );
 }

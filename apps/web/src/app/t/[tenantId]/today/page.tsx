@@ -3,6 +3,7 @@ import {
   CalendarCheck2,
   ChevronRight,
   Gauge,
+  MessageCircleQuestion,
   MessageSquareReply,
   MessageSquareText,
   PhoneForwarded,
@@ -68,6 +69,13 @@ export default async function TodayPage(props: { params: Promise<{ tenantId: str
       n: today.followUps.sent,
       Icon: MessageSquareReply,
       tone: "success" as const,
+    },
+    {
+      href: `${base}/knowledge#questions`,
+      label: t("chips.questions"),
+      n: today.questionsToAnswer.count,
+      Icon: MessageCircleQuestion,
+      tone: "warning" as const,
     },
     {
       href: `${base}/records`,

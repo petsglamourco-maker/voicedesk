@@ -3,6 +3,7 @@ import {
   bookings,
   channelThreads,
   conversations,
+  gapAnswers,
   handoffs,
   outboundCalls,
   staffMessages,
@@ -59,6 +60,8 @@ const todayView = z.object({
   missedByTeam: z.object({ count: z.number() }),
   /** ADR 0026: follow-ups this month. */
   followUps: z.object({ sent: z.number(), booked: z.number(), scheduled: z.number() }),
+  /** ADR 0026: grouped questions waiting for an approved answer. */
+  questionsToAnswer: z.object({ count: z.number() }),
   messages: z.object({
     count: z.number(),
     items: z.array(
@@ -154,6 +157,11 @@ export function registerTodayRoutes(app: FastifyInstance, deps: AppDeps): void {
             ),
           );
 
+        const [questions] = await tx
+          .select({ n: count })
+          .from(gapAnswers)
+          .where(eq(gapAnswers.status, "pending"));
+
         const messagesWhere = eq(staffMessages.status, "new");
         const [messages] = await tx.select({ n: count }).from(staffMessages).where(messagesWhere);
         const messageItems = await tx
@@ -193,6 +201,7 @@ export function registerTodayRoutes(app: FastifyInstance, deps: AppDeps): void {
           },
           callbacks: { count: callbacks?.n ?? 0 },
           missedByTeam: { count: missedByTeam?.n ?? 0 },
+          questionsToAnswer: { count: questions?.n ?? 0 },
           followUps: await followUpCounts(
             deps.db,
             tenantId,

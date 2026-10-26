@@ -4,6 +4,7 @@ import {
   bookings,
   channelThreads,
   conversationMessages,
+  gapAnswers,
   conversations,
   feedback,
   handoffs,
@@ -17,7 +18,7 @@ import {
   withTenant,
   type Database,
 } from "@voicedesk/db";
-import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { localDateString, zonedToUtc } from "./availability";
 import { feedbackStats } from "./feedback";
 import { toLang, type Lang } from "./languages";
@@ -47,6 +48,8 @@ interface Labels {
   today: string;
   noBookings: string;
   needsYou: string;
+  /** ADR 0026: Monday list of grouped unanswered questions. */
+  questions: string;
   openTickets: string;
   waiting: string;
   drafts: string;
@@ -74,6 +77,7 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "Open tickets",
     waiting: "Conversations waiting for a person",
     drafts: "Email replies waiting for approval",
+    questions: "Questions your assistant couldn't answer (approve answers under Knowledge)",
     allClear: "Nothing waiting. Have a good day!",
     open: "Open VoiceDesk",
   },
@@ -96,6 +100,7 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "Incidencias abiertas",
     waiting: "Conversaciones esperando a una persona",
     drafts: "Respuestas por correo pendientes de aprobar",
+    questions: "Preguntas que su asistente no supo responder (apruebe respuestas en Conocimiento)",
     allClear: "Nada pendiente. ¡Que tenga un buen día!",
     open: "Abrir VoiceDesk",
   },
@@ -118,6 +123,8 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "Tickets ouverts",
     waiting: "Conversations en attente d'une personne",
     drafts: "Réponses e-mail à valider",
+    questions:
+      "Questions sans réponse de votre assistant (validez les réponses dans Connaissances)",
     allClear: "Rien en attente. Bonne journée !",
     open: "Ouvrir VoiceDesk",
   },
@@ -140,6 +147,8 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "Offene Tickets",
     waiting: "Gespräche, die auf eine Person warten",
     drafts: "E-Mail-Antworten zur Freigabe",
+    questions:
+      "Fragen, die Ihr Assistent nicht beantworten konnte (Antworten unter Wissen freigeben)",
     allClear: "Nichts offen. Einen schönen Tag!",
     open: "VoiceDesk öffnen",
   },
@@ -162,6 +171,7 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "未关闭工单",
     waiting: "等待人工回复的对话",
     drafts: "待批准的邮件回复",
+    questions: "助理未能回答的问题（请在知识库中批准答案）",
     allClear: "没有待办事项，祝您愉快！",
     open: "打开 VoiceDesk",
   },
@@ -184,6 +194,7 @@ const LABELS: Record<Lang, Labels> = {
     openTickets: "تذاكر مفتوحة",
     waiting: "محادثات تنتظر شخصًا",
     drafts: "ردود بريد بانتظار الموافقة",
+    questions: "أسئلة لم يستطع مساعدك الإجابة عنها (وافق على الإجابات في المعرفة)",
     allClear: "لا شيء بانتظارك. يومًا سعيدًا!",
     open: "فتح VoiceDesk",
   },
@@ -202,6 +213,8 @@ export interface BriefNumbers {
   csat: number | null;
   ratings: number;
   today: Array<{ time: string; service: string; customer: string }>;
+  /** Mondays only (ADR 0026): the most-asked questions waiting for an approved answer. */
+  questions?: Array<{ question: string; count: number }>;
   openTickets: number;
   waiting: number;
   drafts: number;
@@ -310,6 +323,15 @@ export async function briefNumbers(
           sql`${conversationMessages.metadata}->>'draft' = 'true'`,
         ),
       );
+    const monday = new Date(`${today}T12:00:00Z`).getUTCDay() === 1;
+    const questions = monday
+      ? await tx
+          .select({ question: gapAnswers.question, count: gapAnswers.count })
+          .from(gapAnswers)
+          .where(and(eq(gapAnswers.tenantId, tenantId), eq(gapAnswers.status, "pending")))
+          .orderBy(desc(gapAnswers.count))
+          .limit(3)
+      : [];
     const stats = feedbackStats(ratings);
     const time = new Intl.DateTimeFormat("en-GB", {
       timeZone: timezone,
@@ -337,6 +359,7 @@ export async function briefNumbers(
       openTickets: openTickets?.n ?? 0,
       waiting: waiting?.n ?? 0,
       drafts: drafts?.n ?? 0,
+      ...(questions.length ? { questions } : {}),
     };
   });
 }
@@ -368,6 +391,12 @@ export function renderBrief(
     n.waiting ? `- ${l.waiting}: ${n.waiting}` : null,
     n.drafts ? `- ${l.drafts}: ${n.drafts}` : null,
   ].filter((x): x is string => x !== null);
+  if (n.questions?.length) {
+    needs.push(
+      `- ${l.questions}:`,
+      ...n.questions.map((q) => `  · "${q.question.slice(0, 120)}" (×${q.count})`),
+    );
+  }
   lines.push(...(needs.length ? needs : [l.allClear]));
   lines.push("", `${l.open}: ${params.link}`);
   return { subject: l.subject(params.business, params.date), text: lines.join("\n") };

@@ -51,6 +51,15 @@ describe("renderBrief", () => {
       "Nothing waiting. Have a good day!",
     );
   });
+  it("on Mondays lists the questions waiting for an answer (ADR 0026)", () => {
+    const { text } = renderBrief(
+      { ...EMPTY, questions: [{ question: "Are you open on Saturdays?", count: 4 }] },
+      { lang: "en", business: "B", date: "d", link: "l" },
+    );
+    expect(text).toContain("Questions your assistant couldn't answer");
+    expect(text).toContain('· "Are you open on Saturdays?" (×4)');
+    expect(text).not.toContain("Nothing waiting");
+  });
 });
 
 describe("brief data and sending", () => {

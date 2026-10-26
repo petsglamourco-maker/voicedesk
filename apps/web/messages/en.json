@@ -1634,7 +1634,8 @@
       "messages": "Messages to return",
       "callbacks": "Callbacks booked",
       "missedByTeam": "Missed calls the assistant took",
-      "followUps": "Follow-ups this month ({booked} booked)"
+      "followUps": "Follow-ups this month ({booked} booked)",
+      "questions": "Questions to answer"
     },
     "bookings": {
       "title": "Today's bookings",
@@ -1726,5 +1727,22 @@
     "hint": "Turn enquiries into bookings: the assistant can offer to send one message the next morning with times to book.",
     "enabled": "Offer a follow-up when an enquiry doesn't book",
     "enabledHint": "Only sent when the customer says yes in the conversation, once, by text, email or WhatsApp. Texts count against your plan's texts. Included in the Growth and Pro plans."
+  },
+  "questionsToAnswer": {
+    "title": "Questions to answer",
+    "hint": "Questions your assistant couldn't answer, grouped. We draft an answer from your website and documents: check it, edit it if needed, and approve. Your assistant knows it from then on.",
+    "none": "Nothing to answer right now. Your assistant has handled every question it was asked.",
+    "asked": "{count, plural, one {Asked once} other {Asked # times}}",
+    "drafted": "Draft from your documents",
+    "drafting": "Drafting…",
+    "noDraft": "Not in your documents: write the answer",
+    "question": "Question",
+    "answer": "Answer",
+    "from": "Drafted from: {sources}",
+    "writeIt": "Your documents don't cover this. Write the answer your assistant should give.",
+    "approve": "Approve answer",
+    "dismiss": "Dismiss",
+    "approved": "Approved. It's in your business profile, and your assistant will use it.",
+    "dismissed": "Dismissed."
   }
 }
