@@ -211,3 +211,40 @@ describe("breached passwords (audit H5)", () => {
     }
   });
 });
+
+describe("unconfirmed accounts", () => {
+  it("signing in with the right password sends a fresh confirmation link", async () => {
+    const email = `unconfirmed-${Date.now()}@example.com`;
+    const signUp = await h.app.inject({
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      headers: { origin: ORIGIN },
+      payload: { name: "Unconfirmed", email, password: PASSWORD },
+    });
+    expect(signUp.statusCode).toBe(200);
+    const sentBefore = h.outbox.filter((m) => m.to === email && m.kind === "auth.verify").length;
+    expect(sentBefore).toBe(1);
+
+    // A wrong password sends nothing (no emails to strangers' addresses).
+    const wrong = await h.app.inject({
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      headers: { origin: ORIGIN },
+      payload: { email, password: "not-the-password-123" },
+    });
+    expect(wrong.statusCode).toBe(401);
+    expect(h.outbox.filter((m) => m.to === email && m.kind === "auth.verify")).toHaveLength(1);
+
+    const right = await h.app.inject({
+      method: "POST",
+      url: "/api/auth/sign-in/email",
+      headers: { origin: ORIGIN },
+      payload: { email, password: PASSWORD },
+    });
+    expect(right.statusCode).toBe(403);
+    expect(right.json()).toMatchObject({ code: "EMAIL_NOT_VERIFIED" });
+    const links = h.outbox.filter((m) => m.to === email && m.kind === "auth.verify");
+    expect(links).toHaveLength(2);
+    expect(links[1]!.text).toMatch(/verify-email\?token=/);
+  });
+});

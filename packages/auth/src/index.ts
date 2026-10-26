@@ -224,6 +224,9 @@ If you didn't ask for this, you can ignore this email: your password hasn't chan
     },
     emailVerification: {
       sendOnSignUp: true,
+      // An unconfirmed account that signs in with the right password gets a fresh link (the
+      // sign-up page can't resend: it never says whether an address is registered).
+      sendOnSignIn: true,
       autoSignInAfterVerification: true,
       sendVerificationEmail: async ({ user, url }) => {
         await deps.sendEmail({

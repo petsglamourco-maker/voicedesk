@@ -23,7 +23,7 @@
     "haveAccount": "Already have an account?",
     "checkEmailTitle": "Check your email",
     "checkEmailBody": "We've sent a verification link to {email}. Open it to finish setting up your account.",
-    "emailNotVerified": "Please verify your email address first — check your inbox for the link.",
+    "emailNotVerified": "Please confirm your email address first. We've just sent you a new confirmation link: check your inbox (and Spam).",
     "twoFactorTitle": "Two-step verification",
     "twoFactorBody": "Enter the 6-digit code from your authenticator app.",
     "code": "Verification code",
