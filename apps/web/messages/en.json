@@ -561,7 +561,12 @@
       "speech": "Caller asked for {name}",
       "chat": "Customer chose {name}",
       "assistant": "Assistant moved the call to {name}"
-    }
+    },
+    "followUpTitle": "Follow-up",
+    "followUpScheduled": "The customer asked for a follow-up. It goes out {when}.",
+    "followUpSent": "Follow-up sent {when}.",
+    "followUpBooked": "Follow-up sent, and the customer booked.",
+    "followUpSkipped": "Follow-up not sent (they booked anyway, or it was switched off)."
   },
   "phoneNumbers": {
     "title": "Phone numbers",
@@ -1628,7 +1633,8 @@
       "missed": "Missed calls today",
       "messages": "Messages to return",
       "callbacks": "Callbacks booked",
-      "missedByTeam": "Missed calls the assistant took"
+      "missedByTeam": "Missed calls the assistant took",
+      "followUps": "Follow-ups this month ({booked} booked)"
     },
     "bookings": {
       "title": "Today's bookings",

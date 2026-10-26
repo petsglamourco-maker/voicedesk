@@ -23,6 +23,7 @@ import { toLang, type Lang } from "./languages";
 import { openSurvey, shortSurveyQuestion, surveyLinkInvite } from "./feedback";
 import { getApprovedProfile } from "./profile-store";
 import { departmentPeople, listAnswerers } from "@voicedesk/core";
+import { prepareFollowUp, type FollowUpRow } from "./followups-db";
 
 /**
  * Customer confirmations, reminders and staff alerts (Phase 3, ADR 0015). Pure text builders
@@ -179,7 +180,7 @@ export function customerBookingText(
 
 export interface OutgoingMessage {
   /** "push": `to` is a user id; subject/text are the title/body and carry no customer details. */
-  channel: "sms" | "email" | "push";
+  channel: "sms" | "email" | "push" | "whatsapp";
   to: string;
   subject?: string;
   text: string;
@@ -187,6 +188,8 @@ export interface OutgoingMessage {
   kind: string;
   /** Email only: where a reply goes (e.g. the person who asked for support). */
   replyTo?: string;
+  /** WhatsApp only: the business's WhatsApp phone-number id to send from. */
+  from?: string;
   /** Push only: the page to open, whether it's urgent, and a tag that replaces older ones. */
   path?: string;
   urgent?: boolean;
@@ -804,4 +807,19 @@ export async function planPaymentLink(
         : { channel: "email", to: job.to, subject: `${business.name}`, text, kind: "payment.link" },
     ],
   };
+}
+
+/** ADR 0026: a due follow-up's message, or why it's skipped (see followups-db.ts). */
+export async function planFollowUp(
+  db: Database,
+  row: FollowUpRow,
+  now: Date = new Date(),
+): Promise<{ plan: NotificationPlan } | { skip: string }> {
+  const business = await loadBusiness(db, row.tenantId);
+  return prepareFollowUp(
+    db,
+    row,
+    { businessName: business.name, contactPhone: business.contactPhone },
+    now,
+  );
 }

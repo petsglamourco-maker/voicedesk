@@ -153,6 +153,7 @@ export interface TodayView {
   };
   callbacks: { count: number };
   missedByTeam: { count: number };
+  followUps: { sent: number; booked: number; scheduled: number };
   messages: {
     count: number;
     items: Array<{

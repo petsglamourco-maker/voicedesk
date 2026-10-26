@@ -1,6 +1,7 @@
 import { departmentPeople, getPlanState, planAllows } from "@voicedesk/core";
 import { departments, followUps } from "@voicedesk/db";
 import { followUpSendAt } from "./followups";
+import { creditFollowUp } from "./followups-db";
 import { loadMenu, recordDepartmentChoice } from "./departments";
 import { checkSend } from "./send-guard";
 import { getPlatformSpendSettings, spendStatus } from "./spend";
@@ -321,6 +322,14 @@ export function createDbAgentServices(
             .insert(bookings)
             .values({ tenantId, reference, conversationId, contactId, ...input })
             .returning({ id: bookings.id });
+          // ADR 0026: a follow-up sent to this person in the last 7 days gets the credit.
+          await creditFollowUp(t, {
+            id: row!.id,
+            tenantId,
+            contactId,
+            customerPhone: input.customerPhone,
+            customerEmail: input.customerEmail,
+          });
           return { id: row!.id, reference };
         }),
       );

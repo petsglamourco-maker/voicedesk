@@ -16,6 +16,9 @@ import {
   planStaffAlert,
   planRingingPush,
   planPaymentLink,
+  planFollowUp,
+  claimDueFollowUps,
+  finishFollowUp,
   planSupportRequest,
   planTransferContext,
   type NotificationPlan,
@@ -29,6 +32,10 @@ export interface NotificationDeps {
   db: Database;
   sms: SmsProvider;
   email: EmailProvider;
+  /** WhatsApp Cloud API (follow-ups, ADR 0026); null until WhatsApp is configured. */
+  whatsapp?: {
+    sendText(phoneNumberId: string, msg: { to: string; text: string }): Promise<unknown>;
+  } | null;
   /** Web push to phones (ADR 0024); null until VAPID keys are set (pushes are skipped). */
   push?: { provider: PushProvider | null; box: SecretBox | null };
   /** Sender shown on texts: an alphanumeric ID (e.g. "VoiceDesk") or an E.164 number. */
@@ -53,6 +60,15 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       : undefined;
     let pushed = 0;
     for (const m of plan.messages) {
+      if (m.channel === "whatsapp") {
+        // Inside the customer's 24-hour window: free-form text, no template needed.
+        if (!deps.whatsapp || !m.from) {
+          skipped.push("whatsapp_off");
+          continue;
+        }
+        await deps.whatsapp.sendText(m.from, { to: m.to, text: m.text });
+        continue;
+      }
       if (m.channel === "push") {
         // Free and carries no customer details; a failure never stops the emails and texts.
         const push = deps.push;
@@ -152,7 +168,31 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
       // Spending alerts share the 15-minute tick (ADR 0022).
       const alerts = await planSpendAlerts(deps.db, now, deps.webOrigin);
       for (const { tenantId, plan } of alerts) await execute(job, tenantId, plan);
-      return { briefs: due.length, spendAlerts: alerts.length };
+      // Follow-ups (ADR 0026) share the tick too.
+      let followUps = 0;
+      for (const row of await claimDueFollowUps(deps.db, now)) {
+        try {
+          const prepared = await planFollowUp(deps.db, row, now);
+          if ("skip" in prepared) {
+            await finishFollowUp(deps.db, row, { status: "skipped", reason: prepared.skip }, now);
+            continue;
+          }
+          const result = await execute(job, row.tenantId, prepared.plan);
+          await finishFollowUp(
+            deps.db,
+            row,
+            result.sent > 0
+              ? { status: "sent" }
+              : { status: "skipped", reason: result.skipped[0] ?? "not_sent" },
+            now,
+          );
+          if (result.sent > 0) followUps++;
+        } catch (error) {
+          log.warn({ jobId: job.id, err: (error as Error).name }, "follow-up failed");
+          await finishFollowUp(deps.db, row, { status: "skipped", reason: "error" }, now);
+        }
+      }
+      return { briefs: due.length, spendAlerts: alerts.length, followUps };
     }
     switch (data.kind) {
       case "booking.changed":

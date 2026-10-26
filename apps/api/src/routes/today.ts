@@ -1,4 +1,4 @@
-import { localDateString, zonedToUtc } from "@voicedesk/agent-brain";
+import { followUpCounts, localDateString, zonedToUtc } from "@voicedesk/agent-brain";
 import {
   bookings,
   channelThreads,
@@ -57,6 +57,8 @@ const todayView = z.object({
   callbacks: z.object({ count: z.number() }),
   /** ADR 0025: calls the team missed that the assistant took today. */
   missedByTeam: z.object({ count: z.number() }),
+  /** ADR 0026: follow-ups this month. */
+  followUps: z.object({ sent: z.number(), booked: z.number(), scheduled: z.number() }),
   messages: z.object({
     count: z.number(),
     items: z.array(
@@ -191,6 +193,11 @@ export function registerTodayRoutes(app: FastifyInstance, deps: AppDeps): void {
           },
           callbacks: { count: callbacks?.n ?? 0 },
           missedByTeam: { count: missedByTeam?.n ?? 0 },
+          followUps: await followUpCounts(
+            deps.db,
+            tenantId,
+            zonedToUtc(`${date.slice(0, 7)}-01`, "00:00", tz),
+          ),
           messages: {
             count: messages?.n ?? 0,
             items: messageItems.map((m) => ({

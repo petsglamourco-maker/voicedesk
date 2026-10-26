@@ -46,6 +46,14 @@ interface CallDetail extends CallRow {
   } | null;
   messages: Array<{ role: string; content: string; createdAt: string; withPerson?: boolean }>;
   departmentMoves?: Array<{ at: string; via: string; name: string | null }>;
+  followUp?: {
+    status: string;
+    sendAt: string;
+    sentAt: string | null;
+    channel: string;
+    booked: boolean;
+    reason: string | null;
+  } | null;
   handoffs?: Array<{
     status: string;
     reason: string | null;
@@ -192,6 +200,33 @@ export default async function CallPage(props: {
         </div>
 
         <div className="space-y-4">
+          {call.followUp ? (
+            <Card className="p-4" data-testid="call-follow-up">
+              <CardHead icon={<Clock />} title={t("followUpTitle")} color="var(--color-success)" />
+              <p className="mt-3 text-sm">
+                {call.followUp.booked
+                  ? t("followUpBooked")
+                  : call.followUp.status === "sent"
+                    ? t("followUpSent", {
+                        when: format.dateTime(
+                          new Date(call.followUp.sentAt ?? call.followUp.sendAt),
+                          {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          },
+                        ),
+                      })
+                    : call.followUp.status === "skipped"
+                      ? t("followUpSkipped")
+                      : t("followUpScheduled", {
+                          when: format.dateTime(new Date(call.followUp.sendAt), {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          }),
+                        })}
+              </p>
+            </Card>
+          ) : null}
           {call.missedByTeam || call.departmentMoves?.length ? (
             <Card className="p-4" data-testid="call-department">
               <CardHead icon={<Flag />} title={t("routingTitle")} color="var(--color-primary)" />

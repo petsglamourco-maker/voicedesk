@@ -1,8 +1,12 @@
 import { MockEmbeddingProvider } from "@voicedesk/adapters";
 import {
+  claimDueFollowUps,
   createConversation,
   createDbAgentServices,
+  finishFollowUp,
+  followUpCounts,
   loadAgentContext,
+  planFollowUp,
 } from "@voicedesk/agent-brain";
 import { agentSettings, auditLog, followUps, withTenant } from "@voicedesk/db";
 import { and, eq } from "drizzle-orm";
@@ -124,5 +128,90 @@ describe("scheduling a follow-up", () => {
     await switchOn(biz.tenantId);
     const s = await servicesFor(biz.tenantId);
     expect(s.ctx.followUps).toBe(false);
+  });
+
+  it("sends when due with the one-off wording, skips after a booking, credits bookings", async () => {
+    const biz = await createOwnerWithTenant(h, "Send Co");
+    await switchOn(biz.tenantId);
+    const a = await servicesFor(biz.tenantId);
+    await a.services.scheduleFollowUp!({
+      channel: "sms",
+      to: "07700 900111",
+      name: "Sam",
+      topic: "teeth whitening",
+      language: "en",
+    });
+    const b = await servicesFor(biz.tenantId);
+    await b.services.scheduleFollowUp!({
+      channel: "email",
+      to: "pat@example.com",
+      name: null,
+      topic: "veneers",
+      language: "es",
+    });
+    // Pat books before the follow-up goes out: theirs is skipped.
+    await b.services.createBooking({
+      service: "Check-up",
+      startsAt: new Date(Date.now() + 3 * 86_400_000),
+      endsAt: new Date(Date.now() + 3 * 86_400_000 + 1_800_000),
+      customerName: "Pat",
+      customerPhone: "+447700900999",
+      customerEmail: "pat@example.com",
+      notes: null,
+    });
+
+    // Not due yet.
+    expect(await claimDueFollowUps(h.db, new Date(), [biz.tenantId])).toEqual([]);
+    const later = new Date(Date.now() + 3 * 86_400_000);
+    const due = await claimDueFollowUps(h.db, later, [biz.tenantId]);
+    expect(due).toHaveLength(2);
+    // Claimed once: a second worker gets nothing.
+    expect(await claimDueFollowUps(h.db, later, [biz.tenantId])).toEqual([]);
+
+    const sam = due.find((r) => r.to === "+447700900111")!;
+    const pat = due.find((r) => r.to === "pat@example.com")!;
+    const samPlan = await planFollowUp(h.db, sam, later);
+    expect("plan" in samPlan).toBe(true);
+    if ("plan" in samPlan) {
+      expect(samPlan.plan.messages[0]).toMatchObject({ channel: "sms", to: "+447700900111" });
+      expect(samPlan.plan.messages[0]!.text).toContain("Hi Sam, it's Send Co");
+      expect(samPlan.plan.messages[0]!.text).toContain("teeth whitening");
+      expect(samPlan.plan.messages[0]!.text).toContain("This is a one-off message.");
+    }
+    expect(await planFollowUp(h.db, pat, later)).toEqual({ skip: "booked" });
+    await finishFollowUp(h.db, sam, { status: "sent" }, later);
+    await finishFollowUp(h.db, pat, { status: "skipped", reason: "booked" }, later);
+
+    // Sam books two days later: the follow-up gets the credit.
+    const c = await servicesFor(biz.tenantId);
+    await c.services.createBooking({
+      service: "Whitening",
+      startsAt: new Date(Date.now() + 5 * 86_400_000),
+      endsAt: new Date(Date.now() + 5 * 86_400_000 + 1_800_000),
+      customerName: "Sam",
+      customerPhone: "+447700900111",
+      customerEmail: null,
+      notes: null,
+    });
+    const counts = await followUpCounts(h.db, biz.tenantId, new Date(Date.now() - 86_400_000));
+    expect(counts).toEqual({ sent: 1, booked: 1, scheduled: 0 });
+  });
+
+  it("WhatsApp follow-ups are skipped once Meta's 24-hour window has passed", async () => {
+    const biz = await createOwnerWithTenant(h, "WA Follow Co");
+    await switchOn(biz.tenantId);
+    const wa = await servicesFor(biz.tenantId, "whatsapp");
+    const ok = await wa.services.scheduleFollowUp!({
+      channel: "whatsapp",
+      to: "+447700900222",
+      name: null,
+      topic: "prices",
+      language: "en",
+    });
+    expect(ok.ok).toBe(true);
+    if (ok.ok) expect(ok.sendAt.getTime() - Date.now()).toBeLessThanOrEqual(23 * 3_600_000 + 1000);
+    const late = new Date(Date.now() + 2 * 86_400_000);
+    const [row] = await claimDueFollowUps(h.db, late, [biz.tenantId]);
+    expect(await planFollowUp(h.db, row!, late)).toEqual({ skip: "whatsapp_window" });
   });
 });

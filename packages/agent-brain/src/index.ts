@@ -91,6 +91,7 @@ export {
   planFeedbackRequest,
   planStaffAlert,
   planPaymentLink,
+  planFollowUp,
   planRingingPush,
   planSupportRequest,
   planTransferContext,
@@ -230,3 +231,4 @@ export { planSpendAlerts } from "./spend-alerts";
 export { claimInbound } from "./inbound-dedupe";
 export * from "./departments";
 export * from "./followups";
+export * from "./followups-db";

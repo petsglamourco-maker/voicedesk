@@ -5,6 +5,7 @@ import {
   conversations,
   departmentMoves,
   departments,
+  followUps,
   handoffs,
   phoneNumbers,
   user,
@@ -222,8 +223,21 @@ export function registerCallRoutes(app: FastifyInstance, deps: AppDeps): void {
           .leftJoin(departments, eq(departments.id, departmentMoves.departmentId))
           .where(eq(departmentMoves.conversationId, found.call.id))
           .orderBy(asc(departmentMoves.at));
+        // ADR 0026: the follow-up the caller agreed to, if any.
+        const [followUp] = await tx
+          .select({
+            status: followUps.status,
+            sendAt: followUps.sendAt,
+            sentAt: followUps.sentAt,
+            channel: followUps.channel,
+            booked: followUps.bookingId,
+            reason: followUps.reason,
+          })
+          .from(followUps)
+          .where(eq(followUps.conversationId, found.call.id));
         return {
           ...callView(found.call, found, showPhone),
+          followUp: followUp ? { ...followUp, booked: followUp.booked !== null } : null,
           departmentMoves: moves,
           summary: found.call.summary,
           latency: found.call.voiceMetrics,

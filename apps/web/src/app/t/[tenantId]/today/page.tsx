@@ -3,6 +3,7 @@ import {
   CalendarCheck2,
   ChevronRight,
   Gauge,
+  MessageSquareReply,
   MessageSquareText,
   PhoneForwarded,
   PhoneMissed,
@@ -60,6 +61,13 @@ export default async function TodayPage(props: { params: Promise<{ tenantId: str
       n: today.missedByTeam.count,
       Icon: PhoneForwarded,
       tone: "info" as const,
+    },
+    {
+      href: `${base}/calls`,
+      label: t("chips.followUps", { booked: today.followUps.booked }),
+      n: today.followUps.sent,
+      Icon: MessageSquareReply,
+      tone: "success" as const,
     },
     {
       href: `${base}/records`,

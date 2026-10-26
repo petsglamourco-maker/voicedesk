@@ -156,6 +156,7 @@ const workers = [
         smsFrom: env.SMS_FROM,
         webOrigin: env.WEB_ORIGIN,
         push: { provider: await pushFromEnv(), box },
+        whatsapp,
         reminders: {
           schedule: async (job, runAt) => {
             const id = reminderJobId(job.bookingId);
