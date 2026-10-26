@@ -1,3 +1,4 @@
+import { voiceTypingOn } from "./voice-typing";
 import { randomBytes } from "node:crypto";
 import {
   createBusinessSchema,
@@ -94,6 +95,8 @@ export function registerTenantRoutes(app: FastifyInstance, deps: AppDeps): void 
             tenant: tenantSchema,
             role: z.string(),
             permissions: z.array(z.enum(PERMISSIONS)),
+            /** ADR 0027: show the microphone in text fields for this person here. */
+            voiceTyping: z.boolean(),
           }),
         },
       },
@@ -107,7 +110,12 @@ export function registerTenantRoutes(app: FastifyInstance, deps: AppDeps): void 
       );
       const tenant = await getTenant(deps.db, access.tenantId);
       if (!tenant) throw notFound();
-      return { tenant, role: access.role, permissions: permissionsFor(access.role) };
+      return {
+        tenant,
+        role: access.role,
+        permissions: permissionsFor(access.role),
+        voiceTyping: await voiceTypingOn(deps, access.tenantId, access.session.user.id),
+      };
     },
   );
 

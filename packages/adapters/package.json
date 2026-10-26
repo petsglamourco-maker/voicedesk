@@ -21,7 +21,8 @@
     "./net": "./src/net/public-address.ts",
     "./human/turnstile": "./src/human/turnstile.ts",
     "./billing/stripe": "./src/billing/stripe.ts",
-    "./push/web-push": "./src/push/web-push.ts"
+    "./push/web-push": "./src/push/web-push.ts",
+    "./speech/deepgram-token": "./src/speech/deepgram-token.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

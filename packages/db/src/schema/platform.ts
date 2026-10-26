@@ -157,3 +157,12 @@ export const platformSettings = pgTable("platform_settings", {
   updatedBy: uuid("updated_by"),
   ...timestamps,
 });
+
+/** Personal preferences (not business data): ADR 0027 voice typing on or off for me. */
+export const userSettings = pgTable("user_settings", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  voiceTyping: boolean("voice_typing").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});

@@ -67,6 +67,8 @@ const settingsSchema = z.object({
   ringFirst: z.boolean().default(false),
   /** ADR 0026: offer one follow-up after enquiries that didn't book. */
   followUps: z.boolean().default(false),
+  /** ADR 0027: microphone buttons in text fields for the team. */
+  voiceTyping: z.boolean().default(true),
   feedbackEnabled: z.boolean().default(true),
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
@@ -95,6 +97,7 @@ const settingsResponse = z.object({
   callEntry: z.string(),
   ringFirst: z.boolean(),
   followUps: z.boolean(),
+  voiceTyping: z.boolean(),
   feedbackEnabled: z.boolean(),
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
@@ -123,6 +126,7 @@ const DEFAULTS = {
   callEntry: "direct",
   ringFirst: false,
   followUps: false,
+  voiceTyping: true,
   feedbackEnabled: true,
   feedbackAfterCalls: false,
   npsEvery: 0,
@@ -189,6 +193,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               callEntry: row.callEntry,
               ringFirst: row.ringFirst,
               followUps: row.followUps,
+              voiceTyping: row.voiceTyping,
               feedbackEnabled: row.feedbackEnabled,
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,

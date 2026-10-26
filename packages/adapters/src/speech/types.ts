@@ -32,3 +32,19 @@ export interface TextToSpeechProvider {
     options: { voiceId: string; language: string; speakingRate?: number },
   ): Promise<{ audio: Uint8Array; mimeType: string }>;
 }
+
+/** ADR 0027: what the browser needs to stream microphone audio for voice typing. */
+export interface VoiceTypingGrant {
+  /** Short-lived (about 30 s) token; never our API key. */
+  token: string;
+  expiresIn: number;
+  /** Live transcription WebSocket URL with fixed parameters. */
+  url: string;
+  /** WebSocket subprotocol scheme to send with the token. */
+  protocol: "bearer";
+}
+
+export interface VoiceTypingProvider {
+  readonly name: string;
+  grant(language: string): Promise<VoiceTypingGrant>;
+}

@@ -8,6 +8,7 @@ export interface SetupItem {
   id:
     | "ai"
     | "voice"
+    | "voiceTyping"
     | "phone"
     | "email"
     | "sms"
@@ -81,6 +82,12 @@ export function setupStatus(env: NodeJS.ProcessEnv, ai: { enabledReady: number }
   return [
     item("ai", ai.enabledReady > 0 ? [] : ["AI_PROVIDER_ON"], true),
     item("voice", [...livekit, ...lacking(env, ["DEEPGRAM_API_KEY", "ELEVENLABS_API_KEY"])], true),
+    // Voice typing (ADR 0027) needs a Deepgram key with the Member role (it makes tokens).
+    item(
+      "voiceTyping",
+      env.DEEPGRAM_TYPING_KEY || env.DEEPGRAM_API_KEY ? [] : ["DEEPGRAM_TYPING_KEY"],
+      true,
+    ),
     item("phone", [...livekit, ...lacking(env, ["SIP_AUTH_USERNAME", "SIP_AUTH_PASSWORD"])], true),
     email,
     sms,

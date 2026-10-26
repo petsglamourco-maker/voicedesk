@@ -5,6 +5,7 @@ import type { EmbeddingProvider } from "./embeddings/types";
 import type { HumanCheck } from "./human/types";
 import type { BillingProvider } from "./billing/types";
 import type { PushProvider } from "./push/types";
+import type { VoiceTypingProvider } from "./speech/types";
 import type { LlmProvider } from "./llm/types";
 import type { SmsProvider } from "./messaging/types";
 import { MockEmbeddingProvider, MockLlmProvider } from "./mocks";
@@ -138,4 +139,18 @@ export async function pushFromEnv(env: Env = process.env): Promise<PushProvider 
     privateKey: env.VAPID_PRIVATE_KEY,
     subject: env.VAPID_SUBJECT || "mailto:security@voicedesk.invalid",
   });
+}
+
+/**
+ * Voice typing (ADR 0027); null (no microphone buttons) until a Deepgram key that can create
+ * short-lived tokens is set. DEEPGRAM_TYPING_KEY (Member role) keeps the call key narrower;
+ * DEEPGRAM_API_KEY is used when it already has that role.
+ */
+export async function voiceTypingFromEnv(
+  env: Env = process.env,
+): Promise<VoiceTypingProvider | null> {
+  const apiKey = env.DEEPGRAM_TYPING_KEY || env.DEEPGRAM_API_KEY;
+  if (!apiKey) return null;
+  const { DeepgramVoiceTyping } = await import("./speech/deepgram-token");
+  return new DeepgramVoiceTyping({ apiKey });
 }

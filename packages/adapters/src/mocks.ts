@@ -16,6 +16,7 @@ import {
   type BillingSubscription,
 } from "./billing/types";
 import type { PushMessage, PushProvider, PushSubscriptionData } from "./push/types";
+import type { VoiceTypingGrant, VoiceTypingProvider } from "./speech/types";
 import type { LlmContentBlock, LlmProvider, LlmRequest, LlmResponse } from "./llm/types";
 import type {
   SmsMessage,
@@ -376,5 +377,20 @@ export class MockPush implements PushProvider {
     if (subscription.endpoint.includes("gone")) return Promise.resolve("gone" as const);
     this.sent.push({ endpoint: subscription.endpoint, message });
     return Promise.resolve("sent" as const);
+  }
+}
+
+/** Voice typing without Deepgram: hands out a fake token. */
+export class MockVoiceTyping implements VoiceTypingProvider {
+  readonly name = "mock-voice-typing";
+  readonly grants: string[] = [];
+  grant(language: string): Promise<VoiceTypingGrant> {
+    this.grants.push(language);
+    return Promise.resolve({
+      token: "mock-token",
+      expiresIn: 30,
+      url: `wss://voice-typing.mock/listen?language=${language}`,
+      protocol: "bearer",
+    });
   }
 }

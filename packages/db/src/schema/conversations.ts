@@ -92,6 +92,8 @@ export const agentSettings = pgTable("agent_settings", {
   ringFirst: boolean("ring_first").notNull().default(false),
   /** ADR 0026: offer one follow-up after enquiries that didn't book (customer must agree). */
   followUps: boolean("follow_ups").notNull().default(false),
+  /** ADR 0027: microphone buttons in text fields for the team (each person can turn theirs off). */
+  voiceTyping: boolean("voice_typing").notNull().default(true),
   ...timestamps,
 });
 
