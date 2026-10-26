@@ -21,4 +21,7 @@ test("signed in, the home page still goes straight to the business", async ({ pa
   const tenantId = await signUpWithBusiness(page, `Home Co ${Date.now()}`);
   await page.goto("/");
   await expect(page).toHaveURL(new RegExp(`/t/${tenantId}`));
+  // /website always shows the website, signed in or not.
+  await page.goto("/website");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Never miss another customer.");
 });
