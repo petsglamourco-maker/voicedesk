@@ -8,6 +8,7 @@ import { PasswordSettings } from "./password-settings";
 import { PushSettings } from "./push-settings";
 import { SessionsSettings } from "./sessions-settings";
 import { TwoFactorSettings } from "./two-factor-settings";
+import { VoiceTypingSettings } from "./voice-typing-settings";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -23,6 +24,7 @@ export default async function AccountPage() {
       <TwoFactorSettings enabled={me.user.twoFactorEnabled} />
       <PasswordSettings />
       <PushSettings />
+      <VoiceTypingSettings />
       <SessionsSettings />
     </div>
   );

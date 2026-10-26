@@ -4,6 +4,7 @@ import { Alert, Avatar, Button, Card, CardHead, cn, Input, Label, Select } from 
 import {
   Bell,
   CheckCircle2,
+  Keyboard,
   Languages,
   Mic,
   Newspaper,
@@ -73,6 +74,7 @@ interface Settings {
   aiCallbacks: boolean;
   confirmationCalls: boolean;
   outboundDailyCap: number;
+  voiceTyping: boolean;
 }
 
 export interface AgentResponse {
@@ -100,6 +102,7 @@ export function AgentSettingsForm(props: {
   const tb = useTranslations("dailyBrief");
   const to = useTranslations("aiCalls");
   const tfu = useTranslations("followUps");
+  const tw = useTranslations("voiceTyping");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -593,6 +596,23 @@ export function AgentSettingsForm(props: {
             />
           </div>
           <BriefPreview tenantId={props.tenantId} />
+        </Card>
+
+        <Card>
+          <CardHead
+            icon={<Keyboard />}
+            title={tw("workspaceTitle")}
+            hint={tw("workspaceHint")}
+            color="var(--color-primary)"
+          />
+          <div className="mt-5">
+            <ToggleRow
+              checked={settings.voiceTyping}
+              onChange={(checked) => update({ voiceTyping: checked })}
+              label={tw("business")}
+              hint={tw("businessHint")}
+            />
+          </div>
         </Card>
 
         {props.canEdit ? (

@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 import { Dialog, DialogContent } from "@voicedesk/ui";
 import { Command } from "cmdk";
 import {
@@ -15,6 +17,7 @@ import { useRouter } from "next/navigation";
 import type { Theme } from "@/lib/theme";
 import type { NavGroup } from "./app-shell";
 import { NAV_ICONS } from "./icons";
+import { MicButton } from "@/components/voice/voice-typing";
 
 /** Ctrl/Cmd+K: jump to any screen or business, or switch the theme. */
 export function CommandPalette(props: {
@@ -43,6 +46,7 @@ export function CommandPalette(props: {
   };
   const itemClass =
     "flex cursor-pointer items-center gap-3 rounded-md px-3 py-2.5 text-sm text-foreground outline-none data-[selected=true]:bg-[color-mix(in_srgb,var(--color-primary)_14%,transparent)] [&_svg]:size-4 [&_svg]:text-muted-foreground data-[selected=true]:[&_svg]:text-primary";
+  const searchInput = useRef<HTMLInputElement>(null);
   const headingClass =
     "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:tracking-[0.14em] [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase";
   return (
@@ -52,11 +56,15 @@ export function CommandPalette(props: {
         className="top-[18%] max-w-xl translate-y-0 p-0 [&>h2]:sr-only [&>div]:mt-0"
       >
         <Command label={props.labels.placeholder} className="flex flex-col">
-          <Command.Input
-            autoFocus
-            placeholder={props.labels.placeholder}
-            className="h-14 border-b border-border bg-transparent px-5 text-base text-foreground outline-none placeholder:text-muted-foreground"
-          />
+          <div className="flex items-center border-b border-border pe-2">
+            <Command.Input
+              ref={searchInput}
+              autoFocus
+              placeholder={props.labels.placeholder}
+              className="h-14 min-w-0 flex-1 bg-transparent px-5 text-base text-foreground outline-none placeholder:text-muted-foreground"
+            />
+            <MicButton target={searchInput} />
+          </div>
           <Command.List className="max-h-[60vh] overflow-y-auto p-2">
             <Command.Empty className="px-3 py-8 text-center text-sm text-muted-foreground">
               {props.labels.empty}

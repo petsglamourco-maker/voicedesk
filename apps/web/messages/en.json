@@ -1330,6 +1330,11 @@
         "unlocks": "Talking to the assistant: speech recognition, natural voices and live calls in the browser.",
         "how": "Add the LiveKit, Deepgram and ElevenLabs keys to .env."
       },
+      "voiceTyping": {
+        "name": "Voice typing",
+        "unlocks": "A microphone in text fields (Ask VoiceDesk, Inbox replies, search) so people can speak instead of type. About $0.008 a minute.",
+        "how": "Deepgram console → API Keys: create a key with the Member role and put it in .env as DEEPGRAM_TYPING_KEY (the call key can stay as it is). Restart VoiceDesk."
+      },
       "phone": {
         "name": "Phone calls",
         "unlocks": "Customers ringing a business's phone number and reaching the assistant.",
@@ -1744,5 +1749,21 @@
     "dismiss": "Dismiss",
     "approved": "Approved. It's in your business profile, and your assistant will use it.",
     "dismissed": "Dismissed."
+  },
+  "voiceTyping": {
+    "start": "Speak instead of typing",
+    "stop": "Stop listening",
+    "listening": "Listening…",
+    "blocked": "The microphone is blocked. Allow it for VoiceDesk in your browser's settings.",
+    "failed": "Voice typing isn't available right now. Please type instead.",
+    "workspaceTitle": "Workspace",
+    "workspaceHint": "How people on your team use VoiceDesk.",
+    "business": "Voice typing in text fields",
+    "businessHint": "Show a microphone so people can speak instead of type (Ask VoiceDesk, Inbox replies, search, answers). Uses a little of your AI allowance.",
+    "accountTitle": "Voice typing",
+    "accountHint": "Speak instead of typing in Ask VoiceDesk, Inbox replies, search and answers.",
+    "personal": "Show the microphone in text fields",
+    "personalHint": "Your business can also switch it off for everyone under Assistant settings.",
+    "notSetUp": "Voice typing isn't set up on this VoiceDesk yet."
   }
 }

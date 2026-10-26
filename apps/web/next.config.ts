@@ -43,7 +43,8 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  `connect-src 'self' ${livekitOrigins().join(" ")}${dev ? " ws: wss:" : ""}`.trim(),
+  // wss://api.deepgram.com: voice typing streams the microphone there (ADR 0027).
+  `connect-src 'self' wss://api.deepgram.com ${livekitOrigins().join(" ")}${dev ? " ws: wss:" : ""}`.trim(),
   "media-src 'self' blob:",
   "frame-src https://challenges.cloudflare.com",
   "worker-src 'self' blob:",

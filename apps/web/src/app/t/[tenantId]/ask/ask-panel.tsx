@@ -31,6 +31,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 import { ScreenHero } from "@/components/screen-hero";
+import { MicButton } from "@/components/voice/voice-typing";
 
 interface Action {
   id: string;
@@ -58,6 +59,7 @@ export function AskPanel(props: { tenantId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
+  const questionInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -236,6 +238,7 @@ export function AskPanel(props: { tenantId: string }) {
           className="flex items-center gap-2 border-t border-border p-3"
         >
           <Input
+            ref={questionInput}
             name="question"
             dir="auto"
             autoComplete="off"
@@ -245,6 +248,7 @@ export function AskPanel(props: { tenantId: string }) {
             disabled={busy}
             className="h-11 rounded-full px-4"
           />
+          <MicButton target={questionInput} />
           <Button type="submit" disabled={busy} shape="pill" className="h-11 px-5">
             <Send aria-hidden />
             {t("send")}

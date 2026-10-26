@@ -1,5 +1,6 @@
 import { Card, CardHead, HeroStat, PageHero, StatusPill, type StatusTone } from "@voicedesk/ui";
 import {
+  Keyboard,
   BrainCircuit,
   CalendarCheck2,
   CheckCircle2,
@@ -38,6 +39,7 @@ interface SetupItem {
 const ICON: Record<string, LucideIcon | typeof WhatsAppIcon> = {
   ai: BrainCircuit,
   voice: Mic,
+  voiceTyping: Keyboard,
   phone: Phone,
   email: Mail,
   sms: MessageSquareText,

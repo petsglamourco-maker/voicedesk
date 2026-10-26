@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { THEME_COOKIE, toTheme } from "@/lib/theme";
 import { BusinessSwitcher } from "./business-switcher";
+import { VoiceTypingScope } from "@/components/voice/voice-typing";
 
 export default async function TenantLayout(props: {
   children: ReactNode;
@@ -107,101 +108,107 @@ export default async function TenantLayout(props: {
   const businesses = me.tenants.map((x) => ({ id: x.tenantId, name: x.name }));
 
   return (
-    <AppShell
-      tenantId={tenantId}
-      businessName={detail.tenant.name}
-      businesses={businesses}
-      businessSwitcher={
-        <BusinessSwitcher
-          currentId={tenantId}
-          tenants={businesses}
-          label={t("switchBusiness")}
-          newLabel={t("newBusiness")}
-        />
-      }
-      groups={groups}
-      user={{ name: me.user.name, email: me.user.email, isPlatformOwner: me.user.isPlatformOwner }}
-      theme={toTheme(jar.get(THEME_COOKIE)?.value)}
-      collapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
-      labels={{
-        nav: t("navLabel"),
-        search: s("search"),
-        collapse: s("collapse"),
-        expand: s("expand"),
-        openMenu: s("openMenu"),
-        account: s("account"),
-        theme: s("theme"),
-        themes: { dark: s("themes.dark"), light: s("themes.light"), system: s("themes.system") },
-        vaConsole: t("vaConsole"),
-        tabs: {
-          today: t("today"),
-          inbox: t("inbox"),
-          calls: t("calls"),
-          more: s("more"),
-        },
-        platformAdmin: t("platformAdmin"),
-        help: help("palette"),
-        signOut: common("signOut"),
-        notifications: s("notifications"),
-        palette: {
-          placeholder: s("palette.placeholder"),
-          empty: s("palette.empty"),
-          pages: s("palette.pages"),
-          businesses: s("palette.businesses"),
-          actions: s("palette.actions"),
-        },
-        notices: {
-          chats: String(s.raw("notices.chats")),
-          calls: String(s.raw("notices.calls")),
-          none: s("notices.none"),
-        },
-      }}
-    >
-      {me.mfa.deadline ? (
-        <Alert tone="warning" className="mb-6" data-testid="mfa-banner">
-          {s("mfaBanner", {
-            date: format.dateTime(new Date(me.mfa.deadline), { dateStyle: "long" }),
-          })}{" "}
-          <Link href="/mfa-required" className="font-semibold text-primary hover:underline">
-            {s("mfaSetup")}
-          </Link>
-        </Alert>
-      ) : null}
-      {detail.tenant.status === "suspended" ? (
-        <Alert tone="error" className="mb-6" data-testid="suspended-banner">
-          {s("suspendedBanner")}
-        </Alert>
-      ) : billing && !billing.usable ? (
-        <Alert tone="error" className="mb-6" data-testid="plan-banner">
-          {s(`planBanner.${billing.reason ?? "canceled"}`)} {billingLink}
-        </Alert>
-      ) : billing?.status === "past_due" ? (
-        <Alert tone="warning" className="mb-6" data-testid="plan-banner">
-          {s("planBanner.pastDue")} {billingLink}
-        </Alert>
-      ) : spend?.categories.ai.state === "reached" ? (
-        <Alert tone="warning" className="mb-6" data-testid="spend-banner">
-          {s(spend.businessCaps ? "aiCapBanner" : "aiAllowanceBanner")}{" "}
-          {spend.businessCaps ? usageLink : billingLink}
-        </Alert>
-      ) : trialDaysLeft !== null && trialDaysLeft <= 3 ? (
-        <Alert tone="info" className="mb-6" data-testid="trial-banner">
-          {s("trialBanner", { days: trialDaysLeft })} {billingLink}
-        </Alert>
-      ) : spend && (spend.paused.ai || spend.paused.sms || spend.paused.outboundCalls) ? (
-        <Alert tone="warning" className="mb-6" data-testid="paused-banner">
-          {s("pausedBanner", {
-            what: [
-              spend.paused.ai ? s("pausedWhat.ai") : null,
-              spend.paused.sms ? s("pausedWhat.sms") : null,
-              spend.paused.outboundCalls ? s("pausedWhat.calls") : null,
-            ]
-              .filter(Boolean)
-              .join(", "),
-          })}
-        </Alert>
-      ) : null}
-      {props.children}
-    </AppShell>
+    <VoiceTypingScope tenantId={tenantId} enabled={detail.voiceTyping === true}>
+      <AppShell
+        tenantId={tenantId}
+        businessName={detail.tenant.name}
+        businesses={businesses}
+        businessSwitcher={
+          <BusinessSwitcher
+            currentId={tenantId}
+            tenants={businesses}
+            label={t("switchBusiness")}
+            newLabel={t("newBusiness")}
+          />
+        }
+        groups={groups}
+        user={{
+          name: me.user.name,
+          email: me.user.email,
+          isPlatformOwner: me.user.isPlatformOwner,
+        }}
+        theme={toTheme(jar.get(THEME_COOKIE)?.value)}
+        collapsed={jar.get(SIDEBAR_COOKIE)?.value === "collapsed"}
+        labels={{
+          nav: t("navLabel"),
+          search: s("search"),
+          collapse: s("collapse"),
+          expand: s("expand"),
+          openMenu: s("openMenu"),
+          account: s("account"),
+          theme: s("theme"),
+          themes: { dark: s("themes.dark"), light: s("themes.light"), system: s("themes.system") },
+          vaConsole: t("vaConsole"),
+          tabs: {
+            today: t("today"),
+            inbox: t("inbox"),
+            calls: t("calls"),
+            more: s("more"),
+          },
+          platformAdmin: t("platformAdmin"),
+          help: help("palette"),
+          signOut: common("signOut"),
+          notifications: s("notifications"),
+          palette: {
+            placeholder: s("palette.placeholder"),
+            empty: s("palette.empty"),
+            pages: s("palette.pages"),
+            businesses: s("palette.businesses"),
+            actions: s("palette.actions"),
+          },
+          notices: {
+            chats: String(s.raw("notices.chats")),
+            calls: String(s.raw("notices.calls")),
+            none: s("notices.none"),
+          },
+        }}
+      >
+        {me.mfa.deadline ? (
+          <Alert tone="warning" className="mb-6" data-testid="mfa-banner">
+            {s("mfaBanner", {
+              date: format.dateTime(new Date(me.mfa.deadline), { dateStyle: "long" }),
+            })}{" "}
+            <Link href="/mfa-required" className="font-semibold text-primary hover:underline">
+              {s("mfaSetup")}
+            </Link>
+          </Alert>
+        ) : null}
+        {detail.tenant.status === "suspended" ? (
+          <Alert tone="error" className="mb-6" data-testid="suspended-banner">
+            {s("suspendedBanner")}
+          </Alert>
+        ) : billing && !billing.usable ? (
+          <Alert tone="error" className="mb-6" data-testid="plan-banner">
+            {s(`planBanner.${billing.reason ?? "canceled"}`)} {billingLink}
+          </Alert>
+        ) : billing?.status === "past_due" ? (
+          <Alert tone="warning" className="mb-6" data-testid="plan-banner">
+            {s("planBanner.pastDue")} {billingLink}
+          </Alert>
+        ) : spend?.categories.ai.state === "reached" ? (
+          <Alert tone="warning" className="mb-6" data-testid="spend-banner">
+            {s(spend.businessCaps ? "aiCapBanner" : "aiAllowanceBanner")}{" "}
+            {spend.businessCaps ? usageLink : billingLink}
+          </Alert>
+        ) : trialDaysLeft !== null && trialDaysLeft <= 3 ? (
+          <Alert tone="info" className="mb-6" data-testid="trial-banner">
+            {s("trialBanner", { days: trialDaysLeft })} {billingLink}
+          </Alert>
+        ) : spend && (spend.paused.ai || spend.paused.sms || spend.paused.outboundCalls) ? (
+          <Alert tone="warning" className="mb-6" data-testid="paused-banner">
+            {s("pausedBanner", {
+              what: [
+                spend.paused.ai ? s("pausedWhat.ai") : null,
+                spend.paused.sms ? s("pausedWhat.sms") : null,
+                spend.paused.outboundCalls ? s("pausedWhat.calls") : null,
+              ]
+                .filter(Boolean)
+                .join(", "),
+            })}
+          </Alert>
+        ) : null}
+        {props.children}
+      </AppShell>
+    </VoiceTypingScope>
   );
 }

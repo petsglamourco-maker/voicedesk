@@ -64,6 +64,8 @@ export interface TenantDetail {
   };
   role: "owner" | "admin" | "staff";
   permissions: string[];
+  /** ADR 0027: show the microphone in text fields. */
+  voiceTyping?: boolean;
 }
 
 export interface AuditEntry {

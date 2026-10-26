@@ -3,8 +3,9 @@
 import { Alert, Badge, Button, Card, CardHead, Field, Input, Textarea } from "@voicedesk/ui";
 import { CircleCheck, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "@/lib/client-api";
+import { MicButton } from "@/components/voice/voice-typing";
 
 export interface GapAnswer {
   id: string;
@@ -121,14 +122,11 @@ export function QuestionsToAnswer(props: {
                       : t("writeIt")
                   }
                 >
-                  <Textarea
+                  <AnswerBox
                     id={`a-${q.id}`}
-                    dir="auto"
-                    rows={3}
-                    maxLength={1000}
                     disabled={!props.canEdit}
                     value={answers[q.id] ?? ""}
-                    onChange={(e) => setAnswers((m) => ({ ...m, [q.id]: e.target.value }))}
+                    onChange={(value) => setAnswers((m) => ({ ...m, [q.id]: value }))}
                   />
                 </Field>
               </div>
@@ -156,5 +154,30 @@ export function QuestionsToAnswer(props: {
         </ul>
       )}
     </Card>
+  );
+}
+
+/** The answer textarea with its own microphone (voice typing, ADR 0027). */
+function AnswerBox(props: {
+  id: string;
+  disabled: boolean;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  return (
+    <div className="flex items-start gap-2">
+      <Textarea
+        ref={box}
+        id={props.id}
+        dir="auto"
+        rows={3}
+        maxLength={1000}
+        disabled={props.disabled}
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+      />
+      {props.disabled ? null : <MicButton target={box} />}
+    </div>
   );
 }

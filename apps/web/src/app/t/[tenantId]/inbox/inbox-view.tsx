@@ -35,6 +35,7 @@ import { api } from "@/lib/client-api";
 import { formString } from "@/lib/form";
 import { ChannelDot } from "@/components/channels";
 import { ScreenHero } from "@/components/screen-hero";
+import { MicButton } from "@/components/voice/voice-typing";
 
 type Filter = "all" | "unread" | "needs_human" | "mine";
 
@@ -610,6 +611,7 @@ export function InboxView(props: {
                     disabled={busy}
                     className="h-11 rounded-full px-4"
                   />
+                  <MicButton target={replyInput} />
                   <Button type="submit" disabled={busy} shape="pill" className="h-11 px-5">
                     <Send aria-hidden />
                     {t("send")}
