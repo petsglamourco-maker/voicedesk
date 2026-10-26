@@ -25,6 +25,7 @@ import {
   createConversation,
   departmentByKey,
   departmentChosenPhrase,
+  demoTimeUpPhrase,
   endConversation,
   menuActive,
   menuLine,
@@ -157,7 +158,11 @@ function resources() {
 export default defineAgent({
   entry: async (ctx: JobContext) => {
     const job = parseJobMetadata(ctx.job.metadata);
-    const { db, llm, embeddings, storage, calendars, notify, publishLive } = resources();
+    const resourcesNow = resources();
+    const { db, llm, embeddings, storage, calendars, publishLive } = resourcesNow;
+    // ADR 0029: an instant demo never sends anything (confirmations, alerts, ringing).
+    const demo = job.kind === "browser" && job.demo === true;
+    const notify: typeof resourcesNow.notify = demo ? async () => {} : resourcesNow.notify;
     const agentCtx = await loadAgentContext(db, job.tenantId, "voice");
     await ctx.connect();
 
@@ -685,6 +690,17 @@ export default defineAgent({
       if (ringAtStart) {
         void greeted.waitForPlayout().then(() => ringTeamFirst(null, false));
       }
+    }
+    // ADR 0029: demo calls are capped; the browser shows the same countdown.
+    if (job.kind === "browser" && job.demo && job.maxSeconds) {
+      const timer = setTimeout(() => {
+        void (async () => {
+          await session.say(demoTimeUpPhrase(bridge.language)).waitForPlayout();
+          await hangUp("demo time limit");
+        })().catch(() => undefined);
+      }, job.maxSeconds * 1000);
+      timer.unref();
+      session.on(voice.AgentSessionEventTypes.Close, () => clearTimeout(timer));
     }
   },
 });

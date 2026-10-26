@@ -128,6 +128,20 @@ const SILENT_GOODBYE: Record<Lang, string> = {
   ar: "لا أستطيع سماعك، لذا سأنهي المكالمة الآن. يمكنك الاتصال بنا في أي وقت. مع السلامة.",
 };
 
+/** ADR 0029: the end of an instant-demo call (they're capped at a few minutes). */
+const DEMO_TIME_UP: Record<Lang, string> = {
+  en: "That's the end of this demo call. Thanks for trying your VoiceDesk assistant. Goodbye.",
+  es: "Aquí termina esta llamada de demostración. Gracias por probar su asistente VoiceDesk. Adiós.",
+  fr: "C'est la fin de cet appel de démonstration. Merci d'avoir essayé votre assistant VoiceDesk. Au revoir.",
+  de: "Das ist das Ende dieses Demo-Anrufs. Danke, dass Sie Ihren VoiceDesk-Assistenten ausprobiert haben. Auf Wiederhören.",
+  zh: "本次演示通话到此结束。感谢您试用 VoiceDesk 助理。再见。",
+  ar: "انتهت مكالمة العرض التجريبي. شكرًا لتجربة مساعد VoiceDesk. مع السلامة.",
+};
+
+export function demoTimeUpPhrase(lang: Lang): string {
+  return DEMO_TIME_UP[lang];
+}
+
 /** Spoken when a phone transfer fails; the assistant then offers to take a message. */
 const TRANSFER_FAILED: Record<Lang, string> = {
   en: "Sorry, I couldn't put you through just now. I can take a message so they call you back. Would that help?",

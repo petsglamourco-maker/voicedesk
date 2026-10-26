@@ -150,7 +150,9 @@ export type AiJob =
   | { kind: "profile.generate"; tenantId: string; requestedBy: string | null }
   | { kind: "conversation.summarize"; tenantId: string; conversationId: string }
   /** ADR 0026: group unanswered questions and draft answers (every business). */
-  | { kind: "gaps.sweep" };
+  | { kind: "gaps.sweep" }
+  /** ADR 0029: after an instant demo's crawl, build and approve its profile. */
+  | { kind: "demo.build"; tenantId: string };
 
 export const DEFAULT_JOB_OPTIONS: JobsOptions = {
   attempts: 5,

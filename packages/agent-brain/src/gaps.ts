@@ -42,10 +42,13 @@ export async function processKnowledgeGaps(
 ): Promise<{ grouped: number; drafted: number }> {
   const tenantIds = (
     await deps.db
-      .select({ id: organization.id })
+      .select({ id: organization.id, metadata: organization.metadata })
       .from(organization)
       .where(only ? inArray(organization.id, only) : undefined)
-  ).map((r) => r.id);
+  )
+    // ADR 0029: instant demos never spend AI on drafting answers.
+    .filter((r) => !r.metadata?.includes('"demo":true'))
+    .map((r) => r.id);
   let grouped = 0;
   let drafted = 0;
   for (const tenantId of tenantIds) {

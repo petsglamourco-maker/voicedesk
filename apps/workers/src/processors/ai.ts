@@ -1,5 +1,6 @@
 import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
 import {
+  buildDemoProfile,
   generateProfileDraft,
   processKnowledgeGaps,
   prepareCallSummaryEmails,
@@ -36,6 +37,11 @@ export function createAiProcessor(deps: AiDeps, log: Logger) {
         if (result.grouped || result.drafted) {
           log.info({ jobId: job.id, ...result }, "unanswered questions processed");
         }
+        return result;
+      }
+      case "demo.build": {
+        const result = await buildDemoProfile(deps, data.tenantId);
+        log.info({ jobId: job.id, tenantId: data.tenantId, ok: result.ok }, "demo built");
         return result;
       }
       case "profile.generate": {

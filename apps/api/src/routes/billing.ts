@@ -63,7 +63,7 @@ const billingView = z.object({
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 const view = (id: PlanId) => {
   const p = PLANS[id];
-  return { ...p, features: [...p.features] };
+  return { ...p, id, features: [...p.features] };
 };
 
 export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void {
@@ -93,7 +93,8 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
       const state = await getPlanState(deps.db, access.tenantId);
       const sub = state.subscription;
       return {
-        plan: view(state.plan.id),
+        // Demo businesses have no members, so nobody sees this for them.
+        plan: view(state.plan.id === "demo" ? "trial" : state.plan.id),
         status: state.status,
         usable: state.usable,
         reason: state.reason,

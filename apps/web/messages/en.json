@@ -459,7 +459,8 @@
     "vas": "VAs",
     "setup": "Setup",
     "support": "Support requests",
-    "spending": "Spending & limits"
+    "spending": "Spending & limits",
+    "demos": "Demos"
   },
   "voice": {
     "ended": "Call ended",
@@ -1798,5 +1799,51 @@
     "average": "Average booking value (£, optional)",
     "averageHint": "Used to estimate what the assistant's bookings were worth. Leave it empty to show counts only.",
     "preview": "Preview last month's report"
+  },
+  "tryDemo": {
+    "title": "Hear your own AI receptionist",
+    "subtitle": "Type in your website. In about a minute you can talk to an assistant that knows your services, prices and opening hours.",
+    "off": "Demos aren't available right now. Please check back soon.",
+    "website": "Your website",
+    "businessName": "Business name (optional)",
+    "email": "Your email (optional)",
+    "consent": "VoiceDesk may email me about my demo.",
+    "privacy": "Your demo is deleted after 24 hours. What you say is processed by our AI providers, which may be outside the UK (including DeepSeek in China), so please don't share personal or payment details. If you leave your email, we keep it for 90 days to follow up, and delete it sooner if you ask.",
+    "build": "Build my assistant",
+    "crawling": "Reading your website…",
+    "building": "Building your assistant…",
+    "failedSite": "We couldn't read that website. Check the address and try again.",
+    "failedAi": "We couldn't build the assistant just now. Please try again in a few minutes.",
+    "again": "Try another website",
+    "ready": "{persona} is ready to answer for {business}. Ask anything a customer would.",
+    "talk": "Talk to it",
+    "timeLeft": "{seconds} seconds left in this demo call",
+    "chat": "Or chat",
+    "ask": "Ask a question…",
+    "send": "Send",
+    "usedUp": "That's all the messages for this demo.",
+    "signUp": "Make it yours: create your account",
+    "expires": "This demo and everything said in it is deleted after 24 hours."
+  },
+  "platformDemos": {
+    "title": "Demos",
+    "subtitle": "The public /try page: visitors type in their website and talk to an assistant built from it. Each demo costs a few pence of AI and voice and is deleted after 24 hours.",
+    "enabled": "Allow instant demos on /try",
+    "dailyLimit": "Demos a day (all visitors)",
+    "save": "Save",
+    "saved": "Saved.",
+    "today": "Today",
+    "monthCost": "AI spend this month",
+    "open": "Open /try",
+    "list": "Recent demos",
+    "none": "No demos yet.",
+    "website": "Website",
+    "status": "Status",
+    "lead": "Lead email",
+    "cost": "AI cost",
+    "created": "Created",
+    "forget": "Forget email",
+    "deleted": "deleted",
+    "noEmail": "–"
   }
 }

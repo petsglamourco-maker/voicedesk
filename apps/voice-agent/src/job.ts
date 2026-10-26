@@ -17,7 +17,14 @@ export interface JobIds {
 
 /** Dispatch metadata: browser test calls (apps/api voice.ts) or phone calls (apps/api sip.ts). */
 export type JobMetadata =
-  | { kind: "browser"; tenantId: string; conversationId: string }
+  | {
+      kind: "browser";
+      tenantId: string;
+      conversationId: string;
+      /** ADR 0029: an instant demo (nothing is sent; the call ends after maxSeconds). */
+      demo?: boolean;
+      maxSeconds?: number;
+    }
   /** Phase 6: a call the assistant placed (the conversation and opening already exist). */
   | {
       kind: "outbound";
@@ -42,7 +49,16 @@ export function parseJobMetadata(raw: string): JobMetadata {
     };
   }
   if (typeof value.conversationId === "string") {
-    return { kind: "browser", tenantId: value.tenantId, conversationId: value.conversationId };
+    const demo = value.demo === true;
+    const max = Number(value.maxSeconds);
+    return {
+      kind: "browser",
+      tenantId: value.tenantId,
+      conversationId: value.conversationId,
+      ...(demo
+        ? { demo, maxSeconds: Number.isFinite(max) ? Math.min(Math.max(max, 30), 600) : 180 }
+        : {}),
+    };
   }
   if (typeof value.phoneNumberId === "string") {
     return { kind: "phone", tenantId: value.tenantId, phoneNumberId: value.phoneNumberId };

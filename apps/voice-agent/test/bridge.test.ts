@@ -217,6 +217,16 @@ describe("helpers", () => {
       tenantId: "t",
       phoneNumberId: "p",
     });
+    // ADR 0029: instant demos are marked and capped (30 s to 10 min, 3 min by default).
+    expect(
+      parseJobMetadata('{"tenantId":"t","conversationId":"c","demo":true,"maxSeconds":180}'),
+    ).toEqual({ kind: "browser", tenantId: "t", conversationId: "c", demo: true, maxSeconds: 180 });
+    expect(
+      parseJobMetadata('{"tenantId":"t","conversationId":"c","demo":true,"maxSeconds":99999}'),
+    ).toMatchObject({ maxSeconds: 600 });
+    expect(parseJobMetadata('{"tenantId":"t","conversationId":"c","demo":true}')).toMatchObject({
+      maxSeconds: 180,
+    });
     expect(() => parseJobMetadata("")).toThrow();
     expect(() => parseJobMetadata('{"tenantId":1}')).toThrow();
     expect(() => parseJobMetadata('{"tenantId":"t"}')).toThrow();

@@ -31,7 +31,8 @@ export const PAID_PLANS = ["starter", "growth", "pro"] as const satisfies readon
 export type PaidPlanId = (typeof PAID_PLANS)[number];
 
 export interface Plan {
-  id: PlanId;
+  /** "demo": instant-demo businesses only (ADR 0029); never offered or assignable. */
+  id: PlanId | "demo";
   name: string;
   /** Monthly price in pence, excluding VAT (0 for the trial). */
   pricePence: number;
@@ -95,6 +96,23 @@ export const PLANS: Record<PlanId, Plan> = {
   },
 };
 
+/**
+ * ADR 0029: instant-demo businesses. Nothing can leave them: no texts, no outbound calls, no
+ * paid features; a small AI allowance and a few voice minutes. Not in PLAN_IDS, so it can
+ * never be bought, listed or given from Platform admin.
+ */
+export const DEMO_PLAN: Plan = {
+  id: "demo",
+  name: "Demo",
+  pricePence: 0,
+  minutes: 10,
+  texts: 0,
+  aiPence: 40,
+  phoneNumbers: 0,
+  seats: 0,
+  features: [],
+};
+
 export const TRIAL_DAYS = 14;
 /** After a failed payment, the plan keeps working this long before AI pauses. */
 export const PAST_DUE_GRACE_DAYS = 7;
@@ -117,7 +135,8 @@ export interface PlanState {
 
 /** Interprets a subscription row (none yet = a trial that started now). */
 export function planState(row: SubscriptionRow | null, now: Date = new Date()): PlanState {
-  const plan = PLANS[row && isPlanId(row.planId) ? row.planId : "trial"];
+  const plan =
+    row?.planId === "demo" ? DEMO_PLAN : PLANS[row && isPlanId(row.planId) ? row.planId : "trial"];
   const status = (row?.status ?? "trialing") as PlanState["status"];
   let reason: PlanState["reason"] = null;
   if (status === "canceled") reason = "canceled";

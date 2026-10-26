@@ -3,6 +3,7 @@ import {
   checkSend,
   claimDueBriefs,
   claimDueValueReports,
+  purgeExpiredDemos,
   prepareValueReport,
   getPlatformSpendSettings,
   recordSmsSpend,
@@ -181,6 +182,9 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
           })),
         });
       }
+      // ADR 0029: expired instant demos are deleted on the same tick.
+      const purge = await purgeExpiredDemos(deps.db, now);
+      if (purge.purged || purge.leadsCleared) log.info(purge, "instant demos cleaned up");
       // Spending alerts share the 15-minute tick (ADR 0022).
       const alerts = await planSpendAlerts(deps.db, now, deps.webOrigin);
       for (const { tenantId, plan } of alerts) await execute(job, tenantId, plan);

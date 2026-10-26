@@ -64,7 +64,10 @@ export async function createHarness(
     | "billingPrices"
     | "push"
     | "voiceTyping"
+    | "demoSettings"
   > & {
+    /** Record knowledge jobs without running them (e.g. demo websites that aren't real). */
+    recordSourcesOnly?: boolean;
     llm?: LlmProvider;
     /** Check new passwords against Have I Been Pwned (stub `fetch` when on). */
     breachCheck?: boolean;
@@ -108,6 +111,7 @@ export async function createHarness(
   const jobs: JobDispatcher = {
     processSource: async (job) => {
       recorded.sources.push(job);
+      if (options.recordSourcesOnly) return;
       await processSource({ db, embeddings, storage }, job.tenantId, job.sourceId);
     },
     scheduleRecrawl: (job, days) => {
@@ -150,6 +154,7 @@ export async function createHarness(
     billingPrices: options.billingPrices ?? {},
     push: options.push ?? null,
     voiceTyping: options.voiceTyping ?? null,
+    demoSettings: options.demoSettings,
     oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,

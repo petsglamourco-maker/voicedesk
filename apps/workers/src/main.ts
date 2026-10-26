@@ -124,11 +124,23 @@ const workers = [
     concurrency: 5,
   }),
   // One source at a time: crawling is polite and embedding is CPU-bound.
-  new Worker<ProcessSourceJob>(QUEUES.knowledge, createProcessSourceProcessor(knowledgeDeps, log), {
-    connection,
-    concurrency: 1,
-    lockDuration: 10 * 60_000,
-  }),
+  new Worker<ProcessSourceJob>(
+    QUEUES.knowledge,
+    createProcessSourceProcessor(
+      {
+        ...knowledgeDeps,
+        enqueueAi: async (job) => {
+          await aiQueue.add(job.kind, job);
+        },
+      },
+      log,
+    ),
+    {
+      connection,
+      concurrency: 1,
+      lockDuration: 10 * 60_000,
+    },
+  ),
   new Worker<ChannelJob>(
     QUEUES.channels,
     createChannelProcessor(

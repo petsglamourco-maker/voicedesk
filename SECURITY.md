@@ -31,7 +31,7 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
 **Trust boundaries:**
 
 1. The browser and the API: the session cookie, Origin checks and CSRF.
-2. The public surfaces: chat, forms, rating links and webhooks, which need no sign-in.
+2. The public surfaces: chat, forms, rating links, instant demos (/try) and webhooks, which need no sign-in.
 3. One business and another: tenant isolation.
 4. A business and the platform owner: cross-business access.
 5. The app and AI models: untrusted text in prompts.
@@ -104,6 +104,13 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
   - nosniff;
   - a strict referrer policy.
 - **Website chat:** a signed 2-hour token from the frame; an optional Cloudflare Turnstile bot check; stream limits.
+- **Instant demos (ADR 0029, `/try`):**
+  - off until the platform owner switches them on;
+  - checks: the bot check, 3 an hour per IP (HMAC, never the raw IP), and a platform-wide daily limit (atomic counter);
+  - SSRF-safe crawl of public hosts only;
+  - the visitor's key is hashed and sent in a header;
+  - each demo is a member-less business on the `demo` plan (no texts, calls or features), with no notification hooks, deleted with everything in it after 24 h;
+  - lead emails only with consent, cleared after 90 days.
 
 ### Integrations (ASVS V10, V13)
 

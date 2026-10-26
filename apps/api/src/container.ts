@@ -32,7 +32,7 @@ import {
   type CalendarIntegrations,
   type ProviderSecrets,
 } from "@voicedesk/core";
-import { closeDb, createDb, withTenant, type Database } from "@voicedesk/db";
+import { closeDb, createDb, withTenant, type Database, type DemoSettings } from "@voicedesk/db";
 import {
   createAiQueue,
   createEmailQueue,
@@ -155,6 +155,8 @@ export interface Container {
   billingPrices?: Record<string, string>;
   /** Web push to phones (ADR 0024); null until VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY are set. */
   push?: PushProvider | null;
+  /** ADR 0029: overrides the platform's demo settings (tests; the row is shared). */
+  demoSettings?: DemoSettings;
   /** Voice typing (ADR 0027); null until a Deepgram key that can create tokens is set. */
   voiceTyping?: VoiceTypingProvider | null;
   /** Valkey for the API's request limits, shared by every API process. */

@@ -25,6 +25,7 @@ export {
   looksLikeLifeThreateningEmergency,
   recordingNotice,
   silentGoodbyePhrase,
+  demoTimeUpPhrase,
   stillTherePhrase,
   transferFailedPhrase,
   stillConnectingPhrase,
@@ -249,3 +250,29 @@ export * from "./departments";
 export * from "./followups";
 export * from "./followups-db";
 export * from "./gaps";
+export {
+  buildDemoProfile,
+  clearDemoLead,
+  createDemo,
+  DEFAULT_DEMO_SETTINGS,
+  DEMO_CHAT_TURNS,
+  DEMO_HOURS,
+  DEMO_LEAD_DAYS,
+  DEMO_PAGES,
+  DEMO_VOICE_CALLS,
+  DEMO_VOICE_SECONDS,
+  demoOverview,
+  demoProfile,
+  demoSuggestions,
+  demosToday,
+  findDemo,
+  getDemoSettings,
+  isDemoTenant,
+  purgeExpiredDemos,
+  saveDemoSettings,
+  setDemoStatus,
+  useDemoAllowance,
+  type DemoOverview,
+  type DemoRow,
+  type DemoStatus,
+} from "./demo";

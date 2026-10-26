@@ -46,6 +46,8 @@ export const tenants = pgTable("tenants", {
   defaultLanguage: text("default_language").notNull().default("en"), // BCP 47
   dataRegion: text("data_region").notNull().default("uk"),
   status: tenantStatus("status").notNull().default("onboarding"),
+  /** ADR 0029: set only on instant-demo businesses, which are deleted at this time. */
+  demoExpiresAt: timestamp("demo_expires_at", { withTimezone: true }),
   ...timestamps,
 });
 

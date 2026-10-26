@@ -57,7 +57,7 @@ const createSourceBody = z.discriminatedUnion("type", [
 ]);
 
 /** Accepts "example.com" or a full URL; rejects non-http(s) and literal private IPs. */
-function normaliseWebsiteUrl(input: string): string {
+export function normaliseWebsiteUrl(input: string): string {
   const withScheme = /^https?:\/\//i.test(input) ? input : `https://${input}`;
   let url: URL;
   try {

@@ -34,8 +34,9 @@ const SCREENS = [
   "/platform/vas",
   "/platform/spending",
   "/platform/support",
+  "/platform/demos",
 ];
-const ROUTES = new Set([...SCREENS, "/onboarding"]);
+const ROUTES = new Set([...SCREENS, "/onboarding", "/try"]);
 
 describe("help articles (packages/help/articles)", () => {
   const articles = listArticles();

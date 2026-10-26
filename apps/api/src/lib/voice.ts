@@ -7,6 +7,9 @@ export const VOICE_AGENT_NAME = "voicedesk-agent";
 export interface VoiceJobMetadata {
   tenantId: string;
   conversationId: string;
+  /** ADR 0029: an instant demo (the worker sends nothing and ends after maxSeconds). */
+  demo?: true;
+  maxSeconds?: number;
 }
 
 /** Real-time voice sessions (LiveKit). Narrow so tests can fake it. */

@@ -150,10 +150,18 @@ export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
   allowedCountries: ["GB"],
 };
 
+export interface DemoSettings {
+  enabled: boolean;
+  /** Demos a day, platform-wide (each costs a few pence of AI and voice). */
+  dailyLimit: number;
+}
+
 /** One row ("global"). Readable by everyone; written only under withPlatformAccess. */
 export const platformSettings = pgTable("platform_settings", {
   id: text("id").primaryKey().default("global"),
   spend: jsonb("spend").$type<PlatformSpendSettings>().notNull(),
+  /** ADR 0029: instant demos on the public /try page (off until the owner switches them on). */
+  demos: jsonb("demos").$type<DemoSettings>().notNull().default({ enabled: false, dailyLimit: 5 }),
   updatedBy: uuid("updated_by"),
   ...timestamps,
 });
