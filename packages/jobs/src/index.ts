@@ -148,7 +148,9 @@ export const reminderJobId = (bookingId: string) => `reminder-${bookingId}`;
 
 export type AiJob =
   | { kind: "profile.generate"; tenantId: string; requestedBy: string | null }
-  | { kind: "conversation.summarize"; tenantId: string; conversationId: string };
+  | { kind: "conversation.summarize"; tenantId: string; conversationId: string }
+  /** ADR 0026: group unanswered questions and draft answers (every business). */
+  | { kind: "gaps.sweep" };
 
 export const DEFAULT_JOB_OPTIONS: JobsOptions = {
   attempts: 5,
@@ -242,6 +244,15 @@ export async function scheduleRecrawl(
 
 export type { Queue, Job } from "bullmq";
 export type { Redis } from "ioredis";
+
+/** ADR 0026: every 30 minutes, group new unanswered questions and draft answers. */
+export async function scheduleGapSweep(queue: Queue<AiJob>): Promise<void> {
+  await queue.upsertJobScheduler(
+    "gaps-sweep",
+    { every: 30 * 60 * 1000 },
+    { name: "gaps.sweep", data: { kind: "gaps.sweep" }, opts: { attempts: 1 } },
+  );
+}
 
 /** Repeating job that sends due daily briefs (idempotent per business and day). */
 export async function scheduleDailyBriefs(queue: Queue<NotificationJob>): Promise<void> {

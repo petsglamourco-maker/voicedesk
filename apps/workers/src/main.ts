@@ -22,6 +22,8 @@ import {
   type ChannelJob,
   reminderJobId,
   scheduleDailyBriefs,
+  scheduleGapSweep,
+  createAiQueue,
   type NotificationJob,
   type AiJob,
   type ProcessSourceJob,
@@ -92,6 +94,9 @@ const emailQueue = createEmailQueue(connection);
 const notificationQueue = createNotificationQueue(connection);
 // Daily briefs: a 15-minute tick (each business's goes out once, after 07:30 local time).
 await scheduleDailyBriefs(notificationQueue);
+// ADR 0026: unanswered questions are grouped and answers drafted every 30 minutes.
+const aiQueue = createAiQueue(connection);
+await scheduleGapSweep(aiQueue);
 const box = SecretBox.fromEnv();
 const whatsapp = process.env.WHATSAPP_ACCESS_TOKEN
   ? new WhatsAppCloudProvider({
@@ -181,6 +186,7 @@ const workers = [
       {
         db,
         llm: appLlm,
+        embeddings,
         webOrigin: env.WEB_ORIGIN,
         sendEmail: async (job) => {
           await emailQueue.add(job.kind, job);

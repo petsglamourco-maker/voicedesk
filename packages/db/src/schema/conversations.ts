@@ -11,6 +11,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 import { contacts, tenants, timestamps } from "./app";
 import { user } from "./auth";
@@ -347,6 +348,39 @@ export const llmUsage = pgTable(
 );
 
 /**
+ * ADR 0026: unanswered questions grouped by meaning, with an answer drafted from the
+ * business's own documents. Nothing reaches the assistant until a person approves it (it
+ * then becomes an FAQ in the approved profile).
+ */
+export const gapAnswers = pgTable(
+  "gap_answers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    embedding: vector("embedding", { dimensions: 384 }).notNull(),
+    count: integer("count").notNull().default(1),
+    lastAskedAt: timestamp("last_asked_at", { withTimezone: true }).notNull().defaultNow(),
+    /** Drafted from the business's documents; null when they don't cover it. */
+    draft: text("draft"),
+    sources: jsonb("sources")
+      .$type<Array<{ title: string | null; url: string | null }>>()
+      .notNull()
+      .default([]),
+    /** When drafting was attempted (null: not yet, e.g. while AI was paused). */
+    draftedAt: timestamp("drafted_at", { withTimezone: true }),
+    /** pending | approved | dismissed */
+    status: text("status").notNull().default("pending"),
+    decidedBy: uuid("decided_by").references(() => user.id, { onDelete: "set null" }),
+    decidedAt: timestamp("decided_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("gap_answers_tenant_status_idx").on(t.tenantId, t.status)],
+);
+
+/**
  * Questions the assistant couldn't answer from the profile or knowledge base. The business
  * adds the answer (e.g. as an FAQ) so the gap is closed without human callbacks.
  */
@@ -362,6 +396,8 @@ export const knowledgeGaps = pgTable(
       onDelete: "set null",
     }),
     status: text("status").notNull().default("open"), // open | resolved
+    /** ADR 0026: the group this question belongs to (set by the drafting job). */
+    gapAnswerId: uuid("gap_answer_id").references(() => gapAnswers.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
   },

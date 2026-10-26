@@ -232,3 +232,4 @@ export { claimInbound } from "./inbound-dedupe";
 export * from "./departments";
 export * from "./followups";
 export * from "./followups-db";
+export * from "./gaps";

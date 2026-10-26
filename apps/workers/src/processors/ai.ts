@@ -1,6 +1,7 @@
-import type { LlmProvider } from "@voicedesk/adapters";
+import type { EmbeddingProvider, LlmProvider } from "@voicedesk/adapters";
 import {
   generateProfileDraft,
+  processKnowledgeGaps,
   prepareCallSummaryEmails,
   summarizeConversation,
 } from "@voicedesk/agent-brain";
@@ -15,6 +16,8 @@ export interface AiDeps {
   sendEmail: (job: SendEmailJob) => Promise<void>;
   /** Browser-facing origin for links in emails. */
   webOrigin: string;
+  /** Local embeddings (ADR 0026: grouping unanswered questions). */
+  embeddings?: EmbeddingProvider;
   /** Notifications queue (Phase 6: the rating link after a finished conversation). */
   notify?: (job: NotificationJob) => Promise<void>;
 }
@@ -23,6 +26,18 @@ export function createAiProcessor(deps: AiDeps, log: Logger) {
   return async (job: Job<AiJob>) => {
     const data = job.data;
     switch (data.kind) {
+      case "gaps.sweep": {
+        if (!deps.embeddings) return { skipped: "no embeddings" };
+        const result = await processKnowledgeGaps({
+          db: deps.db,
+          llm: deps.llm,
+          embeddings: deps.embeddings,
+        });
+        if (result.grouped || result.drafted) {
+          log.info({ jobId: job.id, ...result }, "unanswered questions processed");
+        }
+        return result;
+      }
       case "profile.generate": {
         const { version } = await generateProfileDraft(deps, data.tenantId, data.requestedBy);
         log.info({ jobId: job.id, tenantId: data.tenantId, version }, "profile draft generated");
