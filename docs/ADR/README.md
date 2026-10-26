@@ -31,5 +31,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0025](0025-departments-and-missed-calls.md)       | Departments, phone menu, missed-call receptionist     | Accepted           |
 | [0026](0026-follow-ups-and-questions-to-answer.md) | Follow-ups and questions to answer                    | Accepted           |
 | [0027](0027-voice-typing.md)                       | Voice typing in text fields                           | Accepted           |
+| [0028](0028-value-report-and-review-requests.md)   | Monthly value report and review requests              | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.

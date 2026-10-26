@@ -32,6 +32,18 @@ Each number is compared with the period before (for example "vs the 14 days befo
 - **Taken by your team**: calls answered in the VA console, and how many were missed.
 - **Tickets & messages**: complaints and messages for the team.
 
+## Your assistant this month
+
+This card adds up what your assistant has done since the 1st of the month:
+
+- conversations handled;
+- calls answered while you were closed (it needs opening hours in your [business profile](/t/:tenant/profile));
+- bookings it made;
+- messages it took;
+- an **estimated value**.
+
+The value is the number of bookings × your average booking value. Set that under [Assistant settings](/t/:tenant/agent) → **Reports**. Owners and admins also get this as an email on the 1st of each month.
+
 ## The charts
 
 - **Engagement by touchpoint**: conversations per channel (phone calls, calls by the assistant, website chat, WhatsApp, email and forms), plus the **Channel mix**.

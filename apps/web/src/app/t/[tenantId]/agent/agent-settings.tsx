@@ -104,6 +104,7 @@ export function AgentSettingsForm(props: {
   const tt = useTranslations("transfers");
   const tf = useTranslations("feedbackSettings");
   const tb = useTranslations("dailyBrief");
+  const tr = useTranslations("reports");
   const to = useTranslations("aiCalls");
   const tfu = useTranslations("followUps");
   const tw = useTranslations("voiceTyping");
@@ -609,8 +610,8 @@ export function AgentSettingsForm(props: {
         <Card>
           <CardHead
             icon={<Newspaper />}
-            title={tb("title")}
-            hint={tb("hint")}
+            title={tr("title")}
+            hint={tr("hint")}
             color="var(--color-secondary)"
           />
           <div className="mt-5">
@@ -618,9 +619,41 @@ export function AgentSettingsForm(props: {
               checked={settings.dailyBrief}
               onChange={(checked) => update({ dailyBrief: checked })}
               label={tb("enabled")}
+              hint={tb("hint")}
             />
           </div>
           <BriefPreview tenantId={props.tenantId} />
+          <div className="mt-6 space-y-3 border-t border-border pt-5">
+            <ToggleRow
+              checked={settings.valueReport}
+              onChange={(checked) => update({ valueReport: checked })}
+              label={tr("monthly")}
+              hint={tr("monthlyHint")}
+            />
+            <div className="max-w-xs">
+              <Label htmlFor="averageBooking">{tr("average")}</Label>
+              <Input
+                id="averageBooking"
+                type="number"
+                inputMode="decimal"
+                className="tabular"
+                min={0}
+                step="0.01"
+                placeholder="45"
+                value={
+                  settings.averageBookingPence === null ? "" : settings.averageBookingPence / 100
+                }
+                onChange={(e) =>
+                  update({
+                    averageBookingPence:
+                      e.target.value === "" ? null : Math.round(Number(e.target.value) * 100),
+                  })
+                }
+              />
+              <p className="mt-1.5 text-xs text-muted-foreground">{tr("averageHint")}</p>
+            </div>
+            <ValueReportPreview tenantId={props.tenantId} />
+          </div>
         </Card>
 
         <Card>
@@ -689,6 +722,46 @@ function BriefPreview(props: { tenantId: string }) {
             dir="auto"
           >
             {brief.text}
+          </pre>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function ValueReportPreview(props: { tenantId: string }) {
+  const t = useTranslations("reports");
+  const [report, setReport] = useState<{ subject: string; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function load() {
+    setBusy(true);
+    try {
+      setReport(
+        await api<{ subject: string; text: string }>(
+          `/api/tenants/${props.tenantId}/value-report?period=last_month`,
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div>
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => void load()}>
+        <Newspaper aria-hidden />
+        {t("preview")}
+      </Button>
+      {report ? (
+        <div className="mt-3 animate-rise rounded-lg border border-border bg-[color-mix(in_srgb,var(--color-surface)_65%,transparent)] p-4 text-sm">
+          <p className="font-display font-semibold" dir="auto">
+            {report.subject}
+          </p>
+          <pre
+            className="mt-2 border-t border-border pt-2 font-sans leading-relaxed whitespace-pre-wrap"
+            data-testid="value-report-preview"
+            dir="auto"
+          >
+            {report.text}
           </pre>
         </div>
       ) : null}

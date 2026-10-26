@@ -156,6 +156,19 @@ function trendOf(kpi: Kpi, label: string, goodWhen: "up" | "down" = "up") {
 /** Staggered entrance for bento tiles (instant with reduced motion). */
 const rise = (i: number): CSSProperties => ({ animationDelay: `${i * 60}ms` });
 
+/** ADR 0028: what the assistant did this month (GET /value-report). */
+interface ValueNumbers {
+  conversations: number;
+  calls: number;
+  chats: number;
+  outOfHours: number | null;
+  missedSaved: number;
+  assistantBookings: number;
+  messages: number;
+  callMinutes: number;
+  estimatedValuePence: number | null;
+}
+
 function CardHead(props: {
   icon: LucideIcon;
   title: string;
@@ -193,12 +206,17 @@ export default async function TenantDashboard(props: {
   const detail = await apiGetOrNull<TenantDetail>(`/api/tenants/${tenantId}`);
   if (!detail) notFound();
   const { tenant, role, permissions } = detail;
-  const [data, audit] = await Promise.all([
+  const [data, audit, value] = await Promise.all([
     permissions.includes("records:read")
       ? apiGetOrNull<DashboardData>(`/api/tenants/${tenantId}/dashboard?view=${view}`)
       : Promise.resolve(null),
     permissions.includes("audit:read")
       ? apiGetOrNull<AuditEntry[]>(`/api/tenants/${tenantId}/audit?limit=10`)
+      : Promise.resolve(null),
+    permissions.includes("records:read")
+      ? apiGetOrNull<{ numbers: ValueNumbers }>(
+          `/api/tenants/${tenantId}/value-report?period=this_month`,
+        )
       : Promise.resolve(null),
   ]);
 
@@ -501,6 +519,79 @@ export default async function TenantDashboard(props: {
               chart={<Sparkline values={recordsSeries} color="var(--color-warning)" />}
             />
           </section>
+
+          {value ? (
+            <Card className="animate-rise" style={rise(6)} data-testid="value-card">
+              <CardHead
+                icon={TrendingUp}
+                title={t("value.title")}
+                hint={t("value.hint")}
+                color="var(--color-success)"
+              />
+              <dl className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                {[
+                  {
+                    label: t("value.conversations"),
+                    value: String(value.numbers.conversations),
+                    hint: t("value.conversationsHint", {
+                      calls: value.numbers.calls,
+                      chats: value.numbers.chats,
+                    }),
+                  },
+                  {
+                    label: t("value.outOfHours"),
+                    value:
+                      value.numbers.outOfHours === null ? "–" : String(value.numbers.outOfHours),
+                    hint:
+                      value.numbers.outOfHours === null
+                        ? t("value.outOfHoursUnknown")
+                        : t("value.missedSaved", { n: value.numbers.missedSaved }),
+                  },
+                  {
+                    label: t("value.bookings"),
+                    value: String(value.numbers.assistantBookings),
+                    hint: t("value.bookingsHint"),
+                  },
+                  {
+                    label: t("value.messages"),
+                    value: String(value.numbers.messages),
+                    hint: t("value.minutes", { n: value.numbers.callMinutes }),
+                  },
+                  {
+                    label: t("value.worth"),
+                    value:
+                      value.numbers.estimatedValuePence === null
+                        ? "–"
+                        : format.number(value.numbers.estimatedValuePence / 100, {
+                            style: "currency",
+                            currency: "GBP",
+                            maximumFractionDigits: 0,
+                          }),
+                    hint:
+                      value.numbers.estimatedValuePence === null
+                        ? t("value.setAverage")
+                        : t("value.worthHint"),
+                  },
+                ].map((item) => (
+                  <div key={item.label} className="min-w-0">
+                    <dt className="text-xs text-muted-foreground">{item.label}</dt>
+                    <dd className="tabular mt-1 font-display text-2xl font-semibold">
+                      {item.value}
+                    </dd>
+                    <dd className="text-[11px] text-muted-foreground">{item.hint}</dd>
+                  </div>
+                ))}
+              </dl>
+              {value.numbers.estimatedValuePence === null ? (
+                <Link
+                  href={`/t/${tenantId}/agent`}
+                  className="mt-3 inline-block text-xs font-medium text-primary hover:underline"
+                >
+                  {t("value.setAverageLink")}
+                </Link>
+              ) : null}
+            </Card>
+          ) : null}
 
           <section className="grid [&>*]:min-w-0 gap-4 lg:grid-cols-12">
             <Card className="animate-rise lg:col-span-8" style={rise(6)}>

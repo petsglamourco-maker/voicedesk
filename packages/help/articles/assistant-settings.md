@@ -68,13 +68,19 @@ Switch on **Offer a follow-up when an enquiry doesn't book**. When someone asks 
 
 Choose whether customers are asked "How did we do?" after chats, WhatsApp, email and forms, whether callers get a rating text (costs money), and how often the NPS question is asked.
 
+**Review requests:** add your review page link (for example from Google Business Profile → Ask for reviews) and tick **Invite customers who answer to leave a public review**. Everyone who answers is invited, whatever their score. See the Customer feedback help for why.
+
 ## Calls the assistant makes
 
 Switch on **Call customers back when they ask for a callback** and **Phone to confirm bookings (instead of the reminder text)**, and set **Most calls per day**. Calls only go out between 8am and 9pm, never to customers marked "Don't phone", with at most two attempts. These need outbound calling set up and cost money.
 
-## Daily brief
+## Reports
 
-Switch on **Send the daily brief** for a 07:30 email to owners and admins. Click **Preview today's brief** to see it without sending anything.
+Both reports go by email to owners and admins, and are free.
+
+- **Send the daily brief:** a 07:30 email with yesterday at a glance and today's bookings. Click **Preview today's brief** to see it without sending anything.
+- **Send the monthly value report:** on the 1st of each month, what your assistant did last month: conversations, calls answered while you were closed, missed calls picked up, bookings it made, follow-ups that turned into bookings, messages taken and time on the phone. Months with no conversations are skipped.
+- **Average booking value:** optional. Add what a typical booking is worth (for example 45 for £45) and the report estimates what the assistant's bookings were worth. Click **Preview last month's report** to see it.
 
 ## Workspace: voice typing
 

@@ -2,6 +2,8 @@ import type { EmailProvider, PushProvider, SmsProvider } from "@voicedesk/adapte
 import {
   checkSend,
   claimDueBriefs,
+  claimDueValueReports,
+  prepareValueReport,
   getPlatformSpendSettings,
   recordSmsSpend,
   smsCostsMoney,
@@ -162,6 +164,20 @@ export function createNotificationProcessor(deps: NotificationDeps, log: Logger)
             subject: brief.subject,
             text: brief.text,
             kind: "daily.brief",
+          })),
+        });
+      }
+      // Monthly value reports (ADR 0028) share the tick: sent once, skipped for empty months.
+      for (const tenantId of await claimDueValueReports(deps.db, now)) {
+        const report = await prepareValueReport(deps.db, tenantId, now, deps.webOrigin);
+        if (!report || report.numbers.conversations === 0) continue;
+        await execute(job, tenantId, {
+          messages: report.to.map((to) => ({
+            channel: "email",
+            to,
+            subject: report.subject,
+            text: report.text,
+            kind: "value.report",
           })),
         });
       }

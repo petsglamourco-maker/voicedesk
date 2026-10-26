@@ -1,5 +1,6 @@
 import {
   prepareDailyBrief,
+  prepareValueReport,
   feedbackStats,
   feedbackThanks,
   loadAgentContext,
@@ -136,6 +137,43 @@ export function registerFeedbackRoutes(app: FastifyInstance, deps: AppDeps): voi
       );
       if (!brief) throw notFound();
       return { subject: brief.subject, text: brief.text, recipients: brief.to.length };
+    },
+  );
+
+  r.get(
+    "/api/tenants/:tenantId/value-report",
+    {
+      schema: {
+        tags: ["feedback"],
+        summary: "What the assistant did this month or last month (nothing is sent)",
+        params: z.object({ tenantId: z.string() }),
+        querystring: z.object({
+          period: z.enum(["this_month", "last_month"]).default("this_month"),
+        }),
+      },
+    },
+    async (request) => {
+      const access = await requireTenantAccess(
+        deps,
+        request,
+        request.params.tenantId,
+        "records:read",
+      );
+      const report = await prepareValueReport(
+        deps.db,
+        access.tenantId,
+        new Date(),
+        deps.webOrigin ?? "http://localhost:3000",
+        { period: request.query.period },
+      );
+      if (!report) throw notFound();
+      return {
+        month: report.month,
+        numbers: report.numbers,
+        subject: report.subject,
+        text: report.text,
+        recipients: report.to.length,
+      };
     },
   );
 

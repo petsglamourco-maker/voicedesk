@@ -59,6 +59,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Follow-ups:** with the customer's yes, one message the next morning after an enquiry that didn't book; skipped if they booked; bookings within 7 days are credited.
   - **Questions to answer:** unanswered questions grouped by meaning, answers drafted from the business's documents, approved into the live profile.
 - **Voice typing (ADR 0027): built.** A microphone in Ask VoiceDesk, Inbox replies, search and Questions to answer. The browser streams to Deepgram with a 30-second token. It has business and personal off switches. Live use needs a Member-role Deepgram key (`DEEPGRAM_TYPING_KEY`).
+- **Value report and review requests (ADR 0028): built.** A monthly "what your assistant did" email (1st, 08:00 local), a dashboard card with an estimated £ value from the business's average booking value, and public-review invitations after surveys.
 - **Next:** the rest of Phase 7 (compliance hardening and launch). Evals for prompt 2026-10-26.2 ran on 2026-10-26 (41/54, 0 hard failures, $0.096); 2026-10-26.3 is a small follow-up not yet re-run.
 
 ## Layout
@@ -287,5 +288,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - Uploads: bytes must match the type (`contentMatches`), and the stored content type is chosen by the server. Extraction has limits: 500 PDF pages, 100 MB unpacked DOCX, 50k CSV rows, 2M characters, 60 s.
 - **Audit:** every successful platform change is logged automatically (`registerPlatformAudit`, field names only). Business deletion through Better Auth is disabled.
 - **Customer-supplied hosts** (crawls, mailbox IMAP/SMTP) are checked with `isPublicAddress` / `resolvePublicHost` from `@voicedesk/adapters/net` and connections are pinned to the checked IP. Never connect to a customer-supplied host without it.
+- **Review invitations** (ADR 0028) go to everyone who answers a survey, whatever the score. Never gate them on a good score (Google's policy, CMA guidance). `/api/public/review/:token` redirects only to the stored https link of an invited survey.
+- **Value report** numbers are data only: never invent "time saved" multipliers, and only show £ when the business has set `average_booking_pence`.
 - **Voice typing** (ADR 0027): add it to a field with a ref and `<MicButton target={ref} />`; it hides itself when either setting is off or Deepgram isn't configured. Tokens are minted only by `POST /api/tenants/:id/voice-typing/token` (settings, `aiPauseFor`, usage recorded); never send a Deepgram key to the browser, and never store or log the words.
 - **Playwright screenshots** may trigger a hydration-mismatch warning on password fields (caret-color). That's a test artifact.

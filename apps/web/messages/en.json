@@ -1018,7 +1018,7 @@
   },
   "dailyBrief": {
     "title": "Daily brief",
-    "hint": "Every morning at 07:30 your time, owners and admins get one email: yesterday's calls, chats, bookings and issues, today's bookings, and anything waiting for you.",
+    "hint": "Every morning at 07:30 your time: yesterday's calls, chats, bookings and issues, today's bookings, and anything waiting for you.",
     "enabled": "Send the daily brief",
     "preview": "Preview today's brief"
   },
@@ -1232,7 +1232,24 @@
     },
     "busiest": "Busiest time: {day} around {hour}",
     "fewer": "Fewer",
-    "moreLegend": "More"
+    "moreLegend": "More",
+    "value": {
+      "title": "Your assistant this month",
+      "hint": "What it has handled for you since the 1st. Owners and admins get the full report by email each month.",
+      "conversations": "Conversations handled",
+      "conversationsHint": "{calls} calls, {chats} chats and messages",
+      "outOfHours": "Calls while you were closed",
+      "outOfHoursUnknown": "Add opening hours to your business profile to see this",
+      "missedSaved": "{n} missed calls picked up",
+      "bookings": "Bookings by the assistant",
+      "bookingsHint": "Made in calls, chats and messages",
+      "messages": "Messages taken",
+      "minutes": "{n} minutes on the phone for you",
+      "worth": "Estimated value",
+      "worthHint": "Bookings × your average booking value",
+      "setAverage": "Set your average booking value to see this",
+      "setAverageLink": "Set your average booking value (Assistant settings → Reports)"
+    }
   },
   "shell": {
     "groups": {
@@ -1772,5 +1789,14 @@
     "personal": "Show the microphone in text fields",
     "personalHint": "Your business can also switch it off for everyone under Assistant settings.",
     "notSetUp": "Voice typing isn't set up on this VoiceDesk yet."
+  },
+  "reports": {
+    "title": "Reports",
+    "hint": "Emails for owners and admins about what your assistant is doing. Free.",
+    "monthly": "Send the monthly value report",
+    "monthlyHint": "On the 1st of each month: what your assistant did last month (calls answered while you were closed, bookings made, messages taken) and what those bookings were worth.",
+    "average": "Average booking value (£, optional)",
+    "averageHint": "Used to estimate what the assistant's bookings were worth. Leave it empty to show counts only.",
+    "preview": "Preview last month's report"
   }
 }

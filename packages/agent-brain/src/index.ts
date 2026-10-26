@@ -164,6 +164,16 @@ export {
   type BriefNumbers,
 } from "./daily-brief";
 export {
+  claimDueValueReports,
+  monthName,
+  prepareValueReport,
+  previousMonth,
+  renderValueReport,
+  valueNumbers,
+  VALUE_REPORT_TIME,
+  type ValueNumbers,
+} from "./value-report";
+export {
   AI_CALL_HOURS,
   claimDueOutboundCalls,
   createOutboundConversation,
