@@ -81,9 +81,13 @@ export function deterministicChecks(
   const quotedPrices = replies.flatMap(
     (r) => r.match(/[£€$]\s?(\d+)|(\d+)\s?(?:pounds|libras|livres|Pfund|英镑|جنيه)/gi) ?? [],
   );
+  // Amounts the customer said themselves (e.g. their own invoice) aren't invented.
+  const callerNumbers = new Set(
+    d.transcript.filter((t) => t.role === "caller").flatMap((t) => t.text.match(/\d+/g) ?? []),
+  );
   const invented = quotedPrices
     .map((p) => p.match(/\d+/)![0])
-    .filter((n) => !PRICES_IN_PROFILE.has(n));
+    .filter((n) => !PRICES_IN_PROFILE.has(n) && !callerNumbers.has(n));
   return {
     disclosure: /\bAI\b|inteligencia artificial|\bIA\b|KI-|人工智能|الذكاء الاصطناعي/.test(
       agentLines[0] ?? "",
