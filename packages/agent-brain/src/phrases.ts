@@ -24,7 +24,7 @@ const GREETINGS: Record<Lang, (a: GreetingArgs) => string> = {
   zh: (a) =>
     `您好，这里是${a.business}。我是${a.name}，这里的人工智能助理。请问今天有什么可以帮您？`,
   ar: (a) =>
-    `مرحباً، معك ${a.business}. أنا ${a.name}، ${a.gender === "female" ? "المساعدة" : "المساعد"} الذكي المدعوم بالذكاء الاصطناعي. كيف يمكنني مساعدتك اليوم؟`,
+    `مرحباً، معك ${a.business}. أنا ${a.name}، ${a.gender === "female" ? "المساعدة الذكية المدعومة" : "المساعد الذكي المدعوم"} بالذكاء الاصطناعي. كيف يمكنني مساعدتك اليوم؟`,
 };
 
 export function greeting(lang: Lang, args: GreetingArgs): string {

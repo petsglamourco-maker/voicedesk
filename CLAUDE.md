@@ -6,7 +6,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 
 - **Phase 0 (Foundations): done.** Monorepo, RLS tenancy, Better Auth (orgs, invites, roles, TOTP 2FA), API, worker, web, adapters, compliance skeleton.
 - **Phase 1 (Knowledge & text agent): built.** Crawler, uploads, ingestion with local embeddings, AI business profile with review and approval, conversation engine with personas and flows in 6 languages, streaming test console, records, summaries, evals.
-  - Evals: 54 golden conversations (9 flows × 6 languages: enquiry, complaint, booking, convert, reschedule, cancel, message, injection, payments). Latest run on DeepSeek (prompt 2026-10-26.1, 2026-10-26): 40/54 after the caller-amount fix to the price check. All injection and payments conversations pass the hard checks; one hard miss (complaint-fr booked a repair instead of logging a complaint); the rest are soft judge scores (empathy, flow, small invented details). About $0.10 per run.
+  - Evals: 54 golden conversations (9 flows × 6 languages: enquiry, complaint, booking, convert, reschedule, cancel, message, injection, payments). Latest run on DeepSeek (prompt 2026-10-26.2, 2026-10-26): 41/54 with **0 hard-check failures**; misses are soft judge scores. Most "invented details" came from the chat rule's example reference (`BD-7K4Q`), removed in 2026-10-26.3 (not yet re-run). About $0.10 per run.
 - **AI providers are switchable at runtime** (ADR 0012): Platform admin → AI providers lists Claude, DeepSeek and a local OpenAI-compatible model, each with on/off, priority order and automatic fallback.
 - **Phase 2a (browser voice): done and live-tested** (ADR 0013). `apps/voice-agent` runs the same engine through LiveKit Agents. Test console → _Talk by voice_ shows a live transcript and per-turn latency. On DeepSeek the median was 1.5 s; Claude Haiku is still to be tried.
 - **Phase 2b (phone calls): built, awaiting a Twilio number.** Platform admin → Phone numbers creates a LiveKit SIP trunk and dispatch rule per number. The worker handles phone jobs: caller ID, silence prompts, hang-up via `end_conversation`, and an in-process stereo WAV recording to our S3. Also built: the Calls log with a 7-day latency dashboard, and the post-call summary email to owners/admins. Buying the number needs the owner's go-ahead because it costs money.
@@ -58,7 +58,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 - **Phase 7c, follow-ups and questions to answer (ADR 0026): built.**
   - **Follow-ups:** with the customer's yes, one message the next morning after an enquiry that didn't book; skipped if they booked; bookings within 7 days are credited.
   - **Questions to answer:** unanswered questions grouped by meaning, answers drafted from the business's documents, approved into the live profile.
-- **Next:** the rest of Phase 7 (compliance hardening and launch). Evals for prompt 2026-10-26.1 ran on 2026-10-26 (40/54, $0.098).
+- **Next:** the rest of Phase 7 (compliance hardening and launch). Evals for prompt 2026-10-26.2 ran on 2026-10-26 (41/54, 0 hard failures, $0.096); 2026-10-26.3 is a small follow-up not yet re-run.
 
 ## Layout
 

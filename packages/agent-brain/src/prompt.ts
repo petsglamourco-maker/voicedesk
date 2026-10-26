@@ -11,7 +11,7 @@ import { UNTRUSTED_RULE } from "./untrusted";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-26.2";
+export const PROMPT_VERSION = "2026-10-26.3";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -68,7 +68,7 @@ const STYLE = {
   chat: `Channel: text chat on the business's website.
 - Keep replies short: one to three sentences.
 - Plain text only. No markdown, headings, bullet points or emojis.
-- Give reference numbers exactly as written (e.g. BD-7K4Q).`,
+- Give reference numbers exactly as a tool returned them. Never describe what references look like.`,
   voice: `Channel: a phone call. Everything you write is spoken aloud by a text-to-speech voice.
 - One or two short sentences per turn (under about 40 words), then let the caller speak. If there is a lot to tell, give the most useful part and offer more, for example "Would you like to hear about the business courses too?". Never read out a whole list of services or details in one go.
 - No lists, markdown, emojis, symbols or URLs. Say things the way a person would say them.

@@ -432,7 +432,7 @@ export const TOOLS = {
     description:
       "Find the caller's existing booking to change or cancel it. Give the reference and the name it was booked under (or the phone number). On a phone call you can leave out the reference, but always give the name it was booked under: the caller's number alone isn't proof. Never reveal anything about a booking it couldn't verify.",
     input: z.object({
-      reference: opt.describe("Booking reference as the caller says it, e.g. BD-7K4Q"),
+      reference: opt.describe("Booking reference exactly as the caller says it"),
       name: opt.describe("Name the booking was made under"),
       phone: phoneField,
     }),
