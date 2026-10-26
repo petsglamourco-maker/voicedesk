@@ -75,3 +75,7 @@ Switch on **Call customers back when they ask for a callback** and **Phone to co
 ## Daily brief
 
 Switch on **Send the daily brief** for a 07:30 email to owners and admins. Click **Preview today's brief** to see it without sending anything.
+
+## Workspace: voice typing
+
+**Voice typing in text fields** shows a microphone in Ask VoiceDesk, Inbox replies, search and answer boxes, so your team can speak instead of type. It uses a tiny part of your AI allowance (about a penny a minute). Untick it to hide the microphone for everyone; each person can also hide it on their Account page.

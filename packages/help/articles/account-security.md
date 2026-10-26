@@ -80,6 +80,10 @@ You're signed out automatically after 7 days without using VoiceDesk.
 
 Some changes ask for your password again: anything in Platform admin, changing a team member's role, removing someone, and inviting an admin or owner. After you confirm, you won't be asked again for 5 minutes.
 
+## Voice typing
+
+Untick **Show the microphone in text fields** to hide the microphone button for you. Ask the help assistant about "voice typing" for how it works.
+
 ## Signing out and appearance
 
 Click your picture at the top right to open the account menu. From there you can choose **Appearance** (**Dark**, **Light** or **Match my device**) and **Sign out**.

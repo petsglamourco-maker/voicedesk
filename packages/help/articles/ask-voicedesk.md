@@ -18,7 +18,7 @@ suggested: What can I ask Ask VoiceDesk? | Does it change anything without askin
 - "Did anyone complain this week?"
 - "Draft a reply to the WhatsApp customer waiting for us."
 
-Type your question in the box and click **Ask**. While it works you'll see "Looking into it…".
+Type your question in the box (or click the microphone and say it) and click **Ask**. While it works you'll see "Looking into it…".
 
 ## Actions need your approval
 

@@ -131,6 +131,8 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
 - **LLM10 unbounded consumption:** monthly AI allowances; at the limit, a take-a-message mode with no model call ([message-only.ts](packages/agent-brain/src/message-only.ts)); 20 s timeouts on live turns; usage recorded per business.
 - **AI disclosure:** a fixed greeting that can't be switched off.
 
+**Voice typing (ADR 0027):** the browser streams microphone audio straight to Deepgram (already the call-audio processor) with a 30-second grant from `POST /api/tenants/:id/voice-typing/token`, which is members-only, rate-limited to 20 a minute, and honours both off switches and the AI allowance. The Deepgram key never reaches the browser; CSP `connect-src` allows only `wss://api.deepgram.com` for it. No audio or transcript is stored or logged.
+
 ### Data protection (ASVS V6, V8)
 
 - **Secrets in the database:** AES-256-GCM with context binding, key ids and old keys for reading. Re-encrypt with `pnpm --filter @voicedesk/core reencrypt`.
