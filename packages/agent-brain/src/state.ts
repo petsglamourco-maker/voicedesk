@@ -263,6 +263,13 @@ export function stepNote(
       "This call came through because nobody could answer the business's main line: be warm, help fully, and offer a booking, a call back or a message.",
     );
   }
+  // A complaint started earlier must still be logged, even if the conversation moved on
+  // (for example to booking a repair appointment).
+  if (state.flow !== "complaint" && state.complaint.issue && !done("ticket")) {
+    lines.push(
+      "A complaint was started earlier but isn't logged yet. Before closing, finish it (anything still missing, a short summary and a yes) and call create_ticket.",
+    );
+  }
   switch (state.flow) {
     case "opening":
       lines.push(

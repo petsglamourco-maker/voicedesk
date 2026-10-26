@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cleanTopic, followUpSendAt } from "../src/followups";
 import { buildSystemPrompt } from "../src/prompt";
 import { InMemoryAgentServices } from "../src/services";
-import { initialState } from "../src/state";
+import { initialState, stepNote } from "../src/state";
 import { runTool } from "../src/tools";
 import { makeContext, PROFILE } from "./fixtures";
 
@@ -106,5 +106,22 @@ describe("schedule_follow_up", () => {
       "schedule_follow_up after the customer clearly says yes",
     );
     expect(buildSystemPrompt(makeContext()).join("\n")).not.toContain("Follow-ups:");
+  });
+});
+
+describe("honesty and unfinished complaints (prompt 2026-10-26.2)", () => {
+  it("the prompt forbids promising contact the tools didn't confirm", () => {
+    expect(buildSystemPrompt(makeContext()).join("\n")).toContain(
+      "Only promise what a tool result confirms",
+    );
+  });
+
+  it("a complaint started before a booking is still logged before closing", () => {
+    const state = initialState("en");
+    state.flow = "booking";
+    state.complaint = { issue: "filling fell out" };
+    expect(stepNote(state, "Mon 10:00")).toContain("call create_ticket");
+    state.records.push({ type: "ticket", id: "t", reference: "TS-1" });
+    expect(stepNote(state, "Mon 10:00")).not.toContain("isn't logged yet");
   });
 });
