@@ -89,6 +89,8 @@ export const agentSettings = pgTable("agent_settings", {
   callEntry: text("call_entry").notNull().default("direct"),
   /** Ring the people who answer calls first; the assistant answers when nobody does. */
   ringFirst: boolean("ring_first").notNull().default(false),
+  /** ADR 0026: offer one follow-up after enquiries that didn't book (customer must agree). */
+  followUps: boolean("follow_ups").notNull().default(false),
   ...timestamps,
 });
 

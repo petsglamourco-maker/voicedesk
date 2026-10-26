@@ -1,6 +1,7 @@
 import type { AgentContext } from "./context";
 import { formatProfileForPrompt } from "./profile";
 import { departmentsPromptSegment } from "./departments";
+import { FOLLOW_UP_RULE } from "./followups";
 import { UNTRUSTED_RULE } from "./untrusted";
 
 /**
@@ -10,7 +11,7 @@ import { UNTRUSTED_RULE } from "./untrusted";
  *
  * Versioned: bump PROMPT_VERSION on any change and re-run `pnpm eval`.
  */
-export const PROMPT_VERSION = "2026-10-25.1";
+export const PROMPT_VERSION = "2026-10-26.1";
 
 function coreRules(ctx: AgentContext): string {
   const { personaName: name, businessName: business } = ctx;
@@ -87,7 +88,7 @@ function profileSegment(ctx: AgentContext): string {
   return `Business profile (approved by the business; with tool results, your only source of business facts):
 ${formatProfileForPrompt(ctx.profile)}
 
-Business time zone: ${ctx.timezone}.${urgent}${departments ? `\n\n${departments}` : ""}`;
+Business time zone: ${ctx.timezone}.${urgent}${departments ? `\n\n${departments}` : ""}${ctx.followUps ? `\n\n${FOLLOW_UP_RULE}` : ""}`;
 }
 
 export function buildSystemPrompt(ctx: AgentContext): string[] {

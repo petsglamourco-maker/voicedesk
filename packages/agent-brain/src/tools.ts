@@ -1,3 +1,4 @@
+import { cleanTopic } from "./followups";
 import type { LlmTool } from "@voicedesk/adapters";
 import { z } from "zod";
 import { findSlots, isSlotFree, localDateString, zonedToUtc } from "./availability";
@@ -841,6 +842,65 @@ export const TOOLS = {
         result: {
           sent: true,
           next: "Tell the customer the secure payment link is on its way and that they can pay there. Never ask for or repeat card details.",
+        },
+      };
+    },
+  }),
+  schedule_follow_up: define({
+    description:
+      "Schedules ONE follow-up message for tomorrow with times to book. Only after an enquiry that didn't end in a booking, and only after the customer clearly said yes to it. Confirm the number or email first.",
+    input: z.object({
+      customerAgreed: z
+        .boolean()
+        .describe("true only if the customer clearly said yes to a follow-up message"),
+      channel: z.enum(["sms", "email", "whatsapp"]),
+      to: z
+        .string()
+        .optional()
+        .describe(
+          "The number or email the customer confirmed; for a text or WhatsApp, empty means the number they're using",
+        ),
+      name: z.string().optional().describe("The customer's first name, if they gave it"),
+      topic: z.string().describe("What they asked about, a few words, e.g. 'teeth whitening'"),
+    }),
+    run: async (env, { customerAgreed, channel, to, name, topic }) => {
+      if (!env.ctx.followUps || !env.services.scheduleFollowUp) {
+        return error("Follow-ups are not available for this business. Don't offer them.");
+      }
+      if (!customerAgreed) {
+        return error("Only schedule a follow-up after the customer clearly says yes.");
+      }
+      if (env.state.followUpScheduled || env.state.records.some((r) => r.type === "booking")) {
+        return error("No follow-up needed: one is already scheduled, or they booked.");
+      }
+      const address = to?.trim() || (channel === "email" ? null : env.state.callerPhone);
+      if (!address) {
+        return error(
+          channel === "email" ? "Ask for the email address." : "Ask for the mobile number.",
+        );
+      }
+      const cleaned = cleanTopic(topic);
+      const result = await env.services.scheduleFollowUp({
+        channel,
+        to: address,
+        name: name?.trim().slice(0, 40) || null,
+        topic: cleaned || "your enquiry",
+        language: env.state.language,
+      });
+      if (!result.ok) {
+        return error(
+          result.reason === "invalid"
+            ? "That number or address doesn't look right; check it with the customer."
+            : result.reason === "exists"
+              ? "A follow-up is already scheduled for this conversation."
+              : "Follow-ups are not available for this business.",
+        );
+      }
+      env.state.followUpScheduled = true;
+      return {
+        result: {
+          scheduled: true,
+          next: "Tell the customer you'll send one message tomorrow and that's all. Then ask if there's anything else.",
         },
       };
     },

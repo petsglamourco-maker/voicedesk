@@ -14,6 +14,7 @@ const FEATURES = [
   "daily_brief",
   "ai_calls",
   "departments",
+  "follow_ups",
 ] as const;
 
 /** The business's plan, its status and the plans to move to (ADR 0023). */

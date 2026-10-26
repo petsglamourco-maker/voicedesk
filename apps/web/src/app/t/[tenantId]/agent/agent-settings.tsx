@@ -8,6 +8,7 @@ import {
   Mic,
   Newspaper,
   PhoneForwarded,
+  MessageSquareReply,
   PhoneOutgoing,
   Play,
   Smile,
@@ -64,6 +65,7 @@ interface Settings {
   ringSeconds: number;
   callEntry: string;
   ringFirst: boolean;
+  followUps: boolean;
   feedbackEnabled: boolean;
   feedbackAfterCalls: boolean;
   npsEvery: number;
@@ -97,6 +99,7 @@ export function AgentSettingsForm(props: {
   const tf = useTranslations("feedbackSettings");
   const tb = useTranslations("dailyBrief");
   const to = useTranslations("aiCalls");
+  const tfu = useTranslations("followUps");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const [settings, setSettings] = useState(props.initial.settings);
@@ -521,6 +524,23 @@ export function AgentSettingsForm(props: {
                 <option value="10">{tf("npsEvery", { n: 10 })}</option>
               </Select>
             </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHead
+            icon={<MessageSquareReply />}
+            title={tfu("title")}
+            hint={tfu("hint")}
+            color="var(--color-primary)"
+          />
+          <div className="mt-5 space-y-3 text-sm">
+            <ToggleRow
+              checked={settings.followUps}
+              onChange={(checked) => update({ followUps: checked })}
+              label={tfu("enabled")}
+              hint={tfu("enabledHint")}
+            />
           </div>
         </Card>
 

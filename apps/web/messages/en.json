@@ -1605,7 +1605,8 @@
       "feedback": "Customer feedback surveys",
       "daily_brief": "Daily brief email",
       "ai_calls": "AI callbacks and confirmation calls",
-      "departments": "Departments and a phone menu (press 1 for Sales…)"
+      "departments": "Departments and a phone menu (press 1 for Sales…)",
+      "follow_ups": "Follow-ups after enquiries"
     },
     "ownersOnly": "Only the business owner can change the plan.",
     "notReady": "Payments aren't switched on yet. Plans can be chosen once VoiceDesk's Stripe account is connected.",
@@ -1713,5 +1714,11 @@
     "save": "Save menu",
     "ownersOnly": "Only owners and admins can change the menu.",
     "zeroNote": "Keys 1–9 are yours to choose. 0 always means “speak to a person”."
+  },
+  "followUps": {
+    "title": "Follow-ups after enquiries",
+    "hint": "Turn enquiries into bookings: the assistant can offer to send one message the next morning with times to book.",
+    "enabled": "Offer a follow-up when an enquiry doesn't book",
+    "enabledHint": "Only sent when the customer says yes in the conversation, once, by text, email or WhatsApp. Texts count against your plan's texts. Included in the Growth and Pro plans."
   }
 }

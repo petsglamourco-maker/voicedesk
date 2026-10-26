@@ -65,6 +65,8 @@ const settingsSchema = z.object({
   callEntry: z.enum(["direct", "backup"]).default("direct"),
   /** ADR 0025: ring the people who answer calls before the assistant helps. */
   ringFirst: z.boolean().default(false),
+  /** ADR 0026: offer one follow-up after enquiries that didn't book. */
+  followUps: z.boolean().default(false),
   feedbackEnabled: z.boolean().default(true),
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
@@ -92,6 +94,7 @@ const settingsResponse = z.object({
   ringSeconds: z.number(),
   callEntry: z.string(),
   ringFirst: z.boolean(),
+  followUps: z.boolean(),
   feedbackEnabled: z.boolean(),
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
@@ -119,6 +122,7 @@ const DEFAULTS = {
   ringSeconds: 30,
   callEntry: "direct",
   ringFirst: false,
+  followUps: false,
   feedbackEnabled: true,
   feedbackAfterCalls: false,
   npsEvery: 0,
@@ -184,6 +188,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               ringSeconds: row.ringSeconds,
               callEntry: row.callEntry,
               ringFirst: row.ringFirst,
+              followUps: row.followUps,
               feedbackEnabled: row.feedbackEnabled,
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,
@@ -213,6 +218,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       );
       // Ringing the team first uses the VA console and phone app (a plan feature).
       if (request.body.ringFirst) await requireFeature(deps.db, access.tenantId, "va_console");
+      if (request.body.followUps) await requireFeature(deps.db, access.tenantId, "follow_ups");
       if (request.body.aiCallbacks || request.body.confirmationCalls) {
         await requireFeature(deps.db, access.tenantId, "ai_calls");
       }

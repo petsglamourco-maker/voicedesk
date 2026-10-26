@@ -83,6 +83,14 @@ export interface AgentServices {
   registerCustomer(input: SignupInput): Promise<Created>;
   /** Logs a question the assistant couldn't answer, so the business can fill the gap. */
   noteKnowledgeGap(question: string): Promise<void>;
+  /** ADR 0026: schedules the one follow-up the customer agreed to. */
+  scheduleFollowUp?(input: {
+    channel: "sms" | "email" | "whatsapp";
+    to: string;
+    name: string | null;
+    topic: string;
+    language: string;
+  }): Promise<{ ok: true; sendAt: Date } | { ok: false; reason: "exists" | "invalid" | "off" }>;
   /** ADR 0025: texts or emails the department's payment link (the business's own). */
   sendPaymentLink?(input: {
     departmentId: string;
@@ -204,6 +212,14 @@ export class InMemoryAgentServices implements AgentServices {
 
   readonly departmentChoices: Array<{ departmentId: string; via: string }> = [];
   readonly paymentLinks: Array<{ departmentId: string; channel: string; to: string }> = [];
+  readonly followUps: Array<{ channel: string; to: string; topic: string }> = [];
+
+  scheduleFollowUp(input: { channel: "sms" | "email" | "whatsapp"; to: string; topic: string }) {
+    if (this.followUps.length)
+      return Promise.resolve({ ok: false as const, reason: "exists" as const });
+    this.followUps.push({ channel: input.channel, to: input.to, topic: input.topic });
+    return Promise.resolve({ ok: true as const, sendAt: new Date(Date.now() + 86_400_000) });
+  }
 
   sendPaymentLink(input: { departmentId: string; channel: "sms" | "email"; to: string }) {
     this.paymentLinks.push({ ...input });

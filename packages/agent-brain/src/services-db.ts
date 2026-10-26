@@ -1,5 +1,6 @@
-import { departmentPeople } from "@voicedesk/core";
-import { departments } from "@voicedesk/db";
+import { departmentPeople, getPlanState, planAllows } from "@voicedesk/core";
+import { departments, followUps } from "@voicedesk/db";
+import { followUpSendAt } from "./followups";
 import { loadMenu, recordDepartmentChoice } from "./departments";
 import { checkSend } from "./send-guard";
 import { getPlatformSpendSettings, spendStatus } from "./spend";
@@ -453,6 +454,79 @@ export function createDbAgentServices(
       return { sent: true as const };
     },
 
+    async scheduleFollowUp(input) {
+      // ADR 0026: the setting, the plan and one per conversation are checked here too.
+      const [conv] = await tx((t) =>
+        t
+          .select({ channel: conversations.channel, contactId: conversations.contactId })
+          .from(conversations)
+          .where(eq(conversations.id, conversationId)),
+      );
+      const [settings] = await tx((t) =>
+        t
+          .select({ on: agentSettings.followUps })
+          .from(agentSettings)
+          .where(eq(agentSettings.tenantId, tenantId)),
+      );
+      if (!conv || !settings?.on) return { ok: false as const, reason: "off" as const };
+      if (!planAllows(await getPlanState(db, tenantId), "follow_ups")) {
+        return { ok: false as const, reason: "off" as const };
+      }
+      // WhatsApp replies only go back to a WhatsApp conversation (and its number).
+      if (input.channel === "whatsapp" && conv.channel !== "whatsapp") {
+        return { ok: false as const, reason: "invalid" as const };
+      }
+      let to = input.to.trim();
+      if (input.channel === "email") {
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+          return { ok: false as const, reason: "invalid" as const };
+        }
+      } else {
+        const [tenant] = await tx((t) =>
+          t.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
+        );
+        const e164 = normalisePhone(to, tenant?.c ?? "GB");
+        if (!e164) return { ok: false as const, reason: "invalid" as const };
+        to = e164;
+      }
+      const profile = await getApprovedProfile(db, tenantId);
+      const sendAt = followUpSendAt(
+        new Date(),
+        scope.timezone ?? "Europe/London",
+        profile,
+        input.channel,
+      );
+      const inserted = await tx((t) =>
+        t
+          .insert(followUps)
+          .values({
+            tenantId,
+            conversationId,
+            contactId: conv.contactId,
+            channel: input.channel,
+            to,
+            name: input.name,
+            topic: input.topic,
+            language: input.language,
+            sendAt,
+          })
+          .onConflictDoNothing()
+          .returning({ id: followUps.id }),
+      );
+      if (inserted.length === 0) return { ok: false as const, reason: "exists" as const };
+      await tx((t) =>
+        t.insert(auditLog).values({
+          tenantId,
+          actorType: "ai",
+          action: "conversation.follow_up_scheduled",
+          targetType: "conversation",
+          targetId: conversationId,
+          metadata: { channel: input.channel },
+        }),
+      );
+      return { ok: true as const, sendAt };
+    },
+
     async chooseDepartment(departmentId, via) {
       await recordDepartmentChoice(db, { tenantId, conversationId, departmentId, via });
     },
@@ -587,6 +661,8 @@ export async function loadAgentContext(
     menu: await loadMenu(db, tenantId),
     callEntry: settings?.callEntry === "backup" ? "backup" : "direct",
     ringFirst: settings?.ringFirst ?? false,
+    followUps:
+      (settings?.followUps ?? false) && planAllows(await getPlanState(db, tenantId), "follow_ups"),
     ...(await aiPauseFor(db, tenantId, now(), tenant.status)),
     now,
   };

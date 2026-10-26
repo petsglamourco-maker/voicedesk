@@ -88,7 +88,13 @@ export interface BillingPlan {
   phoneNumbers: number;
   seats: number;
   features: Array<
-    "whatsapp" | "va_console" | "feedback" | "daily_brief" | "ai_calls" | "departments"
+    | "whatsapp"
+    | "va_console"
+    | "feedback"
+    | "daily_brief"
+    | "ai_calls"
+    | "departments"
+    | "follow_ups"
   >;
 }
 

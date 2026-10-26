@@ -37,5 +37,7 @@ export interface AgentContext {
   callEntry?: "direct" | "backup";
   /** Ring the people who answer calls before the assistant takes over. */
   ringFirst?: boolean;
+  /** ADR 0026: the assistant may offer one follow-up (setting on and in the plan). */
+  followUps?: boolean;
   now: () => Date;
 }
