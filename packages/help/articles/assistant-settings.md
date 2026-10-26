@@ -55,6 +55,15 @@ When a caller asks for a person, the assistant can connect them instead of takin
 
 Life-threatening emergencies are always told to call 999. Transferred calls are charged by your phone provider.
 
+## Follow-ups after enquiries
+
+Switch on **Offer a follow-up when an enquiry doesn't book**. When someone asks about prices or availability and doesn't book, the assistant offers once to send them a message the next morning with times to book. It only sends one if they say yes.
+
+- The message goes by text, email or WhatsApp, at 10:00 on your next open day. It says it's a one-off message and how to book (your phone number).
+- If they book before then, nothing is sent.
+- If they book within a week, the follow-up gets the credit. See **Follow-ups this month** on [Today](/t/:tenant/today) and on each call's page.
+- Texts count against your plan's texts. Follow-ups are included in the Growth and Pro plans.
+
 ## Customer feedback
 
 Choose whether customers are asked "How did we do?" after chats, WhatsApp, email and forms, whether callers get a rating text (costs money), and how often the NPS question is asked.

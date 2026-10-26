@@ -15,7 +15,9 @@ suggested: How do I put VoiceDesk on my phone? | How do I get notifications? | W
 - chats waiting for a person;
 - calls nobody answered;
 - callbacks booked;
-- new messages to return.
+- new messages to return;
+- follow-ups sent this month and how many booked;
+- questions waiting for an answer.
 
 Owners and admins also see how much of this month's allowance is used. Tap any item to open it.
 

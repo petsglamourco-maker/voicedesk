@@ -3,7 +3,7 @@ id: knowledge
 title: Knowledge - teach your assistant about your business
 page: /t/:tenant/knowledge
 roles: owner, admin, staff
-keywords: knowledge, website, crawl, upload, documents, pdf, word, docx, csv, faq, text, sources, refresh, train, teach
+keywords: knowledge, questions to answer, unanswered questions, suggested answers, approve answer, website, crawl, upload, documents, pdf, word, docx, csv, faq, text, sources, refresh, train, teach
 suggested: How do I add my website? | What files can I upload? | How can I check what the assistant finds?
 ---
 
@@ -48,6 +48,17 @@ Everything you add appears under **Sources**, with how many pages and passages w
 - **Delete** removes it.
 
 If a website shows **Failed**, check the address opens in your browser and that the site is public.
+
+## Questions to answer
+
+At the top of the page, **Questions to answer** lists what customers asked that your assistant couldn't answer. The same question in different words is grouped ("Asked 9 times").
+
+When your website or documents cover it, an answer is drafted for you. Otherwise, write it yourself.
+
+- **Approve answer**: check or edit the question and answer, then approve. It goes straight into your [Business profile](/t/:tenant/profile) as an FAQ, and your assistant uses it from then on. If someone is part-way through editing the profile, their draft is kept and gets the new FAQ too.
+- **Dismiss**: for questions that don't need an answer.
+
+Nothing reaches your assistant until a person approves it. On Mondays, the daily brief lists the most-asked questions waiting for an answer.
 
 ## Testing what the assistant finds
 

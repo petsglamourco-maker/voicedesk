@@ -55,7 +55,10 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - **Backup line:** forwarded or unanswered calls get a missed-call opening.
   - Website chat and WhatsApp offer the same choices.
   - Live tests need calls and (for links) a real SMS.
-- **Next:** the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-25.1 (departments and payments, plus the injection defences) is waiting for the owner's OK.
+- **Phase 7c, follow-ups and questions to answer (ADR 0026): built.**
+  - **Follow-ups:** with the customer's yes, one message the next morning after an enquiry that didn't book; skipped if they booked; bookings within 7 days are credited.
+  - **Questions to answer:** unanswered questions grouped by meaning, answers drafted from the business's documents, approved into the live profile.
+- **Next:** the rest of Phase 7 (compliance hardening and launch). The eval for prompt 2026-10-26.1 (follow-ups, departments, payments and the injection defences) is waiting for the owner's OK.
 
 ## Layout
 
@@ -201,6 +204,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - **LiveKit agent dispatch is explicit** (`agentName: "voicedesk-agent"` in the worker and `VOICE_AGENT_NAME` in the API must match). A browser token only grants its own `vd-<conversationId>` room.
 - **Voice worker: no `@livekit/agents-plugin-silero`.** Its onnxruntime-node 1.24 clashes on Windows with the 1.30 that the embeddings model needs in the same process. Use `inference.VAD()` (native local-inference). Pass plugin API keys explicitly, because their default env names differ (ElevenLabs expects `ELEVEN_API_KEY`).
 - **Two carriers:** `phone_numbers.provider` is `twilio` or `telnyx`, and trunk security follows it. Twilio trunks need `SIP_AUTH_USERNAME`/`PASSWORD`, which the TwiML Bin sends. Telnyx sends no login, so its trunks use an IP allow-list (`TELNYX_SIGNALLING_IPS`, or `TELNYX_SIP_ALLOWED_ADDRESSES`). Every route rebuild must pass the number's carrier.
+- **Follow-ups and questions to answer** (ADR 0026):
+  - Follow-ups are marketing (PECR): only after the customer's yes (`schedule_follow_up` `customerAgreed`), one per conversation, setting off by default, plan feature `follow_ups`.
+  - Status changes are conditional (`claimDueFollowUps` / `finishFollowUp`).
+  - WhatsApp follow-ups stay inside Meta's 24-hour window.
+  - Drafted answers (`gap_answers`) never reach the assistant until approved; `addApprovedFaq` publishes a new approved profile version and keeps any open draft newest.
 - **Departments** (ADR 0025):
   - The AI disclosure is always first: menus, missed-call lines and "let me try the team" come after it (`openingGreeting`).
   - Keypad choices never call the model.

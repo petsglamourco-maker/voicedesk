@@ -19,9 +19,7 @@ People who signed up or enrolled through the assistant, with what they're intere
 
 These are things customers asked that weren't in your business profile or knowledge. Fixing them is the quickest way to improve your assistant.
 
-1. Click **Add the answer**. This opens [Business profile](/t/:tenant/profile).
-2. Add it as an FAQ (or update the right section) and click **Approve & publish**.
-3. Come back and click **Mark done**.
+Click **Add the answer** to open **Questions to answer** on the [Knowledge](/t/:tenant/knowledge) page. There, the same question asked in different words is grouped, with an answer drafted from your website and documents. Check it, edit it if needed, and click **Approve answer**. Use **Mark done** here for anything that doesn't need an answer.
 
 Only owners and admins see these buttons.
 
