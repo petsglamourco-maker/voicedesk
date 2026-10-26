@@ -1845,5 +1845,252 @@
     "forget": "Forget email",
     "deleted": "deleted",
     "noEmail": "–"
+  },
+  "site": {
+    "nav": {
+      "how": "How it works",
+      "features": "Features",
+      "savings": "Savings",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "signIn": "Sign in",
+      "start": "Start free trial",
+      "menu": "Menu"
+    },
+    "hero": {
+      "eyebrow": "AI receptionist for UK businesses",
+      "title": "Never miss another customer.",
+      "lead": "{name} answers your phone, website chat, WhatsApp and email around the clock. It books appointments, takes messages and puts urgent calls through to you, from {price} a month.",
+      "try": "Hear your own receptionist",
+      "tryHint": "Type in your website and talk to it in about a minute.",
+      "start": "Start your free trial",
+      "from": "{days}-day free trial · no card needed · cancel any time",
+      "trust": "Always tells callers it's an AI assistant. Hands over to you whenever they need a person."
+    },
+    "problem": {
+      "title": "Every unanswered call is a customer who rings someone else",
+      "lead": "You can't answer the phone with a client in the chair, a patient in the room or your hands on a job. Evenings, weekends, lunch and holidays are worse. Many callers won't leave a voicemail: they simply try the next business on the list.",
+      "points": {
+        "busy": "Busy with a customer",
+        "closed": "After hours and weekends",
+        "holiday": "Holidays and sick days",
+        "rush": "Several calls at once"
+      },
+      "answer": "{name} picks up every one of them, straight away, every time."
+    },
+    "features": {
+      "title": "Everything a great receptionist does",
+      "lead": "Built for salons, clinics, practices, trades and any business that lives on its phone.",
+      "items": {
+        "calls": {
+          "title": "Answers every call",
+          "text": "A natural, friendly voice that knows your services, prices and opening hours, and answers your customers' questions in seconds."
+        },
+        "bookings": {
+          "title": "Books appointments",
+          "text": "Finds a free slot in your Google or Outlook calendar, books it, and sends the confirmation and a reminder. Customers can move or cancel too."
+        },
+        "messages": {
+          "title": "Takes messages",
+          "text": "Name, number, what it's about and when to call back, sent to you by text or email, with urgent ones flagged straight away."
+        },
+        "transfers": {
+          "title": "Puts you through when it matters",
+          "text": "Asks for a person? Urgent? It passes the call to you or your on-call number, with a short summary so you know who's calling and why."
+        },
+        "backup": {
+          "title": "Covers your line when you can't",
+          "text": "Ring your team first and let {name} pick up when nobody answers, or forward your number only when you're busy."
+        },
+        "menu": {
+          "title": "Departments and a phone menu",
+          "text": "Bookings, accounts, emergencies: callers choose by keypad or by saying it, and each department has its own people, rules and payment link."
+        },
+        "channels": {
+          "title": "Chat, WhatsApp and email too",
+          "text": "One assistant across your website chat, WhatsApp and inbox, with every conversation in one place. Take over any chat with one tap."
+        },
+        "followups": {
+          "title": "Wins back enquiries",
+          "text": "Someone asked about prices but didn't book? With their agreement, it follows up next morning and gives you credit for the booking."
+        },
+        "languages": {
+          "title": "Six languages",
+          "text": "English, Spanish, French, German, Chinese and Arabic: it answers in the caller's language."
+        },
+        "reports": {
+          "title": "Know what it did for you",
+          "text": "A summary after every call, a daily brief at 07:30 and a monthly report of the calls answered and bookings made, with what they were worth."
+        },
+        "reviews": {
+          "title": "More reviews",
+          "text": "After a customer rates you, it invites them to leave a public review on your Google page."
+        },
+        "mobile": {
+          "title": "In your pocket",
+          "text": "An app for your phone: today's bookings, conversations and calls, with a notification when a customer needs you."
+        }
+      }
+    },
+    "how": {
+      "title": "Live the same day",
+      "steps": {
+        "learn": {
+          "title": "Add your website",
+          "text": "{name} reads it and learns your services, prices, opening hours and policies. Add documents or FAQs if you like."
+        },
+        "check": {
+          "title": "Check what it learned",
+          "text": "Review your business profile, fix anything, choose a voice and approve. It only ever says what you've approved."
+        },
+        "go": {
+          "title": "Switch it on",
+          "text": "Forward your calls to your {name} number, add the chat to your website and connect WhatsApp. Done."
+        }
+      }
+    },
+    "savings": {
+      "title": "A receptionist's job, for a fraction of the cost",
+      "lead": "A full-time receptionist covers about 37.5 hours a week. Your phone rings for 168. Compare the costs for yourself.",
+      "table": {
+        "label": "Comparison",
+        "ringwise": "{name}",
+        "person": "Full-time receptionist",
+        "hours": "Hours covered",
+        "hoursRingwise": "All 168 hours a week",
+        "hoursPerson": "About 37.5 hours a week",
+        "cover": "Holidays, sickness, lunch",
+        "coverRingwise": "Always on",
+        "coverPerson": "Needs cover",
+        "calls": "Several calls at once",
+        "callsRingwise": "Answers them all",
+        "callsPerson": "One at a time",
+        "cost": "Monthly cost",
+        "costRingwise": "{price} (Growth plan)",
+        "costPerson": "About {price} (see below)",
+        "hiring": "Recruiting and training",
+        "hiringRingwise": "None: set up in an afternoon",
+        "hiringPerson": "Weeks, and again when they leave"
+      },
+      "calculator": {
+        "title": "Savings calculator",
+        "hourly": "Hourly pay (£)",
+        "hours": "Hours a week",
+        "plan": "{name} plan",
+        "ni": "Include employer National Insurance",
+        "niHint": "Small employers may have this covered by the Employment Allowance.",
+        "pay": "Pay",
+        "nationalInsurance": "Employer National Insurance",
+        "pension": "Workplace pension (3%)",
+        "person": "A receptionist costs about",
+        "ringwise": "{name} costs",
+        "saving": "You could save about",
+        "perYear": "a year",
+        "perMonth": "{amount} a month",
+        "notIncluded": "Not included: recruitment, training, holiday and sickness cover, equipment and desk space, which all add to the cost of a person.",
+        "missedTitle": "What could missed calls be worth?",
+        "missed": "Calls you miss in a week",
+        "value": "Average value of a booking (£)",
+        "missedResult": "If {name} turned just a quarter of those into bookings, that's about {amount} a month.",
+        "missedHint": "Your numbers: we don't guess them for you."
+      },
+      "sources": "Estimates for a UK employer in 2026/27: National Living Wage £12.71 an hour from April 2026 (GOV.UK); employer National Insurance 15% above £5,000 a year (HMRC); minimum employer pension 3% of qualifying earnings. Prices exclude VAT. Your own costs may differ."
+    },
+    "value": {
+      "title": "More than a cheaper receptionist",
+      "items": {
+        "never": {
+          "title": "Nobody on hold",
+          "text": "Every caller is answered at once, even when five ring together."
+        },
+        "consistent": {
+          "title": "Always the right answer",
+          "text": "It answers only from the information you approved, the same way every time, and passes on what it doesn't know."
+        },
+        "record": {
+          "title": "Nothing slips through",
+          "text": "Every call and chat is logged and summarised, with bookings, messages and complaints recorded for your team."
+        },
+        "grow": {
+          "title": "Grows with you",
+          "text": "Add a second number, more departments or more of your team as you grow, without hiring."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Simple monthly plans",
+      "lead": "Every plan includes the AI receptionist on calls and website chat. Start with a {days}-day free trial; no card needed.",
+      "perMonth": "/month",
+      "exVat": "excluding VAT",
+      "popular": "Most popular",
+      "minutes": "{n} call minutes a month",
+      "texts": "{n} texts a month",
+      "numbers": "{n, plural, one {# phone number} other {# phone numbers}}",
+      "seats": "{n} team members",
+      "allFeatures": "WhatsApp, departments, follow-ups, feedback, daily brief, AI callbacks and the VA console",
+      "coreFeatures": "Calls, website chat, email, bookings, messages and the monthly report",
+      "choose": "Start free trial",
+      "allowance": "If you use up an allowance, your assistant keeps taking messages and we'll invite you to move up a plan. No surprise bills."
+    },
+    "trust": {
+      "title": "Honest, safe and in your control",
+      "items": {
+        "ai": "Always tells callers it's an AI assistant. That can't be switched off.",
+        "approved": "Only says what you've approved about your business.",
+        "recording": "Call recording only if you switch it on, with a spoken notice.",
+        "cards": "Never takes card details over the phone: payments go through your own secure links.",
+        "security": "Two-step sign-in, per-business data separation and a full audit log.",
+        "recordings": "Call recordings and your files stay in our own storage, never on third-party call platforms."
+      }
+    },
+    "faq": {
+      "title": "Questions",
+      "items": {
+        "ai": {
+          "q": "Will callers know they're talking to an AI?",
+          "a": "Yes. It says so at the start of every call and chat. Most callers simply appreciate being answered straight away, and anyone who wants a person can ask for one."
+        },
+        "transfer": {
+          "q": "Can it put callers through to me?",
+          "a": "Yes. Choose who answers and when: your team first, then the assistant; or the assistant first, passing urgent calls and requests for a person to you or an on-call number."
+        },
+        "unknown": {
+          "q": "What if it doesn't know the answer?",
+          "a": "It never makes things up. It takes a message for you and lists the question, so you can approve an answer it will use from then on."
+        },
+        "calendar": {
+          "q": "Does it work with my calendar?",
+          "a": "Yes: Google Calendar and Outlook / Microsoft 365. It only offers times you're free and adds bookings straight to your calendar."
+        },
+        "number": {
+          "q": "Can I keep my phone number?",
+          "a": "Yes. Forward your existing number to your new {name} number: all the time, or only when you're busy or don't answer."
+        },
+        "languages": {
+          "q": "Which languages does it speak?",
+          "a": "English, Spanish, French, German, Chinese and Arabic. It answers in the language the caller uses."
+        },
+        "contract": {
+          "q": "Is there a contract?",
+          "a": "No. Plans are monthly and you can change or cancel at any time."
+        },
+        "setup": {
+          "q": "How long does it take to set up?",
+          "a": "Most businesses are live the same day: add your website, check what it learned, then forward your calls."
+        }
+      }
+    },
+    "cta": {
+      "title": "Hear it answer for your business",
+      "lead": "It takes about a minute, and it's free.",
+      "try": "Try it with your website",
+      "start": "Start free trial"
+    },
+    "footer": {
+      "tagline": "Your phone, answered wisely.",
+      "product": "Product",
+      "account": "Account",
+      "rights": "© {year} {name}. All rights reserved."
+    }
   }
 }

@@ -7,6 +7,7 @@ import {
   PLAN_IDS,
   PLANS,
   recordAudit,
+  TRIAL_DAYS,
   type PaidPlanId,
   type PlanId,
 } from "@voicedesk/core";
@@ -71,6 +72,21 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
   const prices = toPriceMap(deps.billingPrices);
   const webOrigin = deps.webOrigin ?? "http://localhost:3000";
   const ready = () => Boolean(deps.billing) && PAID_PLANS.every((plan) => prices[plan]);
+
+  // ADR 0030: the public website shows these, so its prices always match billing.
+  r.get(
+    "/api/public/plans",
+    {
+      schema: {
+        tags: ["billing"],
+        summary: "The plans and prices (pence, excluding VAT) for the public website",
+      },
+    },
+    () => ({
+      trialDays: TRIAL_DAYS,
+      plans: PAID_PLANS.map((id) => view(id)),
+    }),
+  );
   const notSetUp = () => new HttpError(503, "BILLING_NOT_SET_UP", "Payments aren't set up yet.");
 
   r.get(
