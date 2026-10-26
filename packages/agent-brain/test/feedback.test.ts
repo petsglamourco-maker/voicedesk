@@ -50,6 +50,8 @@ describe("feedbackStats", () => {
       csatAverage: 3.7,
       nps: 25,
       npsAnswers: 4,
+      reviewsOffered: 0,
+      reviewsOpened: 0,
     });
     expect(feedbackStats([]).csat).toBeNull();
   });

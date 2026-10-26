@@ -1,7 +1,7 @@
 "use client";
 
-import { Alert, Button, Celebrate, Label, Textarea, cn } from "@voicedesk/ui";
-import { CheckCircle2, Send } from "lucide-react";
+import { Alert, Button, Celebrate, Label, Textarea, buttonVariants, cn } from "@voicedesk/ui";
+import { CheckCircle2, ExternalLink, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { api } from "@/lib/client-api";
@@ -15,6 +15,7 @@ export function RatingForm(props: {
   const t = useTranslations("ratePage");
   const common = useTranslations("common");
   const [score, setScore] = useState<number | null>(null);
+  const [review, setReview] = useState<{ url: string; text: string } | null>(null);
   const [comment, setComment] = useState("");
   const [sentComment, setSentComment] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,12 @@ export function RatingForm(props: {
   async function rate(value: number) {
     setError(null);
     try {
-      await api(url, { method: "POST", body: JSON.stringify({ score: value }) });
+      const done = await api<{ review?: { url: string; text: string } }>(url, {
+        method: "POST",
+        body: JSON.stringify({ score: value }),
+      });
+      // ADR 0028: offered to everyone who answers, whatever the score.
+      if (done.review?.url.startsWith("/api/public/review/")) setReview(done.review);
       setScore(value);
     } catch (e) {
       setError(e instanceof Error ? e.message : common("errorGeneric"));
@@ -104,6 +110,21 @@ export function RatingForm(props: {
             </span>
             <p className="min-w-0 text-[15px]">{t("thanks", { business: props.businessName })}</p>
           </div>
+          {review ? (
+            <div className="rounded-xl border border-border p-4">
+              <p className="text-[15px]">{review.text}</p>
+              <a
+                href={review.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="review-link"
+                className={cn(buttonVariants({ variant: "secondary" }), "mt-3")}
+              >
+                <ExternalLink aria-hidden />
+                {t("leaveReview")}
+              </a>
+            </div>
+          ) : null}
           {sentComment ? null : (
             <div>
               <Label htmlFor="comment">{t("commentLabel")}</Label>

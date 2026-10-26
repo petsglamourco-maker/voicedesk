@@ -974,7 +974,11 @@
     "afterCalls": "Also text callers a rating link after phone calls (texts cost money)",
     "nps": "\"Would you recommend us?\" (NPS) question",
     "npsNever": "Never",
-    "npsEvery": "Every {n}th survey"
+    "npsEvery": "Every {n}th survey",
+    "reviewLink": "Your review page (optional)",
+    "reviewLinkHint": "Paste the link customers use to review you, e.g. Google Business Profile → \"Ask for reviews\". It must start with https://.",
+    "reviews": "Invite customers who answer to leave a public review",
+    "reviewsHint": "Everyone who answers is invited, whatever their score: asking only happy customers breaks Google's rules and UK consumer law. Low scores still alert you privately. Each customer is asked at most once a year."
   },
   "feedback": {
     "title": "Customer feedback",
@@ -996,7 +1000,9 @@
     "latest": "Latest ratings",
     "empty": "No ratings yet. They appear here as customers answer.",
     "noData": "–",
-    "responseRate": "Response rate"
+    "responseRate": "Response rate",
+    "reviews": "Review links opened",
+    "reviewsHint": "{opened} of {offered} customers invited opened your review page"
   },
   "ratePage": {
     "title": "How did we do?",
@@ -1007,7 +1013,8 @@
     "poor": "Poor",
     "excellent": "Excellent",
     "unlikely": "Not likely",
-    "likely": "Very likely"
+    "likely": "Very likely",
+    "leaveReview": "Leave a review"
   },
   "dailyBrief": {
     "title": "Daily brief",

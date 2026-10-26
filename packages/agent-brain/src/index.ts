@@ -135,6 +135,12 @@ export { processFormSubmission, type FormSubmission } from "./forms";
 export {
   feedbackStats,
   feedbackThanks,
+  offerReview,
+  openReviewLink,
+  reviewInvite,
+  reviewPath,
+  validReviewLink,
+  REVIEW_COOLDOWN_DAYS,
   isLowScore,
   openSurvey,
   parseScore,

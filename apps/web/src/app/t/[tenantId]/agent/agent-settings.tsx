@@ -75,6 +75,10 @@ interface Settings {
   confirmationCalls: boolean;
   outboundDailyCap: number;
   voiceTyping: boolean;
+  reviewRequests: boolean;
+  reviewLink: string | null;
+  valueReport: boolean;
+  averageBookingPence: number | null;
 }
 
 export interface AgentResponse {
@@ -526,6 +530,27 @@ export function AgentSettingsForm(props: {
                 <option value="5">{tf("npsEvery", { n: 5 })}</option>
                 <option value="10">{tf("npsEvery", { n: 10 })}</option>
               </Select>
+            </div>
+            <div className="space-y-3 border-t border-border pt-4">
+              <div className="max-w-xl">
+                <Label htmlFor="reviewLink">{tf("reviewLink")}</Label>
+                <Input
+                  id="reviewLink"
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://g.page/r/…/review"
+                  value={settings.reviewLink ?? ""}
+                  onChange={(e) => update({ reviewLink: e.target.value || null })}
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">{tf("reviewLinkHint")}</p>
+              </div>
+              <ToggleRow
+                checked={settings.reviewRequests}
+                disabled={!settings.feedbackEnabled || !settings.reviewLink}
+                onChange={(checked) => update({ reviewRequests: checked })}
+                label={tf("reviews")}
+                hint={tf("reviewsHint")}
+              />
             </div>
           </div>
         </Card>

@@ -17,6 +17,8 @@ interface Stats {
   csatAverage: number | null;
   nps: number | null;
   npsAnswers: number;
+  reviewsOffered: number;
+  reviewsOpened: number;
 }
 
 interface FeedbackResponse {
@@ -119,7 +121,12 @@ export default async function FeedbackPage(props: {
         ) : null}
       </ScreenHero>
 
-      <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
+      <div
+        className={cn(
+          "grid gap-4 sm:grid-cols-3 [&>*]:min-w-0",
+          o.reviewsOffered > 0 && "lg:grid-cols-4",
+        )}
+      >
         <KpiCard
           hero
           label={t("csat")}
@@ -145,6 +152,15 @@ export default async function FeedbackPage(props: {
           color="var(--color-accent)"
           hint={t("responsesHint", { answered: o.answered, sent: o.sent })}
         />
+        {o.reviewsOffered > 0 ? (
+          <KpiCard
+            label={t("reviews")}
+            value={o.reviewsOpened}
+            icon={<Star />}
+            color="var(--color-warning)"
+            hint={t("reviewsHint", { opened: o.reviewsOpened, offered: o.reviewsOffered })}
+          />
+        ) : null}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 [&>*]:min-w-0">

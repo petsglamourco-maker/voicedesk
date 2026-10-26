@@ -3,7 +3,7 @@ id: feedback
 title: Customer feedback - CSAT and NPS
 page: /t/:tenant/feedback
 roles: owner, admin, staff
-keywords: feedback, rating, csat, nps, satisfaction, survey, reviews, score, net promoter, how did we do, low score alert
+keywords: feedback, rating, csat, nps, satisfaction, survey, reviews, google review, review link, score, net promoter, how did we do, low score alert
 suggested: How are customers asked for feedback? | What is NPS? | Can I text callers a rating link?
 ---
 
@@ -42,6 +42,20 @@ Owners and admins can change these under **Customer feedback** on [Assistant](/t
 - **"Would you recommend us?" (NPS) question**: **Never**, or every 5th or 10th survey.
 
 Click **Save** when you're done.
+
+## Getting more public reviews
+
+You can invite customers to leave a public review (for example on Google) after they answer the rating question.
+
+1. Go to [Assistant settings](/t/:tenant/agent) → **Customer feedback**.
+2. Paste your review link into **Your review page**. On Google, open your Business Profile and choose **Ask for reviews** to copy it. It must start with https://.
+3. Tick **Invite customers who answer to leave a public review**, then **Save**.
+
+After answering, customers see a short invitation with your link: a button on the rating page, a link in website chat, or one extra sentence in the WhatsApp thanks. It doesn't send an extra message, so it costs nothing.
+
+- **Everyone who answers is invited, whatever their score.** Asking only happy customers ("review gating") breaks Google's review rules and UK consumer law, and can get reviews removed. Low scores still alert you privately, so you can put things right.
+- Each customer is invited at most once a year.
+- The Feedback page shows how many invited customers opened your review page.
 
 ## A note on rating links
 

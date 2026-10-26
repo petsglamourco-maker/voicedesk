@@ -130,3 +130,44 @@ describe("rating links after calls and emails", () => {
     ).toEqual([]);
   });
 });
+
+describe("review invitations in WhatsApp (ADR 0028)", () => {
+  it("the thanks carries the business's tracked review link, whatever the score", async () => {
+    const reviewed = await createTestTenant(dbs.app, "Glow Studio");
+    await withTenant(dbs.app, reviewed, (tx) =>
+      tx.insert(agentSettings).values({
+        tenantId: reviewed,
+        reviewRequests: true,
+        reviewLink: "https://g.page/r/glow/review",
+      }),
+    );
+    const who = {
+      tenantId: reviewed,
+      channel: "whatsapp" as const,
+      externalId: `+4477008${Date.now() % 100000}`,
+    };
+    const withOrigin = (llm: MockLlmProvider) => ({
+      ...deps(llm),
+      webOrigin: "https://app.voicedesk.test",
+    });
+    await handleInboundMessage(
+      withOrigin(new MockLlmProvider().enqueue(MockLlmProvider.text("Hi! How can I help?"))),
+      who,
+      "Hello",
+    );
+    await handleInboundMessage(
+      withOrigin(
+        new MockLlmProvider().enqueue(
+          MockLlmProvider.toolUse("end_conversation", {}, "Goodbye!"),
+          MockLlmProvider.text("Goodbye!"),
+        ),
+      ),
+      who,
+      "Bye",
+    );
+    const answer = await handleInboundMessage(withOrigin(new MockLlmProvider()), who, "3");
+    expect(answer.reply).toMatch(
+      /^Thank you for your feedback! If you have a moment, you could also leave Glow Studio a public review: https:\/\/app\.voicedesk\.test\/api\/public\/review\//,
+    );
+  });
+});

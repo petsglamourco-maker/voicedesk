@@ -136,6 +136,7 @@ const workers = [
         db,
         llm: appLlm,
         embeddings,
+        webOrigin: env.WEB_ORIGIN,
         calendars: { box, factory: calendarsFromEnv().factory },
         notify: async (job) => {
           await notificationQueue.add(job.kind, job);

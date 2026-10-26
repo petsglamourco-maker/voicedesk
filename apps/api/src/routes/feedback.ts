@@ -3,7 +3,10 @@ import {
   feedbackStats,
   feedbackThanks,
   loadAgentContext,
+  offerReview,
+  openReviewLink,
   recordFeedback,
+  reviewInvite,
   shortSurveyQuestion,
   surveyByToken,
   toLang,
@@ -76,7 +79,36 @@ export function registerFeedbackRoutes(app: FastifyInstance, deps: AppDeps): voi
           id: survey.id,
         });
       }
-      return { thanks: feedbackThanks(toLang(survey.language, "en")), low: saved.low };
+      const lang = toLang(survey.language, "en");
+      // ADR 0028: everyone who answers may be invited to review, whatever the score.
+      const review = saved.first ? await offerReview(deps.db, survey.tenantId, survey.id) : null;
+      if (!review) return { thanks: feedbackThanks(lang), low: saved.low };
+      const ctx = await loadAgentContext(deps.db, survey.tenantId, "chat");
+      return {
+        thanks: feedbackThanks(lang),
+        low: saved.low,
+        review: {
+          url: review.path,
+          text: reviewInvite(lang, ctx.businessName),
+        },
+      };
+    },
+  );
+
+  r.get(
+    "/api/public/review/:token",
+    {
+      schema: {
+        tags: ["public feedback"],
+        summary: "Opens the business's review page (tracked; only after an invitation)",
+        params: token,
+      },
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const link = await openReviewLink(deps.db, request.params.token);
+      if (!link) throw notFound();
+      return reply.redirect(link, 302);
     },
   );
 

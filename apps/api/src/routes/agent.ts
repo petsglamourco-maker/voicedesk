@@ -7,6 +7,7 @@ import {
   normalisePhone,
   PERSONA_IDS,
   PERSONAS,
+  validReviewLink,
 } from "@voicedesk/agent-brain";
 import { recordAudit, requireFeature } from "@voicedesk/core";
 import {
@@ -73,6 +74,13 @@ const settingsSchema = z.object({
   feedbackAfterCalls: z.boolean().default(false),
   npsEvery: z.number().int().min(0).max(50).default(0),
   dailyBrief: z.boolean().default(true),
+  /** ADR 0028: invite everyone who answers a survey to leave a public review. */
+  reviewRequests: z.boolean().default(false),
+  reviewLink: z.string().trim().max(500).nullable().default(null),
+  /** ADR 0028: the monthly "what your assistant did" email. */
+  valueReport: z.boolean().default(true),
+  /** Typical booking value in pence (the report's estimate); null = not set. */
+  averageBookingPence: z.number().int().min(0).max(10_000_000).nullable().default(null),
   aiCallbacks: z.boolean().default(false),
   confirmationCalls: z.boolean().default(false),
   outboundDailyCap: z.number().int().min(1).max(500).default(20),
@@ -102,6 +110,10 @@ const settingsResponse = z.object({
   feedbackAfterCalls: z.boolean(),
   npsEvery: z.number(),
   dailyBrief: z.boolean(),
+  reviewRequests: z.boolean(),
+  reviewLink: z.string().nullable(),
+  valueReport: z.boolean(),
+  averageBookingPence: z.number().nullable(),
   aiCallbacks: z.boolean(),
   confirmationCalls: z.boolean(),
   outboundDailyCap: z.number(),
@@ -131,6 +143,10 @@ const DEFAULTS = {
   feedbackAfterCalls: false,
   npsEvery: 0,
   dailyBrief: true,
+  reviewRequests: false,
+  reviewLink: null as string | null,
+  valueReport: true,
+  averageBookingPence: null as number | null,
   aiCallbacks: false,
   confirmationCalls: false,
   outboundDailyCap: 20,
@@ -198,6 +214,10 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
               feedbackAfterCalls: row.feedbackAfterCalls,
               npsEvery: row.npsEvery,
               dailyBrief: row.dailyBrief,
+              reviewRequests: row.reviewRequests,
+              reviewLink: row.reviewLink,
+              valueReport: row.valueReport,
+              averageBookingPence: row.averageBookingPence,
               aiCallbacks: row.aiCallbacks,
               confirmationCalls: row.confirmationCalls,
               outboundDailyCap: row.outboundDailyCap,
@@ -227,6 +247,17 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       if (request.body.aiCallbacks || request.body.confirmationCalls) {
         await requireFeature(deps.db, access.tenantId, "ai_calls");
       }
+      // ADR 0028: review invitations need the business's own https review page.
+      const reviewLink = request.body.reviewLink || null;
+      if (reviewLink && !validReviewLink(reviewLink)) {
+        throw new HttpError(400, "INVALID_REVIEW_LINK", "The review link must be an https address");
+      }
+      if (request.body.reviewRequests) {
+        await requireFeature(deps.db, access.tenantId, "feedback");
+        if (!reviewLink) {
+          throw new HttpError(400, "REVIEW_LINK_REQUIRED", "Add your review link first");
+        }
+      }
       const { allowedCountries } = await getPlatformSpendSettings(deps.db);
       const phone = (value: string | null, label: string) => {
         if (!value) return null;
@@ -250,6 +281,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
         transferPhone: phone(request.body.transferPhone, "transfer"),
         onCallPhone: phone(request.body.onCallPhone, "on-call"),
         urgentSituations: request.body.urgentSituations || null,
+        reviewLink,
       };
       const values = { ...settings, tenantId: access.tenantId };
       await withTenant(deps.db, access.tenantId, async (tx) => {

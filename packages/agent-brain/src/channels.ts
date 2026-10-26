@@ -3,6 +3,7 @@ import {
   channelThreads,
   conversationMessages,
   conversations,
+  tenants,
   withTenant,
   type Database,
 } from "@voicedesk/db";
@@ -11,10 +12,12 @@ import type { AgentContext } from "./context";
 import { runTurn, type TurnEvent } from "./engine";
 import {
   feedbackThanks,
+  offerReview,
   openSurvey,
   parseScore,
   pendingSurvey,
   recordFeedback,
+  reviewInvite,
   shortSurveyQuestion,
   surveyQuestion,
   type FeedbackKind,
@@ -213,6 +216,8 @@ async function touchThread(
 
 export interface ChannelTurnDeps extends DbServiceDeps {
   llm: LlmProvider;
+  /** The browser-facing origin, for links in replies (review invitations, ADR 0028). */
+  webOrigin?: string;
 }
 
 export interface ChannelTurnResult {
@@ -361,7 +366,15 @@ async function answerSurvey(
   if (score === null) return null;
   const saved = await recordFeedback(deps.db, who.tenantId, pending.id, { score }, now);
   if (!saved?.first) return null;
-  const thanks = feedbackThanks(open.state.language);
+  let thanks = feedbackThanks(open.state.language);
+  // ADR 0028: everyone who answers may be invited to review, whatever the score.
+  const review = deps.webOrigin ? await offerReview(deps.db, who.tenantId, pending.id, now) : null;
+  if (review) {
+    const [tenant] = await withTenant(deps.db, who.tenantId, (tx) =>
+      tx.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, who.tenantId)),
+    );
+    thanks += ` ${reviewInvite(open.state.language, tenant?.name ?? "", `${deps.webOrigin}${review.path}`)}`;
+  }
   await withTenant(deps.db, who.tenantId, (tx) =>
     tx.insert(conversationMessages).values([
       {

@@ -9,7 +9,7 @@ import {
   withTenant,
   type Database,
 } from "@voicedesk/db";
-import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, isNull, ne, sql } from "drizzle-orm";
 import { toLang, type Lang } from "./languages";
 
 /**
@@ -97,6 +97,122 @@ const THANKS: Record<Lang, string> = {
   zh: "感谢您的反馈！",
   ar: "شكرًا على ملاحظاتك!",
 };
+
+/**
+ * ADR 0028: the invitation to leave a public review. It goes to everyone who answers, whatever
+ * the score: asking only happy customers ("review gating") breaks Google's review policy and
+ * the CMA's guidance on fake reviews.
+ */
+const REVIEW_INVITE: Record<Lang, (business: string) => string> = {
+  en: (b) => `If you have a moment, you could also leave ${b} a public review`,
+  es: (b) => `Si tiene un momento, también puede dejar una reseña pública de ${b}`,
+  fr: (b) => `Si vous avez un instant, vous pouvez aussi laisser un avis public sur ${b}`,
+  de: (b) => `Wenn Sie einen Moment Zeit haben, können Sie ${b} auch öffentlich bewerten`,
+  zh: (b) => `如果您有时间，也欢迎为${b}留下公开评价`,
+  ar: (b) => `إذا كان لديك دقيقة، يمكنك أيضًا ترك تقييم علني لـ ${b}`,
+};
+const LINK_SEPARATOR: Record<Lang, string> = {
+  en: ": ",
+  es: ": ",
+  fr: " : ",
+  de: ": ",
+  zh: "：",
+  ar: ": ",
+};
+
+/** Nobody is invited to review more than once in this many days. */
+export const REVIEW_COOLDOWN_DAYS = 365;
+
+/** The invitation with its link (texts and WhatsApp); without a link for a button label. */
+export function reviewInvite(lang: Lang, business: string, link?: string): string {
+  const text = REVIEW_INVITE[lang](business);
+  if (link) return `${text}${LINK_SEPARATOR[lang]}${link}`;
+  return `${text}${lang === "zh" ? "。" : "."}`;
+}
+
+/** The tracked link the customer opens; it redirects to the business's review page. */
+export function reviewPath(token: string): string {
+  return `/api/public/review/${encodeURIComponent(token)}`;
+}
+
+/** Only the business's own https page can be a review link. */
+export function validReviewLink(link: string | null | undefined): link is string {
+  if (!link) return false;
+  try {
+    const url = new URL(link);
+    return url.protocol === "https:" && !url.username && !url.password && link.length <= 500;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * After the first answer: whether to invite this customer to leave a public review, whatever
+ * their score. Marks the survey as offered (once) and returns the tracked path, or null when
+ * the business hasn't switched it on or this customer was invited in the last year.
+ */
+export async function offerReview(
+  db: Database,
+  tenantId: string,
+  feedbackId: string,
+  now: Date = new Date(),
+): Promise<{ path: string } | null> {
+  return withTenant(db, tenantId, async (tx) => {
+    const [settings] = await tx
+      .select({ on: agentSettings.reviewRequests, link: agentSettings.reviewLink })
+      .from(agentSettings)
+      .where(eq(agentSettings.tenantId, tenantId));
+    if (!settings?.on || !validReviewLink(settings.link)) return null;
+    const [row] = await tx.select().from(feedback).where(eq(feedback.id, feedbackId));
+    if (!row || row.score === null) return null;
+    if (row.contactId) {
+      const since = new Date(now.getTime() - REVIEW_COOLDOWN_DAYS * 24 * 3600 * 1000);
+      const [recent] = await tx
+        .select({ id: feedback.id })
+        .from(feedback)
+        .where(
+          and(
+            eq(feedback.tenantId, tenantId),
+            eq(feedback.contactId, row.contactId),
+            ne(feedback.id, row.id),
+            gt(feedback.reviewOfferedAt, since),
+          ),
+        );
+      if (recent) return null;
+    }
+    const marked = await tx
+      .update(feedback)
+      .set({ reviewOfferedAt: now })
+      .where(and(eq(feedback.id, feedbackId), isNull(feedback.reviewOfferedAt)))
+      .returning({ token: feedback.token });
+    return marked[0] ? { path: reviewPath(marked[0].token) } : null;
+  });
+}
+
+/**
+ * The review link behind a tracked path: records the first click and returns the business's
+ * current review page. Null unless an invitation was actually shown (no open redirect).
+ */
+export async function openReviewLink(
+  db: Database,
+  token: string,
+  now: Date = new Date(),
+): Promise<string | null> {
+  const survey = await surveyByToken(db, token);
+  if (!survey?.reviewOfferedAt) return null;
+  return withTenant(db, survey.tenantId, async (tx) => {
+    const [settings] = await tx
+      .select({ link: agentSettings.reviewLink })
+      .from(agentSettings)
+      .where(eq(agentSettings.tenantId, survey.tenantId));
+    if (!validReviewLink(settings?.link)) return null;
+    await tx
+      .update(feedback)
+      .set({ reviewClickedAt: now })
+      .where(and(eq(feedback.id, survey.id), isNull(feedback.reviewClickedAt)));
+    return settings.link;
+  });
+}
 
 export function surveyQuestion(lang: Lang, kind: FeedbackKind, business: string): string {
   return QUESTION[lang][kind](business);
@@ -308,10 +424,18 @@ export interface FeedbackStats {
   /** % promoters (9–10) minus % detractors (0–6). */
   nps: number | null;
   npsAnswers: number;
+  /** ADR 0028: review invitations shown, and how many were opened. */
+  reviewsOffered: number;
+  reviewsOpened: number;
 }
 
 /** Scores over a set of surveys (pure, so the maths is tested on its own). */
-export function feedbackStats(rows: Array<Pick<FeedbackRow, "kind" | "score">>): FeedbackStats {
+export function feedbackStats(
+  rows: Array<
+    Pick<FeedbackRow, "kind" | "score"> &
+      Partial<Pick<FeedbackRow, "reviewOfferedAt" | "reviewClickedAt">>
+  >,
+): FeedbackStats {
   const answered = rows.filter((r) => r.score !== null);
   const csat = answered.filter((r) => r.kind === "csat").map((r) => r.score!);
   const nps = answered.filter((r) => r.kind === "nps").map((r) => r.score!);
@@ -328,5 +452,7 @@ export function feedbackStats(rows: Array<Pick<FeedbackRow, "kind" | "score">>):
         pct(nps.filter((s) => s <= 6).length, nps.length)
       : null,
     npsAnswers: nps.length,
+    reviewsOffered: rows.filter((r) => r.reviewOfferedAt).length,
+    reviewsOpened: rows.filter((r) => r.reviewClickedAt).length,
   };
 }

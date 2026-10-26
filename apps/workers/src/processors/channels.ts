@@ -34,6 +34,8 @@ export interface ChannelDeps {
   /** Decrypts mailbox passwords; email triage is off without it. */
   box: SecretBox | null;
   mailboxClient: (creds: MailboxCredentials) => MailboxClient;
+  /** For links in replies (review invitations). */
+  webOrigin?: string;
 }
 
 /** Mailboxes being polled right now (a slow poll must not overlap the next one). */
@@ -60,6 +62,7 @@ export function createChannelProcessor(deps: ChannelDeps, log: Logger) {
         embeddings: deps.embeddings,
         calendars: deps.calendars,
         notify: deps.notify ? (e) => deps.notify!({ ...e, tenantId: data.tenantId }) : undefined,
+        webOrigin: deps.webOrigin,
       },
       {
         tenantId: data.tenantId,

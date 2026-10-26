@@ -94,6 +94,16 @@ export const agentSettings = pgTable("agent_settings", {
   followUps: boolean("follow_ups").notNull().default(false),
   /** ADR 0027: microphone buttons in text fields for the team (each person can turn theirs off). */
   voiceTyping: boolean("voice_typing").notNull().default(true),
+  /** ADR 0028: invite everyone who answers a survey to leave a public review (never gated). */
+  reviewRequests: boolean("review_requests").notNull().default(false),
+  /** The business's own https review page (e.g. Google "write a review"). */
+  reviewLink: text("review_link"),
+  /** ADR 0028: monthly "what your assistant did" email on the 1st. */
+  valueReport: boolean("value_report").notNull().default(true),
+  /** "YYYY-MM" of the month the last value report covered (claimed once). */
+  valueReportSentFor: text("value_report_sent_for"),
+  /** Typical booking value in pence, for the report's estimate (optional). */
+  averageBookingPence: integer("average_booking_pence"),
   ...timestamps,
 });
 
@@ -565,6 +575,9 @@ export const feedback = pgTable(
     comment: text("comment"),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
     answeredAt: timestamp("answered_at", { withTimezone: true }),
+    /** ADR 0028: when the review invitation was shown, and when its link was opened. */
+    reviewOfferedAt: timestamp("review_offered_at", { withTimezone: true }),
+    reviewClickedAt: timestamp("review_clicked_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("feedback_token_uq").on(t.token),

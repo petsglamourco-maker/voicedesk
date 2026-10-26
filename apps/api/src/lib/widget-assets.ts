@@ -154,6 +154,17 @@ export function chatFrameHtml(params: {
         }).catch(() => null);
         const done = res && res.ok ? await res.json() : null;
         box.replaceChildren(document.createTextNode(done ? done.thanks : "Thanks!"));
+        // ADR 0028: an invitation to review, shown whatever the score.
+        if (done && done.review && done.review.url && done.review.url.indexOf("/api/public/review/") === 0) {
+          const p = document.createElement("div");
+          const a = document.createElement("a");
+          a.href = done.review.url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = done.review.text;
+          p.appendChild(a);
+          box.appendChild(p);
+        }
       });
       scale.appendChild(b);
     }
