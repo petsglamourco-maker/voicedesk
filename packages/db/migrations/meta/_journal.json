@@ -414,6 +414,20 @@
       "when": 1793225239339,
       "tag": "0058_country_launches",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1793229446260,
+      "tag": "0059_auto_numbers",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1793229447922,
+      "tag": "0060_auto_numbers_rls",
+      "breakpoints": true
     }
   ]
 }

@@ -98,6 +98,31 @@ export class StripeBilling implements BillingProvider {
     return { id: event.id, kind: "ignored", type: event.type };
   }
 
+  async setAddOnQuantity(subscriptionId: string, priceId: string, quantity: number): Promise<void> {
+    const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
+    const item = sub.items.data.find((i) => i.price.id === priceId);
+    if (quantity <= 0) {
+      if (item)
+        await this.stripe.subscriptionItems.del(item.id, {
+          proration_behavior: "create_prorations",
+        });
+      return;
+    }
+    if (item) {
+      await this.stripe.subscriptionItems.update(item.id, {
+        quantity,
+        proration_behavior: "create_prorations",
+      });
+      return;
+    }
+    await this.stripe.subscriptionItems.create({
+      subscription: subscriptionId,
+      price: priceId,
+      quantity,
+      proration_behavior: "create_prorations",
+    });
+  }
+
   async getSubscription(subscriptionId: string): Promise<BillingSubscription | null> {
     try {
       const sub = await this.stripe.subscriptions.retrieve(subscriptionId);
@@ -107,6 +132,7 @@ export class StripeBilling implements BillingProvider {
         customerId: idOf(sub.customer) ?? "",
         tenantId: sub.metadata?.tenantId ?? null,
         priceId: item?.price.id ?? null,
+        items: sub.items.data.map((i) => ({ priceId: i.price.id, quantity: i.quantity ?? 1 })),
         status: sub.status,
         currentPeriodEnd: item ? new Date(item.current_period_end * 1000) : null,
         cancelAtPeriodEnd: sub.cancel_at_period_end,

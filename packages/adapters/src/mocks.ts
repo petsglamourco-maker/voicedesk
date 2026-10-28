@@ -34,9 +34,11 @@ import type {
 import type { ObjectStorage, PutObjectInput } from "./storage/types";
 import type {
   AvailableNumber,
+  CarrierNumbers,
+  IdentityStatus,
+  NumberIdentity,
+  NumberIdentityDetails,
   NumberSearchQuery,
-  ProvisionedNumber,
-  TelephonyProvider,
 } from "./telephony/types";
 
 export class MockEmailProvider implements EmailProvider {
@@ -115,29 +117,70 @@ export class MockWhatsAppProvider implements WhatsAppProvider {
   }
 }
 
-export class MockTelephonyProvider implements TelephonyProvider {
-  readonly name = "mock-telephony";
-  readonly purchased: ProvisionedNumber[] = [];
+/** Carrier numbers for tests (ADR 0032): approve or reject reviews, mark numbers as taken. */
+export class MockCarrierNumbers implements CarrierNumbers {
+  readonly name = "mock-carrier-numbers";
+  readonly identities = new Map<
+    string,
+    { details: NumberIdentityDetails; status: IdentityStatus }
+  >();
+  readonly bought: Array<{
+    e164: string;
+    identityId: string;
+    voiceUrl: string;
+    carrierNumberId: string;
+  }> = [];
+  readonly released: string[] = [];
+  /** Numbers someone else bought since the search (buying them fails). */
+  readonly taken = new Set<string>();
 
-  searchNumbers(query: NumberSearchQuery): Promise<AvailableNumber[]> {
-    const prefix = query.countryCode === "GB" ? "+44207946" : "+1555010";
+  searchAvailable(query: NumberSearchQuery): Promise<AvailableNumber[]> {
+    const base = query.type === "mobile" ? "+447700900" : "+442382721";
     return Promise.resolve(
-      Array.from({ length: query.limit ?? 3 }, (_, i) => ({
-        e164: `${prefix}${String(i).padStart(4, "0")}`,
-        requiresRegulatoryBundle: query.countryCode !== "GB",
-      })),
+      Array.from({ length: query.limit ?? 5 }, (_, i) => {
+        const e164 = `${base}${String(100 + i).padStart(3, "0")}`;
+        return { e164, friendly: e164, locality: query.locality ?? "Southampton" };
+      }).filter((n) => !this.taken.has(n.e164)),
     );
   }
 
-  purchaseNumber(e164: string): Promise<ProvisionedNumber> {
-    const number: ProvisionedNumber = { providerNumberId: randomUUID(), e164, status: "active" };
-    this.purchased.push(number);
-    return Promise.resolve(number);
+  submitIdentity(details: NumberIdentityDetails): Promise<NumberIdentity> {
+    const id = `BU${randomUUID().replace(/-/g, "").slice(0, 30)}`;
+    this.identities.set(id, { details, status: "pending" });
+    return Promise.resolve({ id, addressId: `AD${id.slice(2)}`, status: "pending" });
   }
 
-  releaseNumber(providerNumberId: string): Promise<void> {
-    const index = this.purchased.findIndex((n) => n.providerNumberId === providerNumberId);
-    if (index >= 0) this.purchased.splice(index, 1);
+  /** Test helper: the carrier finished its review. */
+  decide(id: string, status: IdentityStatus): void {
+    const identity = this.identities.get(id);
+    if (identity) identity.status = status;
+  }
+
+  identityStatus(id: string): Promise<{ status: IdentityStatus; reason: string | null }> {
+    const status = this.identities.get(id)?.status ?? "rejected";
+    return Promise.resolve({
+      status,
+      reason: status === "rejected" ? "Address not verified" : null,
+    });
+  }
+
+  buy(params: {
+    e164: string;
+    identityId: string;
+    addressId: string;
+    voiceUrl: string;
+  }): Promise<{ carrierNumberId: string }> {
+    if (this.taken.has(params.e164)) {
+      return Promise.reject(new Error("number no longer available"));
+    }
+    const carrierNumberId = `PN${randomUUID().replace(/-/g, "").slice(0, 30)}`;
+    this.bought.push({ ...params, carrierNumberId });
+    this.taken.add(params.e164);
+    return Promise.resolve({ carrierNumberId });
+  }
+
+  release(carrierNumberId: string): Promise<void> {
+    this.released.push(carrierNumberId);
     return Promise.resolve();
   }
 }
@@ -364,6 +407,20 @@ export class MockBilling implements BillingProvider {
 
   getSubscription(id: string) {
     return Promise.resolve(this.subscriptions.get(id) ?? null);
+  }
+
+  /** Add-on changes, in order (ADR 0032). */
+  readonly addOns: Array<{ subscriptionId: string; priceId: string; quantity: number }> = [];
+
+  setAddOnQuantity(subscriptionId: string, priceId: string, quantity: number): Promise<void> {
+    this.addOns.push({ subscriptionId, priceId, quantity });
+    const sub = this.subscriptions.get(subscriptionId);
+    if (sub) {
+      const plan = sub.items ?? (sub.priceId ? [{ priceId: sub.priceId, quantity: 1 }] : []);
+      const others = plan.filter((i) => i.priceId !== priceId);
+      sub.items = quantity > 0 ? [...others, { priceId, quantity }] : others;
+    }
+    return Promise.resolve();
   }
 }
 

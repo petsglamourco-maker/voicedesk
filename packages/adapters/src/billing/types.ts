@@ -21,6 +21,11 @@ export interface BillingProvider {
   /** Verifies the signature; throws BillingSignatureError when it doesn't match. */
   parseWebhook(rawBody: string, signature: string | undefined): Promise<BillingEvent>;
   getSubscription(subscriptionId: string): Promise<BillingSubscription | null>;
+  /**
+   * ADR 0032: sets how many of an add-on price (an extra phone number) are on a subscription,
+   * prorated on the same bill. 0 removes the line.
+   */
+  setAddOnQuantity(subscriptionId: string, priceId: string, quantity: number): Promise<void>;
 }
 
 export interface BillingSubscription {
@@ -29,6 +34,8 @@ export interface BillingSubscription {
   /** Set by our checkout (subscription metadata). */
   tenantId: string | null;
   priceId: string | null;
+  /** Every line on the subscription: the plan and any add-ons (ADR 0032). */
+  items?: Array<{ priceId: string; quantity: number }>;
   /** Stripe's status: trialing, active, past_due, canceled, unpaid, incomplete, paused… */
   status: string;
   currentPeriodEnd: Date | null;

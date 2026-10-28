@@ -28,6 +28,31 @@ export function priceIdFor(
   return prices[priceKey(plan, currency)];
 }
 
+/** ADR 0032: the add-on price for an extra number of a type, in a currency. */
+export function numberPriceIdFor(
+  prices: PriceMap,
+  type: "local" | "mobile",
+  currency: Currency,
+): string | undefined {
+  return prices[`number_${type}${currency === "GBP" ? "" : `_${currency.toLowerCase()}`}`];
+}
+
+/** Extra numbers paid for on a subscription, from its add-on lines. */
+export function extraNumbersOf(
+  prices: PriceMap,
+  items: Array<{ priceId: string; quantity: number }>,
+): { local: number; mobile: number } {
+  const extra = { local: 0, mobile: 0 };
+  for (const item of items) {
+    for (const type of ["local", "mobile"] as const) {
+      for (const currency of CURRENCIES) {
+        if (numberPriceIdFor(prices, type, currency) === item.priceId) extra[type] += item.quantity;
+      }
+    }
+  }
+  return extra;
+}
+
 export function planForPrice(prices: PriceMap, priceId: string | null): PaidPlanId | null {
   if (!priceId) return null;
   for (const plan of PAID_PLANS) {
@@ -40,10 +65,11 @@ export function planForPrice(prices: PriceMap, priceId: string | null): PaidPlan
 
 export function toPriceMap(raw: Record<string, string> | undefined): PriceMap {
   const prices: PriceMap = {};
-  for (const plan of PAID_PLANS) {
+  const keys = [...PAID_PLANS, "number_local", "number_mobile"];
+  for (const key of keys) {
     for (const currency of CURRENCIES) {
-      const key = priceKey(plan, currency);
-      if (raw?.[key]) prices[key] = raw[key];
+      const full = currency === "GBP" ? key : `${key}_${currency.toLowerCase()}`;
+      if (raw?.[full]) prices[full] = raw[full];
     }
   }
   return prices;
@@ -123,7 +149,11 @@ export async function syncSubscription(
     }
     const status = statusFor(sub);
     if (!status) return { outcome: "ignored", reason: `status ${sub.status}` };
-    const plan = planForPrice(deps.prices, sub.priceId);
+    // The plan line is whichever line has a plan price (add-ons sit beside it, ADR 0032).
+    const items = sub.items ?? (sub.priceId ? [{ priceId: sub.priceId, quantity: 1 }] : []);
+    const plan =
+      items.map((i) => planForPrice(deps.prices, i.priceId)).find((p) => p !== null) ??
+      planForPrice(deps.prices, sub.priceId);
     if (!plan) return { outcome: "ignored", reason: "unknown price" };
 
     const values = {
@@ -136,6 +166,8 @@ export async function syncSubscription(
       pastDueSince: status === "past_due" ? (current?.pastDueSince ?? now) : null,
       stripeCustomerId: sub.customerId || params.customerId || null,
       stripeSubscriptionId: sub.id,
+      extraNumbers:
+        status === "canceled" ? { local: 0, mobile: 0 } : extraNumbersOf(deps.prices, items),
       updatedAt: now,
     };
     await tx

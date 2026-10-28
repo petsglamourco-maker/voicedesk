@@ -5,6 +5,7 @@ import type { EmbeddingProvider } from "./embeddings/types";
 import type { HumanCheck } from "./human/types";
 import type { BillingProvider } from "./billing/types";
 import type { PushProvider } from "./push/types";
+import type { CarrierNumbers } from "./telephony/types";
 import type { VoiceTypingProvider } from "./speech/types";
 import type { LlmProvider } from "./llm/types";
 import type { SmsProvider } from "./messaging/types";
@@ -123,7 +124,8 @@ export async function billingFromEnv(env: Env = process.env): Promise<BillingPro
 /** Stripe Price id per paid plan, from .env (STRIPE_PRICE_STARTER, _GROWTH, _PRO). */
 export function billingPricesFromEnv(env: Env = process.env): Record<string, string> {
   const prices: Record<string, string> = {};
-  for (const plan of ["starter", "growth", "pro"]) {
+  // ADR 0032: extra numbers are add-on prices beside the plans (STRIPE_PRICE_NUMBER_LOCAL...).
+  for (const plan of ["starter", "growth", "pro", "number_local", "number_mobile"]) {
     const id = env[`STRIPE_PRICE_${plan.toUpperCase()}`];
     if (id) prices[plan] = id;
     // ADR 0031: one price per currency, e.g. STRIPE_PRICE_STARTER_USD.
@@ -158,4 +160,19 @@ export async function voiceTypingFromEnv(
   if (!apiKey) return null;
   const { DeepgramVoiceTyping } = await import("./speech/deepgram-token");
   return new DeepgramVoiceTyping({ apiKey });
+}
+
+/**
+ * Buying numbers from Twilio (ADR 0032); null without Twilio keys. Purchases also need the
+ * platform switch in Platform admin → Phone numbers.
+ */
+export async function carrierNumbersFromEnv(
+  env: Env = process.env,
+): Promise<CarrierNumbers | null> {
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return null;
+  const { TwilioNumbers } = await import("./telephony/twilio-numbers");
+  return new TwilioNumbers({
+    accountSid: env.TWILIO_ACCOUNT_SID,
+    authToken: env.TWILIO_AUTH_TOKEN,
+  });
 }

@@ -1,4 +1,4 @@
-import { boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import { tenants, timestamps } from "./app";
 
 /**
@@ -22,6 +22,11 @@ export const subscriptions = pgTable("subscriptions", {
   /** When payment first failed (past_due grace starts here). */
   pastDueSince: timestamp("past_due_since", { withTimezone: true }),
   stripeCustomerId: text("stripe_customer_id"),
+  /** ADR 0032: extra numbers paid for on the subscription (synced from Stripe). */
+  extraNumbers: jsonb("extra_numbers")
+    .$type<{ local: number; mobile: number }>()
+    .notNull()
+    .default({ local: 0, mobile: 0 }),
   stripeSubscriptionId: text("stripe_subscription_id"),
   ...timestamps,
 });

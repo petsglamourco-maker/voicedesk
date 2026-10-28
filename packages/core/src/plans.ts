@@ -135,6 +135,15 @@ export const PLAN_PRICES: Record<PaidPlanId, Record<Currency, number>> = {
   pro: { GBP: 21900, EUR: 24900, USD: 27900, CAD: 35900, AUD: 39900, NZD: 42900 },
 };
 
+/**
+ * ADR 0032: extra phone numbers, per month on top of the plan, in minor units excluding tax.
+ * Carrier cost is about £0.87 (local) and £1.89 (mobile) a month, plus minutes.
+ */
+export const NUMBER_PRICES: Record<"local" | "mobile", Record<Currency, number>> = {
+  local: { GBP: 500, EUR: 600, USD: 700, CAD: 900, AUD: 1000, NZD: 1100 },
+  mobile: { GBP: 800, EUR: 900, USD: 1100, CAD: 1400, AUD: 1500, NZD: 1700 },
+};
+
 export function planPrice(planId: PaidPlanId, currency: Currency): number {
   return PLAN_PRICES[planId][currency];
 }
@@ -248,7 +257,18 @@ export function trialValues(tenantId: string, now: Date = new Date()) {
   } as const;
 }
 
-/** Refuses a new phone number beyond the plan's limit. */
+/** How many numbers a business may have: the plan's, plus extras paid for (ADR 0032). */
+export function numberAllowance(state: PlanState): {
+  included: number;
+  extra: number;
+  total: number;
+} {
+  const paid = state.subscription?.extraNumbers ?? { local: 0, mobile: 0 };
+  const extra = Math.max(0, paid.local) + Math.max(0, paid.mobile);
+  return { included: state.plan.phoneNumbers, extra, total: state.plan.phoneNumbers + extra };
+}
+
+/** Refuses a new phone number beyond the plan's numbers plus the paid extras. */
 export async function requireNumberSlot(db: Database, tenantId: string): Promise<void> {
   const state = await getPlanState(db, tenantId);
   if (!state.usable) {
@@ -260,13 +280,29 @@ export async function requireNumberSlot(db: Database, tenantId: string): Promise
       .from(phoneNumbers)
       .where(and(eq(phoneNumbers.tenantId, tenantId), eq(phoneNumbers.status, "active"))),
   );
-  if (rows.length >= state.plan.phoneNumbers) {
+  const allowance = numberAllowance(state);
+  if (rows.length >= allowance.total) {
     const n = state.plan.phoneNumbers;
     throw new PlanLimitError(
       "PLAN_LIMIT",
-      `The ${state.plan.name} plan includes ${n} phone number${n === 1 ? "" : "s"}.`,
+      `The ${state.plan.name} plan includes ${n} phone number${n === 1 ? "" : "s"}` +
+        (allowance.extra
+          ? ` and you pay for ${allowance.extra} more.`
+          : ". Add an extra number to get more."),
     );
   }
+}
+
+/** ADR 0032: numbers are bought only for businesses on a paid plan that's in good standing. */
+export async function requirePaidPlan(db: Database, tenantId: string): Promise<PlanState> {
+  const state = await getPlanState(db, tenantId);
+  if (!state.usable || state.plan.id === "trial" || state.plan.id === "demo") {
+    throw new PlanLimitError(
+      "PLAN_FEATURE",
+      "Your own phone number comes with a paid plan. Until then, forward your existing number or try the assistant in the test console.",
+    );
+  }
+  return state;
 }
 
 /** Refuses an invitation when members plus pending invitations reach the plan's seats. */

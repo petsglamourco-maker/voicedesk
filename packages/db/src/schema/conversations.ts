@@ -128,6 +128,14 @@ export const phoneNumbers = pgTable(
     status: phoneNumberStatus("status").notNull().default("active"),
     livekitTrunkId: text("livekit_trunk_id"),
     livekitDispatchRuleId: text("livekit_dispatch_rule_id"),
+    /** ADR 0032: the carrier's id for a number we bought (needed to release it). */
+    carrierNumberId: text("carrier_number_id"),
+    /** "local" or "mobile" (null for numbers registered by hand). */
+    numberType: text("number_type"),
+    /** "included" in the plan, a paid "extra", or "manual" (registered in Platform admin). */
+    billing: text("billing").notNull().default("manual"),
+    /** Plan ended: the number is off and is released at the carrier after this time. */
+    releaseAt: timestamp("release_at", { withTimezone: true }),
     ...timestamps,
   },
   (t) => [

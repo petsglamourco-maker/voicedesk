@@ -150,6 +150,15 @@ export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
   allowedCountries: ["GB"],
 };
 
+/** ADR 0032: automatic number purchases (they cost money, so off until switched on). */
+export interface NumberSettings {
+  autoBuy: boolean;
+  /** Numbers bought per day, across every business. */
+  dailyLimit: number;
+  /** Most numbers one business can have. */
+  perBusiness: number;
+}
+
 /** ADR 0031: which country packs are open for sign-ups beyond the UK, and texting set-up. */
 export interface CountrySettings {
   /** Preview packs the platform owner launched after legal review. */
@@ -168,6 +177,11 @@ export interface DemoSettings {
 export const platformSettings = pgTable("platform_settings", {
   id: text("id").primaryKey().default("global"),
   spend: jsonb("spend").$type<PlatformSpendSettings>().notNull(),
+  /** ADR 0032: automatic number purchases. */
+  numbers: jsonb("numbers")
+    .$type<NumberSettings>()
+    .notNull()
+    .default({ autoBuy: false, dailyLimit: 5, perBusiness: 10 }),
   /** ADR 0031: country launches and texting registration (beyond what code launches). */
   countries: jsonb("countries")
     .$type<CountrySettings>()
