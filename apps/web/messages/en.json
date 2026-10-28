@@ -54,7 +54,12 @@
     "language": "Main language",
     "create": "Create business",
     "countries": {
-      "GB": "United Kingdom"
+      "GB": "United Kingdom",
+      "IE": "Ireland",
+      "US": "United States",
+      "CA": "Canada",
+      "AU": "Australia",
+      "NZ": "New Zealand"
     },
     "moreCountriesSoon": "More countries are coming soon."
   },
@@ -1558,10 +1563,10 @@
     "countryNames": {
       "GB": "United Kingdom",
       "IE": "Ireland",
-      "FR": "France",
-      "DE": "Germany",
-      "ES": "Spain",
-      "US": "US & Canada"
+      "US": "United States",
+      "CA": "Canada",
+      "AU": "Australia",
+      "NZ": "New Zealand"
     },
     "costsTitle": "Cost estimates",
     "costs": {

@@ -173,7 +173,7 @@ export function registerDepartmentRoutes(app: FastifyInstance, deps: AppDeps): v
       const { allowedCountries } = await getPlatformSpendSettings(deps.db);
       const phoneOf = (value: string | null, name: string) => {
         if (!value) return null;
-        const e164 = normalisePhone(value, tenant?.c ?? "GB");
+        const e164 = normalisePhone(value, tenant!.c);
         if (!e164)
           throw new HttpError(400, "INVALID_PHONE", `${name}: the phone number isn't valid`);
         const check = checkDestination(e164, allowedCountries);

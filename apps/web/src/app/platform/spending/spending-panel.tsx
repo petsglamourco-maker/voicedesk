@@ -47,7 +47,8 @@ export interface PlatformSpending {
 
 const CATEGORIES: SpendCategory[] = ["ai", "sms", "calls"];
 const PLAN_CHOICES = ["trial", "starter", "growth", "pro"] as const;
-const COUNTRIES = ["GB", "IE", "FR", "DE", "ES", "US"] as const;
+// The country packs (ADR 0031): keep in step with packages/compliance/src/countries.
+const COUNTRIES = ["GB", "IE", "US", "CA", "AU", "NZ"] as const;
 const COSTS = [
   "voicePencePerMinute",
   "phoneInboundPencePerMinute",

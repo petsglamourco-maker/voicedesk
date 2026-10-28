@@ -436,7 +436,7 @@ export function createDbAgentServices(
         const [tenant] = await tx((t) =>
           t.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
         );
-        const e164 = normalisePhone(to, tenant?.c ?? "GB");
+        const e164 = tenant ? normalisePhone(to, tenant.c) : null;
         if (!e164) return { sent: false, reason: "invalid" as const };
         to = e164;
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
@@ -494,7 +494,7 @@ export function createDbAgentServices(
         const [tenant] = await tx((t) =>
           t.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
         );
-        const e164 = normalisePhone(to, tenant?.c ?? "GB");
+        const e164 = tenant ? normalisePhone(to, tenant.c) : null;
         if (!e164) return { ok: false as const, reason: "invalid" as const };
         to = e164;
       }

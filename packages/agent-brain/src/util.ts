@@ -1,4 +1,9 @@
 import { randomInt } from "node:crypto";
+import {
+  getCountryCallingCode,
+  parsePhoneNumberFromString,
+  type CountryCode,
+} from "libphonenumber-js/max";
 
 // Excludes look-alikes (0/O, 1/I/L) so references are easy to read out and type.
 const REF_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -18,35 +23,25 @@ export function makeReference(businessName: string): string {
 }
 
 /**
- * Light phone normalisation to E.164 for a business country. Full libphonenumber
- * validation arrives with contacts (Phase 3).
+ * A phone number as typed (national or international) to E.164 for the business's country
+ * (ADR 0031: libphonenumber, every country pack). Lenient on purpose: a number of a
+ * possible length is accepted even if its range isn't in service yet; the send guard decides
+ * where calls and texts may go.
  */
 export function normalisePhone(raw: string, countryCode: string): string | null {
-  // nosemgrep: ajinabraham.njsscan.dos.regex_dos.regex_dos -- reviewed: anchored/bounded pattern without nested quantifiers: linear time
-  const digits = raw.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) return /^\+\d{8,15}$/.test(digits) ? digits : null;
-  if (digits.startsWith("00")) return normalisePhone(`+${digits.slice(2)}`, countryCode);
-  const prefix: Record<string, string> = {
-    GB: "44",
-    IE: "353",
-    FR: "33",
-    DE: "49",
-    ES: "34",
-    US: "1",
-  };
-  const cc = prefix[countryCode];
-  if (!cc) return null;
-  const national = digits.replace(/^0/, "");
-  const e164 = `+${cc}${national}`;
-  return /^\+\d{8,15}$/.test(e164) ? e164 : null;
+  const parsed = parsePhoneNumberFromString(raw.trim(), countryCode.toUpperCase() as CountryCode);
+  if (!parsed?.isPossible()) return null;
+  return parsed.number;
 }
 
-/** Digits grouped for reading back aloud, e.g. "07700 900 123". */
+/** Digits grouped the way people say them in that country, e.g. "07700 900123". */
 export function groupDigitsForReadback(e164: string, countryCode: string): string {
-  const national =
-    countryCode === "GB" && e164.startsWith("+44") ? `0${e164.slice(3)}` : e164.replace(/^\+/, "+");
-  const d = national.replace(/[^\d+]/g, "");
-  if (d.length === 11 && d.startsWith("0"))
-    return `${d.slice(0, 5)} ${d.slice(5, 8)} ${d.slice(8)}`;
-  return d.replace(/(\d{3})(?=\d)/g, "$1 ");
+  const parsed = parsePhoneNumberFromString(e164);
+  if (!parsed) return e164;
+  // Callers hear numbers from their own calling code in the national form, others in full.
+  const home = getCountryCallingCode(countryCode.toUpperCase() as CountryCode);
+  const formatted =
+    parsed.countryCallingCode === home ? parsed.formatNational() : parsed.formatInternational();
+  // Long runs are hard to say back: "900123" becomes "900 123".
+  return formatted.replace(/\d{6,}/g, (run) => run.replace(/(\d{3})(?=\d)/g, "$1 "));
 }

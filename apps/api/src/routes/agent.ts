@@ -261,7 +261,7 @@ export function registerAgentRoutes(app: FastifyInstance, deps: AppDeps): void {
       const { allowedCountries } = await getPlatformSpendSettings(deps.db);
       const phone = (value: string | null, label: string) => {
         if (!value) return null;
-        const e164 = normalisePhone(value, tenant?.c ?? "GB");
+        const e164 = normalisePhone(value, tenant!.c);
         if (!e164) throw new HttpError(400, "INVALID_PHONE", `The ${label} number isn't valid`);
         // Calls are transferred and texts sent to these numbers: no premium or foreign
         // destinations (security audit H3).

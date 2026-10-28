@@ -56,7 +56,8 @@ export function registerContactRoutes(app: FastifyInstance, deps: AppDeps): void
     const [t] = await withTenant(deps.db, tenantId, (tx) =>
       tx.select({ c: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
     );
-    return t?.c ?? "GB";
+    if (!t) throw notFound();
+    return t.c;
   }
 
   const editable = z.object({

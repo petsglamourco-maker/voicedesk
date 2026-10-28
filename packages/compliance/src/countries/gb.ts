@@ -4,6 +4,13 @@ import type { CountryConfig } from "./types";
 export const gb: CountryConfig = {
   code: "GB",
   name: "United Kingdom",
+  status: "launched",
+  currency: "GBP",
+  locale: "en-GB",
+  timezones: ["Europe/London"],
+  // Premium (09), shared-cost (084, 087), personal (070), 0118 and 076 pager ranges.
+  premiumPrefixes: ["+449", "+4487", "+4484", "+4470", "+44118", "+4476"],
+  premiumExceptions: ["+447624"], // Isle of Man mobiles
   emergencyNumbers: ["999", "112"],
 
   recording: {
@@ -26,8 +33,11 @@ export const gb: CountryConfig = {
     saturday: { start: "09:00", end: "17:00" },
     sunday: null,
     doNotCallRegister: { name: "TPS / CTPS", requiredForMarketing: true },
+    aiCalls: { callbacks: true, confirmations: true },
     needsLegalReview: true,
   },
+
+  sms: { registration: null },
 
   marketing: {
     electronicMarketingRequiresConsent: true, // PECR

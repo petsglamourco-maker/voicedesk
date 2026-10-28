@@ -17,6 +17,7 @@
     "@voicedesk/db": "workspace:*",
     "@voicedesk/knowledge": "workspace:*",
     "drizzle-orm": "0.45.4",
+    "libphonenumber-js": "1.13.15",
     "zod": "4.6.7"
   },
   "devDependencies": {

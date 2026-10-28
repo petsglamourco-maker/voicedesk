@@ -1,13 +1,41 @@
 import { Writable } from "node:stream";
 import pino from "pino";
 import { describe, expect, it } from "vitest";
-import { COUNTRIES, getCountryConfig } from "../src/countries";
+import { COUNTRIES, getCountryConfig, LAUNCHED_COUNTRY_CODES } from "../src/countries";
 import { loggerOptions } from "../src/logger";
 import { redactPii } from "../src/redact";
 
 describe("country configs", () => {
   it("require AI disclosure everywhere", () => {
     for (const config of Object.values(COUNTRIES)) expect(config.aiDisclosure.required).toBe(true);
+  });
+
+  it("every pack is complete; only the UK is launched in code (ADR 0031)", () => {
+    const emergency: Record<string, string> = {
+      GB: "999",
+      IE: "112",
+      US: "911",
+      CA: "911",
+      AU: "000",
+      NZ: "111",
+    };
+    for (const [code, config] of Object.entries(COUNTRIES)) {
+      expect(config.code).toBe(code);
+      expect(config.emergencyNumbers[0], code).toBe(emergency[code]);
+      expect(config.timezones.length, code).toBeGreaterThan(0);
+      for (const zone of config.timezones) {
+        expect(() => new Intl.DateTimeFormat("en", { timeZone: zone }), zone).not.toThrow();
+      }
+      expect(
+        config.premiumPrefixes.every((p) => /^\+\d+$/.test(p)),
+        code,
+      ).toBe(true);
+      expect(config.status, code).toBe(code === "GB" ? "launched" : "preview");
+      if (code !== "GB") expect(config.outbound.needsLegalReview, code).toBe(true);
+    }
+    expect(LAUNCHED_COUNTRY_CODES).toEqual(["GB"]);
+    expect(getCountryConfig("us").sms.registration).toBe("10dlc");
+    expect(getCountryConfig("US").outbound.aiCalls.confirmations).toBe(false);
   });
 
   it("looks up case-insensitively and rejects unsupported countries", () => {

@@ -5,6 +5,7 @@ import {
   spendOverview,
   spendStatus,
 } from "@voicedesk/agent-brain";
+import { SUPPORTED_COUNTRY_CODES } from "@voicedesk/compliance";
 import { can, recordAudit } from "@voicedesk/core";
 import {
   agentSettings,
@@ -59,10 +60,11 @@ const settingsSchema = z.object({
     usdToGbp: z.number().min(0.1).max(10),
   }),
   paused: z.object({ outboundCalls: z.boolean(), sms: z.boolean(), ai: z.boolean() }),
+  // ADR 0031: any country with a pack (its rules and premium-number blocks).
   allowedCountries: z
-    .array(z.enum(["GB", "IE", "FR", "DE", "ES", "US"]))
+    .array(z.string().refine((c) => SUPPORTED_COUNTRY_CODES.includes(c), "Unknown country"))
     .min(1)
-    .max(6),
+    .max(SUPPORTED_COUNTRY_CODES.length),
 });
 
 async function savedCaps(deps: AppDeps, tenantId: string) {
