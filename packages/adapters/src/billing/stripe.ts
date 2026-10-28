@@ -126,23 +126,29 @@ export class StripeBilling implements BillingProvider {
  */
 export async function ensureStripePrices(
   secretKey: string,
-  plans: Array<{ id: string; name: string; pricePence: number }>,
+  /** One entry per plan and currency; `key` names it in the result ("starter", "starter_usd"). */
+  plans: Array<{ id: string; key: string; name: string; amount: number; currency: string }>,
 ): Promise<Record<string, string>> {
   if (!/^(sk|rk)_test_/.test(secretKey)) {
     throw new Error("Use a Stripe test key (sk_test_...). Live prices are set up at launch.");
   }
   const stripe = new Stripe(secretKey, { timeout: 15_000 });
-  const keyFor = (id: string) => `voicedesk_${id}_monthly_v1`;
+  // GBP keeps its original lookup key, so existing test prices are reused.
+  const keyFor = (p: { id: string; currency: string }) =>
+    p.currency === "gbp"
+      ? `voicedesk_${p.id}_monthly_v1`
+      : `voicedesk_${p.id}_${p.currency}_monthly_v1`;
   const existing = await stripe.prices.list({
-    lookup_keys: plans.map((p) => keyFor(p.id)),
+    lookup_keys: plans.map((p) => keyFor(p)),
     active: true,
+    limit: 100,
   });
   const found = new Map(existing.data.map((price) => [price.lookup_key, price]));
   const result: Record<string, string> = {};
   for (const plan of plans) {
-    const have = found.get(keyFor(plan.id));
-    if (have && have.unit_amount === plan.pricePence && have.currency === "gbp") {
-      result[plan.id] = have.id;
+    const have = found.get(keyFor(plan));
+    if (have && have.unit_amount === plan.amount && have.currency === plan.currency) {
+      result[plan.key] = have.id;
       continue;
     }
     const product = await stripe.products.create({
@@ -151,16 +157,16 @@ export async function ensureStripePrices(
     });
     const price = await stripe.prices.create({
       product: product.id,
-      currency: "gbp",
-      unit_amount: plan.pricePence,
+      currency: plan.currency,
+      unit_amount: plan.amount,
       recurring: { interval: "month" },
       tax_behavior: "exclusive",
-      lookup_key: keyFor(plan.id),
+      lookup_key: keyFor(plan),
       // A changed price takes the lookup key from the old one.
       transfer_lookup_key: true,
       metadata: { planId: plan.id },
     });
-    result[plan.id] = price.id;
+    result[plan.key] = price.id;
   }
   return result;
 }

@@ -1,23 +1,27 @@
 import { BillingSignatureError, type BillingEvent } from "@voicedesk/adapters";
 import {
   can,
+  CURRENCIES,
   getPlanState,
+  isCurrency,
   PAID_PLANS,
   PLAN_FEATURES,
   PLAN_IDS,
   PLANS,
+  planPrice,
   recordAudit,
   TRIAL_DAYS,
   type PaidPlanId,
   type PlanId,
 } from "@voicedesk/core";
-import { stripeEvents, withPlatformAccess, withTenant } from "@voicedesk/db";
+import { findCountryConfig, type Currency } from "@voicedesk/compliance";
+import { stripeEvents, tenants, withPlatformAccess, withTenant } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
-import { setPlanByPlatform, syncSubscription, toPriceMap } from "../lib/billing";
+import { priceIdFor, setPlanByPlatform, syncSubscription, toPriceMap } from "../lib/billing";
 import { HttpError, notFound } from "../lib/errors";
 import { requireFreshAuth } from "../lib/fresh-auth";
 import { requireTenantAccess } from "./guards";
@@ -34,6 +38,9 @@ const planView = z.object({
   id: z.enum(PLAN_IDS),
   name: z.string(),
   pricePence: z.number(),
+  /** ADR 0031: the price in the business's own currency (minor units). */
+  price: z.number(),
+  currency: z.string(),
   minutes: z.number(),
   texts: z.number(),
   aiPence: z.number(),
@@ -62,16 +69,25 @@ const billingView = z.object({
 });
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
-const view = (id: PlanId) => {
+const view = (id: PlanId, currency: Currency = "GBP") => {
   const p = PLANS[id];
-  return { ...p, id, features: [...p.features] };
+  const price = id === "trial" ? 0 : planPrice(id, currency);
+  return { ...p, id, price, currency, features: [...p.features] };
 };
 
 export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void {
   const r = app.withTypeProvider<ZodTypeProvider>();
   const prices = toPriceMap(deps.billingPrices);
   const webOrigin = deps.webOrigin ?? "http://localhost:3000";
-  const ready = () => Boolean(deps.billing) && PAID_PLANS.every((plan) => prices[plan]);
+  const ready = (currency: Currency) =>
+    Boolean(deps.billing) && PAID_PLANS.every((plan) => priceIdFor(prices, plan, currency));
+  /** The currency a business pays in: its country's (ADR 0031). */
+  const currencyOf = async (tenantId: string): Promise<Currency> => {
+    const [row] = await withTenant(deps.db, tenantId, (tx) =>
+      tx.select({ country: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
+    );
+    return findCountryConfig(row?.country)?.currency ?? "GBP";
+  };
 
   // ADR 0030: the public website shows these, so its prices always match billing.
   r.get(
@@ -79,13 +95,20 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
     {
       schema: {
         tags: ["billing"],
-        summary: "The plans and prices (pence, excluding VAT) for the public website",
+        summary: "The plans and prices (minor units, excluding tax) for the public website",
+        querystring: z.object({ currency: z.string().default("GBP") }),
       },
     },
-    () => ({
-      trialDays: TRIAL_DAYS,
-      plans: PAID_PLANS.map((id) => view(id)),
-    }),
+    (request) => {
+      const wanted = request.query.currency.toUpperCase();
+      const currency: Currency = isCurrency(wanted) ? wanted : "GBP";
+      return {
+        trialDays: TRIAL_DAYS,
+        currency,
+        currencies: CURRENCIES,
+        plans: PAID_PLANS.map((id) => view(id, currency)),
+      };
+    },
   );
   const notSetUp = () => new HttpError(503, "BILLING_NOT_SET_UP", "Payments aren't set up yet.");
 
@@ -108,9 +131,10 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
       );
       const state = await getPlanState(deps.db, access.tenantId);
       const sub = state.subscription;
+      const currency = await currencyOf(access.tenantId);
       return {
         // Demo businesses have no members, so nobody sees this for them.
-        plan: view(state.plan.id === "demo" ? "trial" : state.plan.id),
+        plan: view(state.plan.id === "demo" ? "trial" : state.plan.id, currency),
         status: state.status,
         usable: state.usable,
         reason: state.reason,
@@ -124,11 +148,11 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
         cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
         pastDueSince: iso(sub?.pastDueSince),
         hasBillingAccount: Boolean(sub?.stripeCustomerId),
-        billingReady: ready(),
+        billingReady: ready(currency),
         canManage: can(access.role, "billing:manage"),
         plans: PAID_PLANS.map((id) => ({
-          ...view(id),
-          available: Boolean(deps.billing && prices[id]),
+          ...view(id, currency),
+          available: Boolean(deps.billing && priceIdFor(prices, id, currency)),
         })),
       };
     },
@@ -154,7 +178,8 @@ export function registerBillingRoutes(app: FastifyInstance, deps: AppDeps): void
       );
       await requireFreshAuth(deps.freshAuth, access.session.session.id);
       const planId: PaidPlanId = request.body.planId;
-      const priceId = prices[planId];
+      // The server picks the price in the business's own currency (ADR 0031).
+      const priceId = priceIdFor(prices, planId, await currencyOf(access.tenantId));
       if (!deps.billing || !priceId) throw notSetUp();
       const state = await getPlanState(deps.db, access.tenantId);
       const sub = state.subscription;

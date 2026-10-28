@@ -17,7 +17,7 @@ test("a new business is on the 14-day trial and can compare plans", async ({ pag
   }
   await expect(page.getByTestId("plan-starter").getByText("WhatsApp")).toHaveCount(0);
   await expect(page.getByTestId("plan-growth").getByText("WhatsApp")).toBeVisible();
-  await expect(page.getByText(/Prices exclude VAT/)).toBeVisible();
+  await expect(page.getByText(/Prices exclude tax/)).toBeVisible();
   // Without Stripe keys (dev), plans can't be bought yet.
   if (await page.getByTestId("billing-not-ready").isVisible()) {
     await expect(page.getByTestId("choose-growth")).toBeDisabled();

@@ -13,6 +13,11 @@ test("signed out, the home page explains the service, prices and savings", async
   await page.getByLabel("Hourly pay (£)").fill("14");
   await expect(saving).not.toHaveText("£27,361");
 
+  // ADR 0031: prices in the visitor's currency; the savings stay in pounds.
+  await page.getByTestId("currency-picker").getByRole("link", { name: "$ USD" }).click();
+  await expect(pricing).toContainText("$99");
+  await expect(page.getByTestId("saving")).toContainText("£");
+
   await page.getByRole("link", { name: "Start free trial" }).first().click();
   await expect(page).toHaveURL(/\/sign-up/);
 });

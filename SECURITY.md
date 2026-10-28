@@ -138,6 +138,8 @@ Email the security contact in [`/.well-known/security.txt`](apps/web/public/.wel
 - **LLM10 unbounded consumption:** monthly AI allowances; at the limit, a take-a-message mode with no model call ([message-only.ts](packages/agent-brain/src/message-only.ts)); 20 s timeouts on live turns; usage recorded per business.
 - **AI disclosure:** a fixed greeting that can't be switched off.
 
+**Destinations by country (ADR 0031):** calls and texts go only to allowed countries and never to premium-rate, shared-cost, personal or pager numbers (libphonenumber types plus each country pack's prefixes). +1 numbers are split by area code, so Caribbean numbers (a toll-fraud hotspot) are never treated as US or Canadian, and an unknown +1 number is refused. US texts wait for A2P 10DLC registration.
+
 **Voice typing (ADR 0027):** the browser streams microphone audio straight to Deepgram (already the call-audio processor) with a 30-second grant from `POST /api/tenants/:id/voice-typing/token`, which is members-only, rate-limited to 20 a minute, and honours both off switches and the AI allowance. The Deepgram key never reaches the browser; CSP `connect-src` allows only `wss://api.deepgram.com` for it. No audio or transcript is stored or logged.
 
 ### Data protection (ASVS V6, V8)

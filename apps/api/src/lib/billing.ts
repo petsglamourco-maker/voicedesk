@@ -1,5 +1,6 @@
 import type { BillingProvider, BillingSubscription } from "@voicedesk/adapters";
-import { isPlanId, PAID_PLANS, recordAudit, type PaidPlanId } from "@voicedesk/core";
+import type { Currency } from "@voicedesk/compliance";
+import { CURRENCIES, isPlanId, PAID_PLANS, recordAudit, type PaidPlanId } from "@voicedesk/core";
 import { subscriptions, tenants, withPlatformAccess, type Database } from "@voicedesk/db";
 import { eq } from "drizzle-orm";
 
@@ -10,16 +11,41 @@ import { eq } from "drizzle-orm";
  * are audited as the system.
  */
 
-export type PriceMap = Partial<Record<PaidPlanId, string>>;
+/**
+ * Stripe Price ids: "starter" (GBP, STRIPE_PRICE_STARTER) and "starter_usd" etc. for the other
+ * currencies (STRIPE_PRICE_STARTER_USD), ADR 0031.
+ */
+export type PriceMap = Record<string, string>;
+
+const priceKey = (plan: PaidPlanId, currency: Currency) =>
+  currency === "GBP" ? plan : `${plan}_${currency.toLowerCase()}`;
+
+export function priceIdFor(
+  prices: PriceMap,
+  plan: PaidPlanId,
+  currency: Currency,
+): string | undefined {
+  return prices[priceKey(plan, currency)];
+}
 
 export function planForPrice(prices: PriceMap, priceId: string | null): PaidPlanId | null {
   if (!priceId) return null;
-  return PAID_PLANS.find((plan) => prices[plan] === priceId) ?? null;
+  for (const plan of PAID_PLANS) {
+    for (const currency of CURRENCIES) {
+      if (prices[priceKey(plan, currency)] === priceId) return plan;
+    }
+  }
+  return null;
 }
 
 export function toPriceMap(raw: Record<string, string> | undefined): PriceMap {
   const prices: PriceMap = {};
-  for (const plan of PAID_PLANS) if (raw?.[plan]) prices[plan] = raw[plan];
+  for (const plan of PAID_PLANS) {
+    for (const currency of CURRENCIES) {
+      const key = priceKey(plan, currency);
+      if (raw?.[key]) prices[key] = raw[key];
+    }
+  }
   return prices;
 }
 

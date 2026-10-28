@@ -46,3 +46,7 @@ Everything keeps working for 7 days, and a banner asks you to update your card i
 
 - [Usage & limits](/t/:tenant/usage): what you've used this month against your plan.
 - [Team & roles](/t/:tenant/members): who can change the plan.
+
+## Prices in your currency
+
+You pay in your country's currency: pounds in the UK, euros in Ireland, and dollars in the US, Canada, Australia and New Zealand. Prices shown exclude tax (VAT, GST or sales tax).

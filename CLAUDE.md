@@ -62,6 +62,12 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
 - **Value report and review requests (ADR 0028): built.** A monthly "what your assistant did" email (1st, 08:00 local), a dashboard card with an estimated £ value from the business's average booking value, and public-review invitations after surveys.
 - **Instant demo (ADR 0029): built, off by default.** The public `/try` page builds a 24-hour demo business from a visitor's website, with chat and a 3-minute browser call. Platform admin → Demos has the switch, the daily limit, spend and leads. A live test costs a few pence: ask first.
 - **Public website (ADR 0030): built.** Signed-out visitors at `/` (and anyone at `/website`) see the **Ringwise** site (the name is on the website only, via `SITE_NAME` in `apps/web/src/components/site/brand.ts`). It covers features, how it works, a savings calculator against hiring a receptionist (`receptionistCost`), pricing from `GET /api/public/plans`, trust and FAQ. Privacy and terms pages are still needed before launch.
+- **Countries (ADR 0031): built.**
+  - Country packs exist for the UK (launched) and Ireland, the US, Canada, Australia and New Zealand (preview, awaiting legal review). Platform admin → Countries launches them.
+  - Phone numbers go through libphonenumber, with per-country premium blocks.
+  - US texts wait for 10DLC registration.
+  - AI-placed calls follow the customer's country windows and allowed call types; all-party countries get a consent line in the recording notice.
+  - Local-currency prices (`PLAN_PRICES`, `STRIPE_PRICE_<PLAN>_<CUR>`).
 - **Next:** the rest of Phase 7 (compliance hardening and launch). Evals for prompt 2026-10-26.2 ran on 2026-10-26 (41/54, 0 hard failures, $0.096); 2026-10-26.3 is a small follow-up not yet re-run.
 
 ## Layout
@@ -178,7 +184,7 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
 - `SMS_PROVIDER` (`mailpit` default; `twilio` / `telnyx` cost money; a list like `telnyx,twilio` falls back in order), `SMS_FROM`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TELNYX_API_KEY`, `TELNYX_MESSAGING_PROFILE_ID`
 - `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`: free Cloudflare bot check on the website chat and hosted forms (off while empty; ADR 0022)
 - `PASSWORD_BREACH_CHECK` (`on`), `TRUSTED_PROXIES` (`127.0.0.1,::1`)
-- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER|GROWTH|PRO`: billing (ADR 0023; off until set; test keys only before launch)
+- `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER|GROWTH|PRO` (GBP) and `STRIPE_PRICE_<PLAN>_EUR|USD|CAD|AUD|NZD` (ADR 0031): billing (ADR 0023; off until set; test keys only before launch; `pnpm billing:prices` prints them all)
 - `EXTRA_WEB_ORIGINS`: https home-network origins for phone testing (`pnpm mobile:lan`; validated, comma-separated)
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: push notifications (ADR 0024; off until set)
 - Voice (all optional; voice is off until they're set): `LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `DEEPGRAM_API_KEY`, `DEEPGRAM_TYPING_KEY` (Member role, voice typing), `ELEVENLABS_API_KEY`, `VOICE_AGENT_PORT` (4200), `SIP_ALLOWED_ADDRESSES` (optional CIDR allow-list for phone trunks)
@@ -298,6 +304,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - The demo key is `<tenantId>.<random>` in `X-Demo-Key`; only its hash is stored.
   - Tests pass `demoSettings` to the harness (`platform_settings` is shared) and `recordSourcesOnly` so no real site is crawled.
 - **Website claims** (ADR 0030): only built features, no invented statistics or certifications, and every figure marked as an estimate with its source. Prices come from `plans.ts` through `/api/public/plans`. Never write "data stays in the UK" (conversations go to AI providers abroad). Check the savings rates (NLW, NI, pension) each April.
+- **Countries** (ADR 0031):
+  - Never hard-code GB or a currency: read the business's pack (`getCountryConfig(tenant.countryCode)`), or `findCountryConfig(countryOfNumber(phone))` for the customer's.
+  - A new country = a pack in `packages/compliance/src/countries/` + tests + legal review + launch in Platform admin. Packs start `preview`.
+  - Parse phones only with `normalisePhone` / `countryOfNumber` (libphonenumber). +1 numbers are split into US / CA / Caribbean, and an unknown +1 is never guessed.
+  - Tests pass `countrySettings` to the harness and `countries` to `checkSend` (the platform row is shared).
 - **Review invitations** (ADR 0028) go to everyone who answers a survey, whatever the score. Never gate them on a good score (Google's policy, CMA guidance). `/api/public/review/:token` redirects only to the stored https link of an invited survey.
 - **Value report** numbers are data only: never invent "time saved" multipliers, and only show £ when the business has set `average_booking_pence`.
 - **Voice typing** (ADR 0027): add it to a field with a ref and `<MicButton target={ref} />`; it hides itself when either setting is off or Deepgram isn't configured. Tokens are minted only by `POST /api/tenants/:id/voice-typing/token` (settings, `aiPauseFor`, usage recorded); never send a Deepgram key to the browser, and never store or log the words.

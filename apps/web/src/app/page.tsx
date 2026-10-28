@@ -20,12 +20,13 @@ export const metadata: Metadata = {
  * Entry point. Signed in: straight to onboarding or the business. Signed out: the public
  * website (ADR 0030).
  */
-export default async function Home() {
+export default async function Home(props: { searchParams: Promise<{ currency?: string }> }) {
   const me = await getMe();
   if (me) {
     if (me.tenants.length === 0) redirect("/onboarding");
     const active = me.tenants.find((t) => t.tenantId === me.activeTenantId) ?? me.tenants[0]!;
     redirect(`/t/${active.tenantId}`);
   }
-  return <Website />;
+  const { currency } = await props.searchParams;
+  return <Website currency={currency} path="/" />;
 }

@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 };
 
 /** The public website, viewable even when signed in (until it has its own domain). */
-export default function WebsitePage() {
-  return <Website />;
+export default async function WebsitePage(props: { searchParams: Promise<{ currency?: string }> }) {
+  const { currency } = await props.searchParams;
+  return <Website currency={currency} path="/website" />;
 }

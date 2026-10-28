@@ -15,6 +15,7 @@ import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
+import { findCountryConfig } from "@voicedesk/compliance";
 import type { AppDeps } from "../app";
 import { HttpError, notFound } from "../lib/errors";
 import { requireSession, requireTenantAccess } from "./guards";
@@ -108,6 +109,9 @@ export function registerTenantRoutes(app: FastifyInstance, deps: AppDeps): void 
             permissions: z.array(z.enum(PERMISSIONS)),
             /** ADR 0027: show the microphone in text fields for this person here. */
             voiceTyping: z.boolean(),
+            /** ADR 0031: the business's currency and locale (from its country pack). */
+            currency: z.string(),
+            locale: z.string(),
           }),
         },
       },
@@ -126,6 +130,8 @@ export function registerTenantRoutes(app: FastifyInstance, deps: AppDeps): void 
         role: access.role,
         permissions: permissionsFor(access.role),
         voiceTyping: await voiceTypingOn(deps, access.tenantId, access.session.user.id),
+        currency: findCountryConfig(tenant.countryCode)?.currency ?? "GBP",
+        locale: findCountryConfig(tenant.countryCode)?.locale ?? "en-GB",
       };
     },
   );

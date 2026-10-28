@@ -37,6 +37,9 @@ import { SavingsCalculator, type SitePlan } from "./savings-calculator";
 import { receptionistCost, NATIONAL_LIVING_WAGE, FULL_TIME_HOURS } from "./savings";
 
 export interface PublicPlan extends SitePlan {
+  /** Monthly price in the chosen currency (minor units). */
+  price: number;
+  currency: string;
   minutes: number;
   texts: number;
   phoneNumbers: number;
@@ -44,12 +47,26 @@ export interface PublicPlan extends SitePlan {
   features: string[];
 }
 
-const pounds = (value: number) =>
-  new Intl.NumberFormat("en-GB", {
+const pounds = (value: number) => money(value, "GBP");
+
+/** Whole amounts in a currency, e.g. "£79", "$99", "A$149". */
+function money(value: number, currency: string): string {
+  return new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: "GBP",
+    currency,
     maximumFractionDigits: 0,
   }).format(Math.round(value));
+}
+
+/** Shown in the pricing currency picker (ADR 0031). */
+const CURRENCY_LABELS: Record<string, string> = {
+  GBP: "£ GBP",
+  EUR: "€ EUR",
+  USD: "$ USD",
+  CAD: "$ CAD",
+  AUD: "$ AUD",
+  NZD: "$ NZD",
+};
 
 const FEATURES: Array<{ key: string; icon: LucideIcon; color: string }> = [
   { key: "calls", icon: PhoneCall, color: "var(--color-ch-voice)" },
@@ -120,14 +137,25 @@ function IconChip(props: { icon: LucideIcon; color: string }) {
 }
 
 /** The public Ringwise website (ADR 0030): what it does, what it saves, what it costs. */
-export async function Landing(props: { plans: PublicPlan[]; trialDays: number; demos: boolean }) {
+export async function Landing(props: {
+  /** Plans in the visitor's chosen currency. */
+  plans: PublicPlan[];
+  /** Plans in pounds: the savings comparison is worked out for the UK. */
+  ukPlans: PublicPlan[];
+  currency: string;
+  currencies: string[];
+  /** The page the currency links point at ("/" or "/website"). */
+  path: string;
+  trialDays: number;
+  demos: boolean;
+}) {
   const t = await getTranslations("site");
   const name = SITE_NAME;
   const cheapest = props.plans.reduce<number | null>(
-    (min, p) => (min === null || p.pricePence < min ? p.pricePence : min),
+    (min, p) => (min === null || p.price < min ? p.price : min),
     null,
   );
-  const growth = props.plans.find((p) => p.id === "growth");
+  const growth = props.ukPlans.find((p) => p.id === "growth");
   const person = receptionistCost({
     hourlyPay: NATIONAL_LIVING_WAGE,
     hoursPerWeek: FULL_TIME_HOURS,
@@ -192,7 +220,10 @@ export async function Landing(props: { plans: PublicPlan[]; trialDays: number; d
             <span className="text-aurora">{t("hero.title")}</span>
           </h1>
           <p className="mt-5 max-w-2xl text-lg text-muted-foreground sm:text-xl">
-            {t("hero.lead", { name, price: cheapest === null ? "£29" : pounds(cheapest / 100) })}
+            {t("hero.lead", {
+              name,
+              price: cheapest === null ? "£29" : money(cheapest / 100, props.currency),
+            })}
           </p>
           <div className="mt-8 flex flex-wrap items-center gap-3">
             <Link
@@ -330,10 +361,16 @@ export async function Landing(props: { plans: PublicPlan[]; trialDays: number; d
           </div>
           <div className="mt-8">
             <SavingsCalculator
-              plans={props.plans.map((p) => ({ id: p.id, name: p.name, pricePence: p.pricePence }))}
+              plans={props.ukPlans.map((p) => ({
+                id: p.id,
+                name: p.name,
+                pricePence: p.pricePence,
+              }))}
             />
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">{t("savings.sources")}</p>
+          <p className="mt-4 text-xs text-muted-foreground">
+            {t("savings.sources")} {t("savings.ukOnly")}
+          </p>
         </Section>
 
         {/* Value beyond cost */}
@@ -356,6 +393,26 @@ export async function Landing(props: { plans: PublicPlan[]; trialDays: number; d
           title={t("pricing.title")}
           lead={t("pricing.lead", { days: props.trialDays })}
         >
+          <nav
+            aria-label={t("pricing.currency")}
+            className="mb-6 flex flex-wrap gap-2"
+            data-testid="currency-picker"
+          >
+            {props.currencies.map((code) => (
+              <Link
+                key={code}
+                href={`${props.path}?currency=${code}#pricing`}
+                aria-current={code === props.currency ? "true" : undefined}
+                scroll={false}
+                className={buttonVariants({
+                  variant: code === props.currency ? "primary" : "secondary",
+                  size: "sm",
+                })}
+              >
+                {CURRENCY_LABELS[code] ?? code}
+              </Link>
+            ))}
+          </nav>
           <ul className="grid gap-4 md:grid-cols-3" data-testid="pricing">
             {props.plans.map((plan) => {
               const popular = plan.id === "growth";
@@ -375,7 +432,7 @@ export async function Landing(props: { plans: PublicPlan[]; trialDays: number; d
                   </div>
                   <p className="mt-4">
                     <span className="tabular font-display text-4xl font-semibold">
-                      {pounds(plan.pricePence / 100)}
+                      {money(plan.price / 100, plan.currency)}
                     </span>
                     <span className="text-muted-foreground">{t("pricing.perMonth")}</span>
                   </p>

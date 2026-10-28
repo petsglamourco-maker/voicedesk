@@ -13,6 +13,7 @@ import {
   type Database,
 } from "@voicedesk/db";
 import { and, eq, gte, inArray, isNotNull, lt, ne, sql } from "drizzle-orm";
+import { findCountryConfig } from "@voicedesk/compliance";
 import { localDateString, zonedToUtc } from "./availability";
 import { feedbackStats } from "./feedback";
 import { toLang, type Lang } from "./languages";
@@ -386,6 +387,7 @@ export async function prepareValueReport(
     lang: toLang(data.settings?.adminLanguage, "en"),
     business: data.tenant.name,
     link: `${webOrigin}/t/${tenantId}`,
+    currency: findCountryConfig(data.tenant.countryCode)?.currency ?? "GBP",
   });
   const recipients = await db
     .select({ email: user.email })

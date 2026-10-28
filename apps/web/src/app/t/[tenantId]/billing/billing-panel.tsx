@@ -175,6 +175,7 @@ function PlanCard(p: {
   action: ReactNode;
 }) {
   const t = useTranslations("billing");
+  const format = useFormatter();
   return (
     <Card
       className={cn("flex flex-col", p.highlight && "ring-1 ring-primary/50")}
@@ -189,7 +190,11 @@ function PlanCard(p: {
         ) : null}
       </div>
       <p className="mt-2 font-display text-3xl font-semibold tabular-nums">
-        {p.pounds(p.plan.pricePence)}
+        {format.number(p.plan.price / 100, {
+          style: "currency",
+          currency: p.plan.currency,
+          maximumFractionDigits: p.plan.price % 100 === 0 ? 0 : 2,
+        })}
         <span className="ms-1 text-sm font-normal text-muted-foreground">{t("perMonth")}</span>
       </p>
       <ul className="mt-4 flex-1 space-y-2 text-sm">

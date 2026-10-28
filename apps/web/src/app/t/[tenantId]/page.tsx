@@ -564,7 +564,7 @@ export default async function TenantDashboard(props: {
                         ? "–"
                         : format.number(value.numbers.estimatedValuePence / 100, {
                             style: "currency",
-                            currency: "GBP",
+                            currency: detail.currency ?? "GBP",
                             maximumFractionDigits: 0,
                           }),
                     hint:

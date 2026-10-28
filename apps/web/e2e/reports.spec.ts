@@ -13,7 +13,7 @@ test("the dashboard shows this month's value; settings preview the report and ta
   await expect(card.getByText("Conversations handled")).toBeVisible();
 
   await page.goto(`/t/${tenantId}/agent`);
-  await page.getByLabel("Average booking value (£, optional)").fill("45");
+  await page.getByLabel("Average booking value (optional)").fill("45");
   await page.getByLabel("Your review page (optional)").fill("https://g.page/r/value-co/review");
   await page.getByRole("checkbox", { name: /leave a public review/ }).check();
   await page.getByRole("button", { name: "Save" }).last().click();
@@ -23,6 +23,6 @@ test("the dashboard shows this month's value; settings preview the report and ta
   await expect(page.getByTestId("value-report-preview")).toContainText("Conversations handled");
 
   await page.reload();
-  await expect(page.getByLabel("Average booking value (£, optional)")).toHaveValue("45");
+  await expect(page.getByLabel("Average booking value (optional)")).toHaveValue("45");
   await expect(page.getByRole("checkbox", { name: /leave a public review/ })).toBeChecked();
 });

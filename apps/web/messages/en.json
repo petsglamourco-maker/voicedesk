@@ -1654,7 +1654,7 @@
     "notReady": "Payments aren't switched on yet. Plans can be chosen once VoiceDesk's Stripe account is connected.",
     "checkoutDone": "Thank you! Your plan updates in a moment, once Stripe confirms the payment.",
     "checkoutCancelled": "No change made: the checkout was cancelled.",
-    "vatNote": "Prices exclude VAT. Card details are entered on Stripe's page and never reach VoiceDesk."
+    "vatNote": "Prices exclude tax (VAT, GST or sales tax). Card details are entered on Stripe's page and never reach VoiceDesk."
   },
   "pwa": {
     "offlineTitle": "You're offline",
@@ -1803,8 +1803,8 @@
     "hint": "Emails for owners and admins about what your assistant is doing. Free.",
     "monthly": "Send the monthly value report",
     "monthlyHint": "On the 1st of each month: what your assistant did last month (calls answered while you were closed, bookings made, messages taken) and what those bookings were worth.",
-    "average": "Average booking value (£, optional)",
-    "averageHint": "Used to estimate what the assistant's bookings were worth. Leave it empty to show counts only.",
+    "average": "Average booking value (optional)",
+    "averageHint": "In your own currency, e.g. 45. Used to estimate what the assistant's bookings were worth. Leave it empty to show counts only.",
     "preview": "Preview last month's report"
   },
   "tryDemo": {
@@ -2025,7 +2025,8 @@
         "missedResult": "If {name} turned just a quarter of those into bookings, that's about {amount} a month.",
         "missedHint": "Your numbers: we don't guess them for you."
       },
-      "sources": "Estimates for a UK employer in 2026/27: National Living Wage £12.71 an hour from April 2026 (GOV.UK); employer National Insurance 15% above £5,000 a year (HMRC); minimum employer pension 3% of qualifying earnings. Prices exclude VAT. Your own costs may differ."
+      "sources": "Estimates for a UK employer in 2026/27: National Living Wage £12.71 an hour from April 2026 (GOV.UK); employer National Insurance 15% above £5,000 a year (HMRC); minimum employer pension 3% of qualifying earnings. Prices exclude VAT. Your own costs may differ.",
+      "ukOnly": "Savings figures are worked out for a UK employer; other countries are coming."
     },
     "value": {
       "title": "More than a cheaper receptionist",
@@ -2052,7 +2053,7 @@
       "title": "Simple monthly plans",
       "lead": "Every plan includes the AI receptionist on calls and website chat. Start with a {days}-day free trial; no card needed.",
       "perMonth": "/month",
-      "exVat": "excluding VAT",
+      "exVat": "excluding tax",
       "popular": "Most popular",
       "minutes": "{n} call minutes a month",
       "texts": "{n} texts a month",
@@ -2061,7 +2062,8 @@
       "allFeatures": "WhatsApp, departments, follow-ups, feedback, daily brief, AI callbacks and the VA console",
       "coreFeatures": "Calls, website chat, email, bookings, messages and the monthly report",
       "choose": "Start free trial",
-      "allowance": "If you use up an allowance, your assistant keeps taking messages and we'll invite you to move up a plan. No surprise bills."
+      "allowance": "If you use up an allowance, your assistant keeps taking messages and we'll invite you to move up a plan. No surprise bills.",
+      "currency": "Currency"
     },
     "trust": {
       "title": "Honest, safe and in your control",

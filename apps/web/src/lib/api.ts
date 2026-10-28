@@ -66,6 +66,9 @@ export interface TenantDetail {
   permissions: string[];
   /** ADR 0027: show the microphone in text fields. */
   voiceTyping?: boolean;
+  /** ADR 0031: the business's currency and locale. */
+  currency?: string;
+  locale?: string;
 }
 
 export interface AuditEntry {
@@ -84,6 +87,9 @@ export interface BillingPlan {
   id: "trial" | "starter" | "growth" | "pro";
   name: string;
   pricePence: number;
+  /** ADR 0031: the monthly price in the business's own currency (minor units). */
+  price: number;
+  currency: string;
   minutes: number;
   texts: number;
   aiPence: number;

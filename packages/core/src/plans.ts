@@ -6,6 +6,7 @@ import {
   withTenant,
   type Database,
 } from "@voicedesk/db";
+import type { Currency } from "@voicedesk/compliance";
 import { and, eq, sql } from "drizzle-orm";
 
 /**
@@ -112,6 +113,35 @@ export const DEMO_PLAN: Plan = {
   seats: 0,
   features: [],
 };
+
+/** ADR 0031: what businesses pay in each country's currency. */
+export const CURRENCIES = [
+  "GBP",
+  "EUR",
+  "USD",
+  "CAD",
+  "AUD",
+  "NZD",
+] as const satisfies readonly Currency[];
+
+/**
+ * Monthly prices in minor units (pence, cents), excluding VAT/GST/sales tax. GBP matches
+ * `pricePence`. Set from measured unit costs (ADR 0031): carrier minutes in the US and
+ * Canada cost less than in the UK, so every currency stays profitable.
+ */
+export const PLAN_PRICES: Record<PaidPlanId, Record<Currency, number>> = {
+  starter: { GBP: 2900, EUR: 3500, USD: 3900, CAD: 4900, AUD: 5900, NZD: 6500 },
+  growth: { GBP: 7900, EUR: 8900, USD: 9900, CAD: 12900, AUD: 14900, NZD: 15900 },
+  pro: { GBP: 21900, EUR: 24900, USD: 27900, CAD: 35900, AUD: 39900, NZD: 42900 },
+};
+
+export function planPrice(planId: PaidPlanId, currency: Currency): number {
+  return PLAN_PRICES[planId][currency];
+}
+
+export function isCurrency(value: string): value is Currency {
+  return (CURRENCIES as readonly string[]).includes(value);
+}
 
 export const TRIAL_DAYS = 14;
 /** After a failed payment, the plan keeps working this long before AI pauses. */

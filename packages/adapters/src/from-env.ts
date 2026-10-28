@@ -126,6 +126,11 @@ export function billingPricesFromEnv(env: Env = process.env): Record<string, str
   for (const plan of ["starter", "growth", "pro"]) {
     const id = env[`STRIPE_PRICE_${plan.toUpperCase()}`];
     if (id) prices[plan] = id;
+    // ADR 0031: one price per currency, e.g. STRIPE_PRICE_STARTER_USD.
+    for (const currency of ["eur", "usd", "cad", "aud", "nzd"]) {
+      const local = env[`STRIPE_PRICE_${plan.toUpperCase()}_${currency.toUpperCase()}`];
+      if (local) prices[`${plan}_${currency}`] = local;
+    }
   }
   return prices;
 }
