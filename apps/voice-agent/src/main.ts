@@ -156,6 +156,11 @@ function resources() {
 }
 
 export default defineAgent({
+  // Load the database pool and the embeddings model while the process waits for a call, so a
+  // burst of calls doesn't each pay the start-up cost (or hit the start-up time limit).
+  prewarm: async () => {
+    await resources().embeddings;
+  },
   entry: async (ctx: JobContext) => {
     const job = parseJobMetadata(ctx.job.metadata);
     const resourcesNow = resources();
@@ -717,6 +722,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
         // Keep reconnecting (every 10 s) through internet or DNS drops instead of giving up
         // after ~90 s (the default 10 tries); a phone line must come back on its own.
         maxRetry: 100_000,
+        // Several callers at once: keep warm processes ready (LiveKit keeps none in dev mode),
+        // and give a cold one time to start rather than dropping the call after 10 s.
+        numIdleProcesses: Number(process.env.VOICE_IDLE_PROCESSES ?? 5),
+        initializeProcessTimeout: 60_000,
         // Health check: GET http://localhost:4200/ (this computer only).
         host: process.env.VOICE_AGENT_HOST ?? "127.0.0.1",
         port: Number(process.env.VOICE_AGENT_PORT ?? 4200),
