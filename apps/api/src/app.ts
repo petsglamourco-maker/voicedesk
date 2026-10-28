@@ -46,6 +46,7 @@ import { registerDepartmentRoutes } from "./routes/departments";
 import { registerGapAnswerRoutes } from "./routes/gap-answers";
 import { registerVoiceTypingRoutes } from "./routes/voice-typing";
 import { registerCountryRoutes } from "./routes/countries";
+import { registerNumberRoutes } from "./routes/numbers";
 import { registerDemoRoutes } from "./routes/demos";
 import { registerFeedbackRoutes } from "./routes/feedback";
 import { registerAssistantRoutes } from "./routes/assistant";
@@ -189,6 +190,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
   registerVoiceTypingRoutes(app, deps);
   registerDemoRoutes(app, deps);
   registerCountryRoutes(app, deps);
+  registerNumberRoutes(app, deps);
   registerCspReportRoute(app);
   registerFeedbackRoutes(app, deps);
   registerAssistantRoutes(app, deps);

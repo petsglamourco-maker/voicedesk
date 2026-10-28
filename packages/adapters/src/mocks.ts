@@ -134,11 +134,14 @@ export class MockCarrierNumbers implements CarrierNumbers {
   /** Numbers someone else bought since the search (buying them fails). */
   readonly taken = new Set<string>();
 
+  /** Different numbers per instance, so tests don't collide on a shared database. */
+  private readonly seed = String(Math.floor(Math.random() * 9000) + 1000);
+
   searchAvailable(query: NumberSearchQuery): Promise<AvailableNumber[]> {
-    const base = query.type === "mobile" ? "+447700900" : "+442382721";
+    const base = query.type === "mobile" ? `+447700${this.seed}` : `+442382${this.seed}`;
     return Promise.resolve(
       Array.from({ length: query.limit ?? 5 }, (_, i) => {
-        const e164 = `${base}${String(100 + i).padStart(3, "0")}`;
+        const e164 = `${base}${String(i).padStart(2, "0")}`;
         return { e164, friendly: e164, locality: query.locality ?? "Southampton" };
       }).filter((n) => !this.taken.has(n.e164)),
     );

@@ -3,6 +3,7 @@ import type {
   BillingProvider,
   PushProvider,
   VoiceTypingProvider,
+  CarrierNumbers,
   HumanCheck,
   LlmProvider,
   ObjectStorage,
@@ -18,6 +19,7 @@ import {
   billingPricesFromEnv,
   pushFromEnv,
   voiceTypingFromEnv,
+  carrierNumbersFromEnv,
   embeddingsFromEnv,
   humanCheckFromEnv,
   storageFromEnv,
@@ -39,6 +41,7 @@ import {
   type Database,
   type DemoSettings,
   type CountrySettings,
+  type NumberSettings,
 } from "@voicedesk/db";
 import {
   createAiQueue,
@@ -164,6 +167,10 @@ export interface Container {
   push?: PushProvider | null;
   /** ADR 0029: overrides the platform's demo settings (tests; the row is shared). */
   demoSettings?: DemoSettings;
+  /** ADR 0032: buying numbers from the carrier; null without Twilio keys. */
+  carrierNumbers?: CarrierNumbers | null;
+  /** ADR 0032: overrides the platform's number purchase settings (tests; the row is shared). */
+  numberSettings?: NumberSettings;
   /** ADR 0031: overrides the platform's country launches (tests; the row is shared). */
   countrySettings?: CountrySettings;
   /** Voice typing (ADR 0027); null until a Deepgram key that can create tokens is set. */
@@ -228,6 +235,7 @@ export async function createContainer(env: Env, repoRoot: string): Promise<Conta
     billingPrices: billingPricesFromEnv(),
     push: await pushFromEnv(),
     voiceTyping: await voiceTypingFromEnv(),
+    carrierNumbers: await carrierNumbersFromEnv(),
     rateLimitRedis: redis,
     trustedProxies: env.TRUSTED_PROXIES.split(",")
       .map((p) => p.trim())

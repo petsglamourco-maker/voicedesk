@@ -3,6 +3,7 @@ import { loadRootEnv } from "@voicedesk/config/load-env";
 import { buildApp } from "./app";
 import { createContainer } from "./container";
 import { parseEnv } from "./env";
+import { startNumberBuyer } from "./lib/number-buyer";
 import { startOutboundDialer } from "./lib/outbound-dialer";
 
 const envFile = loadRootEnv();
@@ -26,9 +27,22 @@ const stopDialer =
       })
     : () => undefined;
 
+// ADR 0032: buys numbers businesses ordered (only while Platform admin allows purchases).
+const stopNumberBuyer =
+  container.sip && container.carrierNumbers && process.env.TWILIO_VOICE_URL
+    ? startNumberBuyer({
+        db: container.db,
+        carrier: container.carrierNumbers,
+        sip: container.sip,
+        voiceUrl: process.env.TWILIO_VOICE_URL,
+        log: { info: (o, m) => app.log.info(o, m), warn: (o, m) => app.log.warn(o, m) },
+      })
+    : () => undefined;
+
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, "shutting down");
   stopDialer();
+  stopNumberBuyer();
   await app.close();
   await container.close();
   process.exit(0);

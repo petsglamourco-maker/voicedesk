@@ -12,8 +12,20 @@ export type PhoneNumberRow = typeof phoneNumbers.$inferSelect;
  */
 export async function registerPhoneNumber(
   deps: { db: Database; sip: SipGateway },
-  actorUserId: string,
-  params: { e164: string; tenantId: string; label?: string | null; carrier?: PhoneCarrier },
+  /** The platform owner, or null when the workers bought the number (ADR 0032). */
+  actorUserId: string | null,
+  params: {
+    e164: string;
+    tenantId: string;
+    label?: string | null;
+    carrier?: PhoneCarrier;
+    /** ADR 0032: numbers we bought for a business. */
+    bought?: {
+      carrierNumberId: string;
+      numberType: "local" | "mobile";
+      billing: "included" | "extra";
+    };
+  },
 ): Promise<PhoneNumberRow> {
   const actor = { actorUserId, reason: "register phone number" };
   const row = await withPlatformAccess(deps.db, actor, async (tx) => {
@@ -34,6 +46,13 @@ export async function registerPhoneNumber(
         e164: params.e164,
         label: params.label ?? null,
         provider: params.carrier ?? "twilio",
+        ...(params.bought
+          ? {
+              carrierNumberId: params.bought.carrierNumberId,
+              numberType: params.bought.numberType,
+              billing: params.bought.billing,
+            }
+          : {}),
       })
       .returning();
     return inserted!;

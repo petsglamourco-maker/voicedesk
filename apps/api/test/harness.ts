@@ -66,6 +66,8 @@ export async function createHarness(
     | "voiceTyping"
     | "demoSettings"
     | "countrySettings"
+    | "carrierNumbers"
+    | "numberSettings"
   > & {
     /** Record knowledge jobs without running them (e.g. demo websites that aren't real). */
     recordSourcesOnly?: boolean;
@@ -157,6 +159,8 @@ export async function createHarness(
     voiceTyping: options.voiceTyping ?? null,
     demoSettings: options.demoSettings,
     countrySettings: options.countrySettings,
+    carrierNumbers: options.carrierNumbers ?? null,
+    numberSettings: options.numberSettings,
     oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,
