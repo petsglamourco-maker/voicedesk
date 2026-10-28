@@ -1927,8 +1927,32 @@
           "text": "After a customer rates you, it invites them to leave a public review on your Google page."
         },
         "mobile": {
-          "title": "In your pocket",
-          "text": "An app for your phone: today's bookings, conversations and calls, with a notification when a customer needs you."
+          "title": "On your phone",
+          "text": "Add {name} to your home screen from the browser, with no app store needed: today's bookings, conversations and calls, plus a notification when a customer needs you."
+        },
+        "team": {
+          "title": "Your team, anywhere",
+          "text": "Staff or virtual assistants in any country answer and make calls from their browser with a headset, and customers see your business number. Calls the assistant hands over ring them first."
+        },
+        "callbacks": {
+          "title": "Calls customers back for you",
+          "text": "Asked for a callback? {name} rings them at a sensible time, and can phone to confirm tomorrow's bookings, always introducing itself as an AI."
+        },
+        "contacts": {
+          "title": "Knows your regulars",
+          "text": "Recognises returning callers, greets them by name and keeps their history together. Import your existing customer list in one go."
+        },
+        "assistant": {
+          "title": "Your back-office assistant",
+          "text": "Ask in plain English: \"What's booked tomorrow?\" or \"Draft a reply to the WhatsApp customer.\" It prepares the work; nothing happens until you approve."
+        },
+        "forms": {
+          "title": "Website forms answered",
+          "text": "Enquiries from your website form arrive in your inbox with a reply already drafted and the details recorded. Check it, then send with one click."
+        },
+        "learns": {
+          "title": "Gets smarter every week",
+          "text": "Questions it couldn't answer are grouped for you, with an answer drafted from your own documents. Approve it once and it knows it from then on."
         }
       }
     },
