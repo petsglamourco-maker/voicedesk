@@ -65,6 +65,7 @@ export async function createHarness(
     | "push"
     | "voiceTyping"
     | "demoSettings"
+    | "countrySettings"
   > & {
     /** Record knowledge jobs without running them (e.g. demo websites that aren't real). */
     recordSourcesOnly?: boolean;
@@ -155,6 +156,7 @@ export async function createHarness(
     push: options.push ?? null,
     voiceTyping: options.voiceTyping ?? null,
     demoSettings: options.demoSettings,
+    countrySettings: options.countrySettings,
     oauthStateSecret: oauthStateSecretFor(env),
     freshAuth: freshAuthStore(kv),
     kv,

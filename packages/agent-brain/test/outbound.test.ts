@@ -1,3 +1,4 @@
+import { getCountryConfig } from "@voicedesk/compliance";
 import { closeDb, conversationMessages, outboundCalls, withTenant } from "@voicedesk/db";
 import { connectTestDbs, createTestTenant, type TestDbs } from "@voicedesk/db/testing";
 import { eq } from "drizzle-orm";
@@ -20,6 +21,7 @@ describe("decideOutboundCall", () => {
     doNotCall: false,
     callsToday: 0,
     dailyCap: 20,
+    rules: getCountryConfig("GB").outbound,
   };
   const at = (iso: string) => new Date(iso);
 
@@ -54,6 +56,43 @@ describe("decideOutboundCall", () => {
     expect(
       decideOutboundCall({ ...base, now, purpose: "confirmation", bookingStillOn: false }),
     ).toMatchObject({ action: "cancel", reason: "booking no longer active" });
+  });
+});
+
+describe("calling windows per country (ADR 0031)", () => {
+  const base = {
+    timezone: "Europe/London",
+    purpose: "callback" as const,
+    enabled: { callbacks: true, confirmations: true },
+    doNotCall: false,
+    callsToday: 0,
+    dailyCap: 20,
+    rules: getCountryConfig("GB").outbound,
+  };
+
+  it("keeps to shorter Saturday hours and never calls on Sunday", () => {
+    // Saturday 24 Oct 2026, 18:00 BST: after the 17:00 Saturday close → Monday 08:00.
+    expect(decideOutboundCall({ ...base, now: new Date("2026-10-24T17:00:00Z") })).toEqual({
+      action: "later",
+      at: new Date("2026-10-26T08:00:00Z"),
+      reason: "after calling hours",
+    });
+    // Sunday 25 Oct 2026, 11:00 GMT: no calls → Monday 08:00 GMT.
+    expect(decideOutboundCall({ ...base, now: new Date("2026-10-25T11:00:00Z") })).toEqual({
+      action: "later",
+      at: new Date("2026-10-26T08:00:00Z"),
+      reason: "no calls on this day",
+    });
+  });
+
+  it("follows the customer's country: no AI confirmation calls in the US", () => {
+    const us = { ...base, timezone: "America/New_York", rules: getCountryConfig("US").outbound };
+    const now = new Date("2026-10-21T15:00:00Z"); // 11:00 in New York
+    expect(decideOutboundCall({ ...us, now }).action).toBe("call");
+    expect(decideOutboundCall({ ...us, now, purpose: "confirmation" })).toEqual({
+      action: "cancel",
+      reason: "not allowed in the customer's country",
+    });
   });
 });
 

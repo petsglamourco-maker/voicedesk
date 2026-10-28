@@ -62,3 +62,18 @@ describe("phone numbers in every country pack (ADR 0031)", () => {
     expect(groupDigitsForReadback("+447700900123", "US")).toBe("+44 7700 900 123");
   });
 });
+
+describe("recording notice in all-party countries (ADR 0031)", () => {
+  it("adds that staying on the line means agreeing", async () => {
+    const { openingGreeting, recordingNotice } = await import("../src/phrases");
+    expect(recordingNotice("en")).not.toContain("agree");
+    expect(recordingNotice("en", true)).toMatch(/recorded.*By staying on the line, you agree/);
+    const greeting = openingGreeting(
+      "en",
+      { business: "Glow", name: "Amelia", gender: "female" },
+      { recordingNotice: true, recordingConsent: true },
+    );
+    expect(greeting).toMatch(/AI assistant/);
+    expect(greeting.indexOf("AI")).toBeLessThan(greeting.indexOf("agree"));
+  });
+});

@@ -61,6 +61,8 @@ export function openingGreeting(
   options: {
     missed?: boolean;
     recordingNotice?: boolean;
+    /** All-party consent country: the notice says staying on the line means agreeing. */
+    recordingConsent?: boolean;
     menu?: string | null;
     /** Ring the team first: "Let me try the team for you" instead of the question. */
     ringFirst?: boolean;
@@ -72,7 +74,7 @@ export function openingGreeting(
     : full;
   const parts = [intro];
   if (options.missed) parts.push(MISSED[lang]);
-  if (options.recordingNotice) parts.push(RECORDING_NOTICE[lang]);
+  if (options.recordingNotice) parts.push(recordingNotice(lang, options.recordingConsent));
   parts.push(options.menu ?? (options.ringFirst ? TRY_TEAM[lang] : QUESTION[lang]));
   return parts.join(lang === "zh" ? "" : " ");
 }
@@ -86,8 +88,22 @@ const RECORDING_NOTICE: Record<Lang, string> = {
   ar: "للعلم، يتم تسجيل هذه المكالمة لأغراض الجودة والتدريب.",
 };
 
-export function recordingNotice(lang: Lang): string {
-  return RECORDING_NOTICE[lang];
+/**
+ * ADR 0031: where every party must agree to recording (all-party countries such as parts of
+ * the US and Australia), callers are told that staying on the line means agreeing.
+ */
+const RECORDING_CONSENT: Record<Lang, string> = {
+  en: "By staying on the line, you agree to the recording.",
+  es: "Si continúa en la llamada, acepta la grabación.",
+  fr: "En restant en ligne, vous acceptez l'enregistrement.",
+  de: "Wenn Sie in der Leitung bleiben, stimmen Sie der Aufzeichnung zu.",
+  zh: "继续通话即表示您同意录音。",
+  ar: "بالبقاء على الخط، فإنك توافق على التسجيل.",
+};
+
+export function recordingNotice(lang: Lang, allParty = false): string {
+  if (!allParty) return RECORDING_NOTICE[lang];
+  return `${RECORDING_NOTICE[lang]}${lang === "zh" ? "" : " "}${RECORDING_CONSENT[lang]}`;
 }
 
 /**

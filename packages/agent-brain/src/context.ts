@@ -20,6 +20,8 @@ export interface AgentContext {
   emergencyNumber: string;
   /** Calls are recorded, so voice greetings add a recording notice. */
   recordCalls?: boolean;
+  /** ADR 0031: the business's country needs every party to agree to recording. */
+  recordingAllParty?: boolean;
   /** Per-persona TTS voice overrides (see voices.ts for the defaults). */
   voiceIds?: Record<string, string>;
   /** What counts as urgent for this business (phone transfers to the on-call number). */

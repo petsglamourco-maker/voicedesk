@@ -35,6 +35,7 @@ const SCREENS = [
   "/platform/spending",
   "/platform/support",
   "/platform/demos",
+  "/platform/countries",
 ];
 const ROUTES = new Set([...SCREENS, "/onboarding", "/try"]);
 

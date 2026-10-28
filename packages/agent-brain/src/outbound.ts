@@ -10,6 +10,7 @@ import {
   withTenant,
   type Database,
 } from "@voicedesk/db";
+import type { CallingWindow, CountryConfig } from "@voicedesk/compliance";
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { localDateString, zonedToUtc } from "./availability";
 import type { AgentContext } from "./context";
@@ -26,8 +27,6 @@ import { initialState, type ConversationState } from "./state";
 export type OutboundPurpose = "callback" | "confirmation";
 export type OutboundCallRow = typeof outboundCalls.$inferSelect;
 
-/** Business-local hours for calls the assistant places (UK practice). */
-export const AI_CALL_HOURS = { from: "08:00", to: "21:00" } as const;
 /** Before trying again after no answer or voicemail. */
 export const RETRY_AFTER_MS = 2 * 3600 * 1000;
 
@@ -123,6 +122,30 @@ export type CallDecision =
   | { action: "cancel"; reason: string };
 
 /** Whether a due call may be placed now, should wait, or must not happen (pure; tested). */
+/** The calling window on a local date: weekdays, Saturday or Sunday (null = no calls). */
+function windowOn(date: string, rules: OutboundRules): CallingWindow | null {
+  const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return day === 0 ? rules.sunday : day === 6 ? rules.saturday : rules.weekdays;
+}
+
+/** The start of the next allowed calling window after the local date `from` (within a week). */
+function nextWindowStart(from: string, timezone: string, rules: OutboundRules): Date | null {
+  const d = new Date(`${from}T12:00:00Z`);
+  for (let i = 1; i <= 7; i++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const date = d.toISOString().slice(0, 10);
+    const window = windowOn(date, rules);
+    if (window) return zonedToUtc(date, window.start, timezone);
+  }
+  return null;
+}
+
+/** A country's rules for calls the assistant places (from its country pack, ADR 0031). */
+export type OutboundRules = Pick<
+  CountryConfig["outbound"],
+  "weekdays" | "saturday" | "sunday" | "aiCalls"
+>;
+
 export function decideOutboundCall(params: {
   now: Date;
   timezone: string;
@@ -132,12 +155,17 @@ export function decideOutboundCall(params: {
   callsToday: number;
   dailyCap: number;
   bookingStillOn?: boolean;
+  /** The customer's country rules: calling windows and which calls are allowed there. */
+  rules: OutboundRules;
 }): CallDecision {
-  const { now, timezone } = params;
+  const { now, timezone, rules } = params;
   if (params.doNotCall) return { action: "cancel", reason: "contact asked not to be phoned" };
   const on =
     params.purpose === "callback" ? params.enabled.callbacks : params.enabled.confirmations;
   if (!on) return { action: "cancel", reason: "switched off for this business" };
+  const allowed =
+    params.purpose === "callback" ? rules.aiCalls.callbacks : rules.aiCalls.confirmations;
+  if (!allowed) return { action: "cancel", reason: "not allowed in the customer's country" };
   if (params.purpose === "confirmation" && params.bookingStillOn === false) {
     return { action: "cancel", reason: "booking no longer active" };
   }
@@ -148,22 +176,20 @@ export function decideOutboundCall(params: {
     minute: "2-digit",
     hourCycle: "h23",
   }).format(now);
-  const tomorrow = new Date(`${today}T12:00:00Z`);
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  const nextMorning = zonedToUtc(tomorrow.toISOString().slice(0, 10), AI_CALL_HOURS.from, timezone);
-  if (time < AI_CALL_HOURS.from) {
+  const next = nextWindowStart(today, timezone, rules);
+  const later = (reason: string): CallDecision =>
+    next ? { action: "later", at: next, reason } : { action: "cancel", reason: "no calling hours" };
+  const window = windowOn(today, rules);
+  if (!window) return later("no calls on this day");
+  if (time < window.start) {
     return {
       action: "later",
-      at: zonedToUtc(today, AI_CALL_HOURS.from, timezone),
+      at: zonedToUtc(today, window.start, timezone),
       reason: "before calling hours",
     };
   }
-  if (time >= AI_CALL_HOURS.to) {
-    return { action: "later", at: nextMorning, reason: "after calling hours" };
-  }
-  if (params.callsToday >= params.dailyCap) {
-    return { action: "later", at: nextMorning, reason: "daily limit reached" };
-  }
+  if (time >= window.end) return later("after calling hours");
+  if (params.callsToday >= params.dailyCap) return later("daily limit reached");
   return { action: "call" };
 }
 
@@ -366,7 +392,9 @@ export async function createOutboundConversation(
       ? WHY_CONFIRM[lang](params.plan.booking.service, params.plan.booking.when)
       : WHY_CALLBACK[lang];
   const opening = OPENING[lang]({ name: ctx.personaName, business: ctx.businessName, why });
-  const spoken = ctx.recordCalls ? `${opening} ${recordingNotice(lang)}` : opening;
+  const spoken = ctx.recordCalls
+    ? `${opening} ${recordingNotice(lang, ctx.recordingAllParty)}`
+    : opening;
   state.history.push(
     { role: "user", content: "[Outbound call answered]" },
     { role: "system", content: `[Engine note] ${outboundNote(params.plan)}` },

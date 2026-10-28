@@ -32,7 +32,14 @@ import {
   type CalendarIntegrations,
   type ProviderSecrets,
 } from "@voicedesk/core";
-import { closeDb, createDb, withTenant, type Database, type DemoSettings } from "@voicedesk/db";
+import {
+  closeDb,
+  createDb,
+  withTenant,
+  type Database,
+  type DemoSettings,
+  type CountrySettings,
+} from "@voicedesk/db";
 import {
   createAiQueue,
   createEmailQueue,
@@ -157,6 +164,8 @@ export interface Container {
   push?: PushProvider | null;
   /** ADR 0029: overrides the platform's demo settings (tests; the row is shared). */
   demoSettings?: DemoSettings;
+  /** ADR 0031: overrides the platform's country launches (tests; the row is shared). */
+  countrySettings?: CountrySettings;
   /** Voice typing (ADR 0027); null until a Deepgram key that can create tokens is set. */
   voiceTyping?: VoiceTypingProvider | null;
   /** Valkey for the API's request limits, shared by every API process. */

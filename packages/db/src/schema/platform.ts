@@ -150,6 +150,14 @@ export const DEFAULT_PLATFORM_SPEND_SETTINGS: PlatformSpendSettings = {
   allowedCountries: ["GB"],
 };
 
+/** ADR 0031: which country packs are open for sign-ups beyond the UK, and texting set-up. */
+export interface CountrySettings {
+  /** Preview packs the platform owner launched after legal review. */
+  launched: string[];
+  /** Countries whose texting registration (US A2P 10DLC) is done, so texts may go there. */
+  smsRegistered: string[];
+}
+
 export interface DemoSettings {
   enabled: boolean;
   /** Demos a day, platform-wide (each costs a few pence of AI and voice). */
@@ -160,6 +168,11 @@ export interface DemoSettings {
 export const platformSettings = pgTable("platform_settings", {
   id: text("id").primaryKey().default("global"),
   spend: jsonb("spend").$type<PlatformSpendSettings>().notNull(),
+  /** ADR 0031: country launches and texting registration (beyond what code launches). */
+  countries: jsonb("countries")
+    .$type<CountrySettings>()
+    .notNull()
+    .default({ launched: [], smsRegistered: [] }),
   /** ADR 0029: instant demos on the public /try page (off until the owner switches them on). */
   demos: jsonb("demos").$type<DemoSettings>().notNull().default({ enabled: false, dailyLimit: 5 }),
   updatedBy: uuid("updated_by"),

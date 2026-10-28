@@ -6,6 +6,8 @@ import {
   getTenant,
   permissionsFor,
   PERMISSIONS,
+  getCountrySettings,
+  launchedCountries,
 } from "@voicedesk/core";
 import { auditLog, withTenant } from "@voicedesk/db";
 import { fromNodeHeaders } from "better-auth/node";
@@ -14,7 +16,7 @@ import type { FastifyInstance } from "fastify";
 import type { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import type { AppDeps } from "../app";
-import { notFound } from "../lib/errors";
+import { HttpError, notFound } from "../lib/errors";
 import { requireSession, requireTenantAccess } from "./guards";
 
 const tenantSchema = z.object({
@@ -56,6 +58,15 @@ export function registerTenantRoutes(app: FastifyInstance, deps: AppDeps): void 
     },
     async (request, reply) => {
       const session = await requireSession(deps.auth, request);
+      // ADR 0031: only launched countries (a pack in code isn't a launch).
+      const countries = deps.countrySettings ?? (await getCountrySettings(deps.db));
+      if (!launchedCountries(countries).includes(request.body.countryCode)) {
+        throw new HttpError(
+          400,
+          "COUNTRY_NOT_LAUNCHED",
+          "VoiceDesk isn't available in that country yet",
+        );
+      }
       const headers = fromNodeHeaders(request.headers);
       const org = await deps.auth.api.createOrganization({
         headers,

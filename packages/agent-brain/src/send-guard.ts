@@ -1,6 +1,13 @@
-import { tenants, withTenant, type Database, type PlatformSpendSettings } from "@voicedesk/db";
+import { getCountrySettings, textsAllowedTo } from "@voicedesk/core";
+import {
+  tenants,
+  withTenant,
+  type CountrySettings,
+  type Database,
+  type PlatformSpendSettings,
+} from "@voicedesk/db";
 import { eq } from "drizzle-orm";
-import { checkDestination } from "./destinations";
+import { checkDestination, countryOfNumber } from "./destinations";
 import { getPlatformSpendSettings, spendStatus } from "./spend";
 
 /**
@@ -9,7 +16,15 @@ import { getPlatformSpendSettings, spendStatus } from "./spend";
  * number is (allowed country, not premium-rate). Never send or dial around it.
  */
 
-export type SendRefusal = "paused" | "suspended" | "cap" | "invalid" | "country" | "premium";
+export type SendRefusal =
+  | "paused"
+  | "suspended"
+  | "cap"
+  | "invalid"
+  | "country"
+  | "premium"
+  /** ADR 0031: texts to a country that needs carrier registration first (US A2P 10DLC). */
+  | "unregistered";
 
 export type SendDecision = { ok: true } | { ok: false; reason: SendRefusal };
 
@@ -21,6 +36,8 @@ export async function checkSend(
     to: string;
     now?: Date;
     settings?: PlatformSpendSettings;
+    /** Country launches and texting registration (tests pass their own; the row is shared). */
+    countries?: CountrySettings;
   },
 ): Promise<SendDecision> {
   const settings = params.settings ?? (await getPlatformSpendSettings(db));
@@ -33,6 +50,12 @@ export async function checkSend(
   if (tenant?.status === "suspended") return { ok: false, reason: "suspended" };
   const destination = checkDestination(params.to, settings.allowedCountries);
   if (!destination.ok) return destination;
+  if (params.kind === "sms") {
+    const countries = params.countries ?? (await getCountrySettings(db));
+    if (!textsAllowedTo(countryOfNumber(params.to), countries)) {
+      return { ok: false, reason: "unregistered" };
+    }
+  }
   const spend = await spendStatus(db, params.tenantId, params.now ?? new Date(), settings);
   const category = params.kind === "sms" ? "sms" : "calls";
   if (spend.categories[category].state === "reached") return { ok: false, reason: "cap" };
@@ -54,6 +77,8 @@ export function sendRefusalMessage(reason: SendRefusal, kind: "sms" | "call"): s
       return `${what} to that country aren't allowed`;
     case "premium":
       return "Premium-rate and special-rate numbers can't be called or texted";
+    case "unregistered":
+      return "Texts to that country need carrier registration first (Platform admin → Countries)";
   }
 }
 

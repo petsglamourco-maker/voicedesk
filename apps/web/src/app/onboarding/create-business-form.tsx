@@ -8,15 +8,30 @@ import { useState, type FormEvent } from "react";
 import { authClient } from "@/lib/auth-client";
 import { LOCALES } from "@/i18n/locales";
 
-const COUNTRIES = ["GB"] as const;
+/** A launched country (ADR 0031): its own time zones come first in the list. */
+export interface OnboardingCountry {
+  code: string;
+  name: string;
+  timezones: string[];
+}
 
-export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
+export function CreateBusinessForm({
+  timeZones,
+  countries,
+}: {
+  timeZones: string[];
+  countries: OnboardingCountry[];
+}) {
   const t = useTranslations("onboarding");
   const languages = useTranslations("languages");
   const common = useTranslations("common");
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [countryCode, setCountryCode] = useState(countries[0]?.code ?? "GB");
+  const country = countries.find((c) => c.code === countryCode);
+  const local = country?.timezones ?? ["Europe/London"];
+  const others = timeZones.filter((tz) => !local.includes(tz));
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,12 +81,13 @@ export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
           <Select
             id="countryCode"
             name="countryCode"
-            defaultValue="GB"
+            value={countryCode}
+            onChange={(e) => setCountryCode(e.target.value)}
             aria-describedby="country-hint"
           >
-            {COUNTRIES.map((code) => (
-              <option key={code} value={code}>
-                {t(`countries.${code}`)}
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
               </option>
             ))}
           </Select>
@@ -92,12 +108,19 @@ export function CreateBusinessForm({ timeZones }: { timeZones: string[] }) {
       </div>
       <div>
         <Label htmlFor="timezone">{t("timezone")}</Label>
-        <Select id="timezone" name="timezone" defaultValue="Europe/London">
-          {timeZones.map((tz) => (
+        <Select id="timezone" name="timezone" key={countryCode} defaultValue={local[0]}>
+          {local.map((tz) => (
             <option key={tz} value={tz}>
               {tz.replaceAll("_", " ")}
             </option>
           ))}
+          <optgroup label={t("otherTimezones")}>
+            {others.map((tz) => (
+              <option key={tz} value={tz}>
+                {tz.replaceAll("_", " ")}
+              </option>
+            ))}
+          </optgroup>
         </Select>
       </div>
       <Button type="submit" size="lg" className="mt-2 w-full" disabled={pending}>

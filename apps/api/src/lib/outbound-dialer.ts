@@ -1,7 +1,9 @@
+import { findCountryConfig, getCountryConfig } from "@voicedesk/compliance";
 import { getPlanState, planAllows } from "@voicedesk/core";
 import {
   checkSend,
   claimDueOutboundCalls,
+  countryOfNumber,
   sendRefusalMessage,
   createOutboundConversation,
   decideOutboundCall,
@@ -45,9 +47,16 @@ export async function placeOutboundCall(
   const { db } = deps;
   const ctx = await outboundCallContext(db, call, now);
   const [found] = await withTenant(db, call.tenantId, (tx) =>
-    tx.select({ timezone: tenants.timezone }).from(tenants).where(eq(tenants.id, call.tenantId)),
+    tx
+      .select({ timezone: tenants.timezone, country: tenants.countryCode })
+      .from(tenants)
+      .where(eq(tenants.id, call.tenantId)),
   );
   const timezone = found?.timezone ?? "Europe/London";
+  // ADR 0031: the customer's country decides calling hours and which calls are allowed.
+  const rules = (
+    findCountryConfig(countryOfNumber(call.phone)) ?? getCountryConfig(found?.country ?? "GB")
+  ).outbound;
   // AI calls are a plan feature (ADR 0023); without it, the calls are cancelled.
   const planned = planAllows(await getPlanState(db, call.tenantId, now), "ai_calls");
   const decision = decideOutboundCall({
@@ -61,6 +70,7 @@ export async function placeOutboundCall(
     doNotCall: ctx.contact?.doNotCall === true,
     callsToday: ctx.callsToday,
     dailyCap: ctx.settings?.outboundDailyCap ?? 20,
+    rules,
     bookingStillOn: ctx.booking
       ? ctx.booking.status !== "cancelled" && ctx.booking.startsAt > now
       : undefined,

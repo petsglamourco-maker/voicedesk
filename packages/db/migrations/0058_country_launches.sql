@@ -1,0 +1,1 @@
+ALTER TABLE "platform_settings" ADD COLUMN "countries" jsonb DEFAULT '{"launched":[],"smsRegistered":[]}'::jsonb NOT NULL;

@@ -649,8 +649,11 @@ export async function loadAgentContext(
   const persona = getPersona(settings?.personaId ?? "amelia");
   const profile = await getApprovedProfile(db, tenantId);
   let emergencyNumber = "112";
+  let recordingAllParty = false;
   try {
-    emergencyNumber = getCountryConfig(tenant.countryCode).emergencyNumbers[0] ?? "112";
+    const pack = getCountryConfig(tenant.countryCode);
+    emergencyNumber = pack.emergencyNumbers[0] ?? "112";
+    recordingAllParty = pack.recording.consentModel === "all-party";
   } catch {
     // unsupported country: 112 works across Europe and on most mobile networks
   }
@@ -665,6 +668,7 @@ export async function loadAgentContext(
     style,
     emergencyNumber,
     recordCalls: settings?.recordCalls ?? false,
+    recordingAllParty,
     voiceIds: settings?.voiceIds ?? {},
     urgentSituations: settings?.urgentSituations ?? null,
     menu: await loadMenu(db, tenantId),

@@ -180,6 +180,7 @@ export function startConversation(
         {
           missed: options.entry === "forwarded" || options.entry === "backup",
           recordingNotice: options.recordingNotice,
+          recordingConsent: ctx.recordingAllParty,
           menu,
           ringFirst: options.ringFirst && !menu,
         },
