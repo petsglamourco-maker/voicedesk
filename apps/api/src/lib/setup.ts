@@ -9,6 +9,7 @@ export interface SetupItem {
     | "ai"
     | "voice"
     | "voiceTyping"
+    | "autoNumbers"
     | "phone"
     | "email"
     | "sms"
@@ -86,6 +87,12 @@ export function setupStatus(env: NodeJS.ProcessEnv, ai: { enabledReady: number }
     item(
       "voiceTyping",
       env.DEEPGRAM_TYPING_KEY || env.DEEPGRAM_API_KEY ? [] : ["DEEPGRAM_TYPING_KEY"],
+      true,
+    ),
+    // ADR 0032: buying numbers for businesses (Twilio keys plus the TwiML Bin URL).
+    item(
+      "autoNumbers",
+      lacking(env, ["TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_VOICE_URL"]),
       true,
     ),
     item("phone", [...livekit, ...lacking(env, ["SIP_AUTH_USERNAME", "SIP_AUTH_PASSWORD"])], true),

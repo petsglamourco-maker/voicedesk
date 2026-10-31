@@ -68,6 +68,7 @@ Multi-tenant AI receptionist / customer-support / virtual-assistant platform. Th
   - US texts wait for 10DLC registration.
   - AI-placed calls follow the customer's country windows and allowed call types; all-party countries get a consent line in the recording notice.
   - Local-currency prices (`PLAN_PRICES`, `STRIPE_PRICE_<PLAN>_<CUR>`).
+- **Automatic numbers (ADR 0032): built; buying is off by default.** Businesses on a paid plan send their details for Twilio's check, then pick a number and it's bought and routed. Extra numbers are a Stripe add-on (£5 local, £8 mobile). The switch, daily limit and per-business ceiling are in Platform admin → Phone numbers. Live use needs `TWILIO_VOICE_URL` (a TwiML Bin dialling `{{To}}`).
 - **Next:** the rest of Phase 7 (compliance hardening and launch). Evals for prompt 2026-10-26.2 ran on 2026-10-26 (41/54, 0 hard failures, $0.096); 2026-10-26.3 is a small follow-up not yet re-run.
 
 ## Layout
@@ -304,6 +305,11 @@ Tests need the Docker infra running. They use the separate `voicedesk_test` data
   - The demo key is `<tenantId>.<random>` in `X-Demo-Key`; only its hash is stored.
   - Tests pass `demoSettings` to the harness (`platform_settings` is shared) and `recordSourcesOnly` so no real site is crawled.
 - **Website claims** (ADR 0030): only built features, no invented statistics or certifications, and every figure marked as an estimate with its source. Prices come from `plans.ts` through `/api/public/plans`. Never write "data stays in the UK" (conversations go to AI providers abroad). Check the savings rates (NLW, NI, pension) each April.
+- **Automatic numbers** (ADR 0032):
+  - Numbers are bought only by `processNumberOrders` (API, every 5 minutes) behind `platform_settings.numbers.autoBuy`, the daily limit and the per-business ceiling. Never buy from a request handler.
+  - Paid plans only (`requirePaidPlan`); extras go on the Stripe bill **before** the order (`setAddOnQuantity`), and quantities are set to what's in use, never blindly incremented.
+  - Keep `carrier_number_id` so a number can be released. `number_identities.details` is personal data: don't log it.
+  - Tests use `MockCarrierNumbers`, `numberSettings` in the harness, and fresh numbers (the test database keeps rows between runs).
 - **Countries** (ADR 0031):
   - Never hard-code GB or a currency: read the business's pack (`getCountryConfig(tenant.countryCode)`), or `findCountryConfig(countryOfNumber(phone))` for the customer's.
   - A new country = a pack in `packages/compliance/src/countries/` + tests + legal review + launch in Platform admin. Packs start `preview`.

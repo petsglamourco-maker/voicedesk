@@ -169,6 +169,8 @@ describe("planImport", () => {
     const started = Date.now();
     const plan = planImport(rows, { fullName: 0, phone: 1 }, "GB");
     expect(plan.rows).toHaveLength(5000);
-    expect(Date.now() - started).toBeLessThan(1000);
+    // Real phone validation (libphonenumber, ADR 0031) costs ~40 µs a number: ~0.2 s here,
+    // more when every test suite runs in parallel.
+    expect(Date.now() - started).toBeLessThan(2000);
   });
 });

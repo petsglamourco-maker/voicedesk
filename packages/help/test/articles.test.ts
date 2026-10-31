@@ -27,6 +27,7 @@ const SCREENS = [
   "/t/:tenant/today",
   "/t/:tenant/departments",
   "/t/:tenant/account",
+  "/t/:tenant/numbers",
   "/va",
   "/platform/setup",
   "/platform/ai",

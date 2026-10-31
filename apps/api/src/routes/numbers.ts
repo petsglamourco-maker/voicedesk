@@ -74,7 +74,7 @@ export function registerNumberRoutes(app: FastifyInstance, deps: AppDeps): void 
       tx.select({ country: tenants.countryCode }).from(tenants).where(eq(tenants.id, tenantId)),
     );
     const country = row?.country ?? "GB";
-    return { country, currency: (findCountryConfig(country)?.currency ?? "GBP") };
+    return { country, currency: findCountryConfig(country)?.currency ?? "GBP" };
   };
   const manage = async (request: FastifyRequest, tenantId: string, spends: boolean) => {
     const access = await requireTenantAccess(deps, request, tenantId, "billing:manage");

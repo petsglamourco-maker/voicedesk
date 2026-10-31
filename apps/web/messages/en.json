@@ -113,7 +113,8 @@
     "usage": "Usage & limits",
     "billing": "Plan & billing",
     "today": "Today",
-    "departments": "Departments & menu"
+    "departments": "Departments & menu",
+    "numbers": "Phone numbers"
   },
   "roles": {
     "owner": "Owner",
@@ -1367,6 +1368,11 @@
         "unlocks": "A microphone in text fields (Ask VoiceDesk, Inbox replies, search) so people can speak instead of type. About $0.008 a minute.",
         "how": "Deepgram console → API Keys: create a key with the Member role and put it in .env as DEEPGRAM_TYPING_KEY (the call key can stay as it is). Restart VoiceDesk."
       },
+      "autoNumbers": {
+        "name": "Automatic numbers",
+        "unlocks": "Businesses on a paid plan pick their own phone numbers in the app; VoiceDesk buys and connects them. About £0.87 a month per local number.",
+        "how": "Twilio keys plus TWILIO_VOICE_URL (your TwiML Bin, changed to dial the called number) in .env. Then switch on purchases under Phone numbers."
+      },
       "phone": {
         "name": "Phone calls",
         "unlocks": "Customers ringing a business's phone number and reaching the assistant.",
@@ -2136,6 +2142,88 @@
     "alwaysOpen": "Always open",
     "texting": "Texting registration done",
     "textingHint": "US business texts need carrier registration (A2P 10DLC) at Twilio or Telnyx first. Until it's ticked, VoiceDesk won't send texts to US numbers and sends emails instead.",
+    "save": "Save",
+    "saved": "Saved."
+  },
+  "numbers": {
+    "title": "Phone numbers",
+    "subtitle": "Your assistant's phone numbers. On a paid plan, pick a number here and it's set up for you.",
+    "paidOnly": "Your own number comes with a paid plan. Until then, forward your existing number to the assistant or try it in the test console.",
+    "seePlans": "See plans",
+    "notSetUp": "Getting numbers in the app isn't switched on yet. Contact support and we'll set one up for you.",
+    "yours": "Your numbers",
+    "allowance": "{used} in use · {included} included in your plan · {extra} extra",
+    "none": "No numbers yet.",
+    "off": "Off",
+    "releasesOn": "Released on {date} unless you restart your plan",
+    "release": "Give up number",
+    "releaseTitle": "Give up this number?",
+    "releaseConfirm": "{number} will stop working and go back to the phone company. You can't get it back.",
+    "cancel": "Cancel",
+    "billing": {
+      "included": "Included",
+      "extra": "Extra",
+      "manual": "Set up by VoiceDesk"
+    },
+    "order": {
+      "waiting_review": "Waiting for the carrier's check",
+      "buying": "Setting up",
+      "active": "Active",
+      "failed": "Couldn't be set up",
+      "cancelled": "Cancelled"
+    },
+    "reason": {
+      "review_rejected": "The carrier couldn't verify your business details",
+      "plan_not_paid": "Your plan isn't active",
+      "allowance_used": "Your plan's numbers are in use",
+      "business_ceiling": "You have the most numbers allowed",
+      "no_number_available": "That number and nearby ones were taken; please pick another",
+      "routing_failed": "We couldn't connect the number; we've been told",
+      "no_review": "Send your business details first"
+    },
+    "get": "Get a number",
+    "getHint": "Choose a local number for your area, or a mobile number (07…) that can also send texts.",
+    "type": "Number type",
+    "typeLocal": "Local (area code)",
+    "typeMobile": "Mobile (07…)",
+    "whyDetails": "Phone companies check every business before giving it a number. Send your details once; the check usually takes 1–3 working days, and you can pick your number now.",
+    "rejected": "The carrier couldn't verify your details: {reason}. Please check them and send again.",
+    "f": {
+      "businessName": "Registered business name",
+      "registrationNumber": "Company number (Companies House)",
+      "website": "Website",
+      "phone": "Contact phone",
+      "firstName": "Contact first name",
+      "lastName": "Contact last name",
+      "email": "Contact email",
+      "street": "Business address",
+      "city": "Town or city",
+      "region": "County (optional)",
+      "postalCode": "Postcode"
+    },
+    "sendDetails": "Send details for checking",
+    "pending": "Your details are with the carrier for checking. Pick a number now: it's set up as soon as the check is done.",
+    "approved": "Your business is verified. Pick a number and it's set up within a few minutes.",
+    "area": "Area code or town",
+    "areaPlaceholder": "e.g. 023 or Southampton",
+    "search": "Find numbers",
+    "choose": "Choose a number",
+    "includedNote": "Included in your plan.",
+    "extraNote": "This is an extra number: {price} a month, added to your plan's bill.",
+    "getThis": "Get this number",
+    "addExtra": "Add extra number",
+    "extraConfirmTitle": "Add an extra number?",
+    "extraConfirm": "It costs {price} a month on your plan's bill, from today. You can give it up any time.",
+    "prices": "Extra numbers: {local} a month for a local number, {mobile} for a mobile number, plus your plan."
+  },
+  "numberPurchases": {
+    "title": "Automatic number purchases",
+    "hint": "Businesses on a paid plan pick numbers in the app; VoiceDesk buys them from Twilio once the carrier has checked the business, and connects them. Each number costs about £0.87 a month (local) or £1.89 (mobile), plus calls.",
+    "notSetUp": "Needs the Twilio keys and TWILIO_VOICE_URL in .env (your TwiML Bin, changed to dial the called number; see Help), then a restart.",
+    "autoBuy": "Buy numbers automatically",
+    "autoBuyHint": "Off: orders wait here and nothing is bought. Every purchase is logged.",
+    "dailyLimit": "Numbers bought per day (all businesses)",
+    "perBusiness": "Most numbers per business",
     "save": "Save",
     "saved": "Saved."
   }

@@ -47,6 +47,10 @@ Everything keeps working for 7 days, and a banner asks you to update your card i
 - [Usage & limits](/t/:tenant/usage): what you've used this month against your plan.
 - [Team & roles](/t/:tenant/members): who can change the plan.
 
+## Extra phone numbers
+
+Your plan includes 1 phone number (2 on Pro). Add more under [Phone numbers](/t/:tenant/numbers): £5 a month for a local number and £8 for a mobile number, on the same bill.
+
 ## Prices in your currency
 
 You pay in your country's currency: pounds in the UK, euros in Ireland, and dollars in the US, Canada, Australia and New Zealand. Prices shown exclude tax (VAT, GST or sales tax).

@@ -99,6 +99,7 @@ export default async function TenantLayout(props: {
           ? [
               { href: `${base}/usage`, label: t("usage"), icon: "usage" as const },
               { href: `${base}/billing`, label: t("billing"), icon: "billing" as const },
+              { href: `${base}/numbers`, label: t("numbers"), icon: "numbers" as const },
             ]
           : []),
         { href: `${base}/account`, label: t("account"), icon: "account" },

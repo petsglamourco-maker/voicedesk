@@ -22,6 +22,7 @@ import {
   UsersRound,
   type LucideIcon,
   type LucideProps,
+  PhoneCall,
 } from "lucide-react";
 
 /** WhatsApp's official glyph (brand icons aren't part of Lucide); drawn in its brand green. */
@@ -64,6 +65,7 @@ export type NavIcon =
   | "members"
   | "usage"
   | "billing"
+  | "numbers"
   | "account";
 
 export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
@@ -88,5 +90,6 @@ export const NAV_ICONS: Record<NavIcon, LucideIcon | typeof WhatsAppIcon> = {
   members: UsersRound,
   usage: Gauge,
   billing: CreditCard,
+  numbers: PhoneCall,
   account: UserCog,
 };

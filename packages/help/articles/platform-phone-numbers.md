@@ -24,6 +24,16 @@ This is the simplest way and is how the first live number was set up.
 5. Back in VoiceDesk, fill in **Number (international format)** (for example +44 7700 900123), the **Business**, the **Carrier** and an optional **Label**, then click **Add number**.
 6. Call the number.
 
+## Automatic numbers for businesses
+
+Businesses on a paid plan can pick numbers themselves under **Phone numbers**. VoiceDesk sends their details for Twilio's check, buys the number once it's approved and connects it.
+
+1. Change your TwiML Bin to dial the called number, so one bin serves every number: in the SIP address, put `{{To}}` where the phone number is, for example `sip:{{To}}@your-livekit-sip-host;transport=tcp`.
+2. Copy the bin's URL into `.env` as `TWILIO_VOICE_URL` and restart.
+3. Here, under **Automatic number purchases**, tick **Buy numbers automatically** and set the daily limit and the most numbers per business. While it's off, orders wait and nothing is bought.
+
+Each number costs about £0.87 a month (local) or £1.89 (mobile) at Twilio, plus calls. Businesses pay £5 or £8 a month for extra numbers.
+
 ## Twilio - transfers and outgoing calls (Elastic SIP Trunking)
 
 Putting callers through to a phone number, the assistant's own calls and VAs dialling out need a Twilio Elastic SIP trunk:

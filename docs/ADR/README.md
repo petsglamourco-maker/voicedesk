@@ -35,5 +35,6 @@ One short file per significant decision. Statuses: Proposed → Accepted → Sup
 | [0029](0029-instant-demo.md)                       | Instant demo on /try                                  | Accepted           |
 | [0030](0030-public-website.md)                     | The public website (Ringwise)                         | Accepted           |
 | [0031](0031-country-packs.md)                      | Country packs, Wave 1 and local-currency pricing      | Accepted           |
+| [0032](0032-automatic-numbers.md)                  | Automatic phone numbers and paid extra numbers        | Accepted           |
 
 Template: Context → Decision → Alternatives (optional) → Consequences.
